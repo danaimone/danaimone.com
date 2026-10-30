@@ -1,0 +1,8 @@
+Use your built-in image generation tool (imagegen skill, built-in mode) to create ONE image, then copy the generated PNG into the current working directory as ./icons.png. Do not write code or any other files. Reply with just the saved path.
+
+Use case: stylized-concept
+Asset type: icon sprite set for a pixel-art portfolio website
+Subject: one horizontal row of 6 separate square pixel-art icons, evenly spaced, identical size, each about 32 art pixels tall. In order: (1) a closed mail envelope, warm peach; (2) the LinkedIn logo, the lowercase "in" on a blue rounded square; (3) the GitHub Octocat mark silhouette, soft white on nothing, instantly recognizable; (4) the Instagram camera logo, a rounded square outline with a circle and dot, in a pink-to-purple-to-orange gradient reduced to pixel bands; (5) the X logo, a bold white stylized X; (6) a document page with a folded corner, soft lavender-white.
+Style/medium: polished 16-bit era pixel art by a professional pixel artist. Crisp and readable at small size, hard edges only, no anti-aliasing, no blur, limited palette, selective dark outline, a 2-tone highlight lit from the upper left. Faithful to each real logo's shape, re-drawn in pixels.
+Background: a perfectly flat solid #FF00FF magenta background filling everything outside the icons. No ground, no shadows.
+Avoid: extra words, labels, numbers, frame borders, grid lines, any magenta inside the icons.

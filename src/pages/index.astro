@@ -1,0 +1,206 @@
+---
+import CareerWalk from "../components/game/CareerWalk.svelte";
+import { EMAIL, elsewhere, experience, resume } from "../data/resume";
+import "@fontsource-variable/instrument-sans/wdth.css";
+import "@fontsource-variable/pixelify-sans/index.css";
+import "../styles/global.css";
+
+const badges: [name: string, label: string, href: string, external: boolean][] = [
+  ["email", "Email", `mailto:${EMAIL}`, false],
+  ["linkedin", "LinkedIn", "https://linkedin.com/in/danaimone", true],
+  ["github", "GitHub", "https://github.com/danaimone", true],
+  ["pdf", "PDF", "/resume.pdf", false],
+];
+
+const title = "Dan Aimone | Software Engineer";
+const description =
+  "Dan Aimone is a software engineer in Seattle, building agentic AI products at Vannevar. Previously Atlassian, Chewy, and Pacific Northwest National Laboratory.";
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#11111b" />
+    <meta property="og:type" content="profile" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content="https://danaimone.com/" />
+    <meta property="og:image" content="https://danaimone.com/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Dan Aimone's pixel-art avatar and his Samoyed walking under Mount Rainier at golden hour." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="canonical" href="https://danaimone.com/" />
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/favicon-192.png" />
+    <noscript><style>.walk{height:100svh}.walk-timeline,.walk-hint{display:none}</style></noscript>
+  </head>
+  <body>
+    <a class="skip-link" href="#resume">Skip to the résumé</a>
+    <header class="masthead">
+      <a class="wordmark" href="/" aria-label="Dan Aimone, home">
+        <img src="/images/avatar-mark.png" alt="" width="66" height="66" />
+      </a>
+      <nav aria-label="Sections">
+        <a href="#resume">Résumé</a>
+        <a class="nav-about" href="#about">About</a>
+        <a href="#contact">Contact</a>
+      </nav>
+    </header>
+
+    <main>
+      <CareerWalk client:load />
+
+      <div class="resume" id="resume" tabindex="-1">
+        <article class="sheet">
+          <header class="sheet-head">
+            <div>
+              <h2 class="sheet-name">Dan Aimone</h2>
+              <p class="sheet-role">Software Engineer, Seattle</p>
+            </div>
+            <nav class="badges" aria-label="Links">
+              {badges.map(([name, label, href, external]) => (
+                <a class={`badge is-${name}`} href={href} rel={external ? "me noopener" : undefined} target={name === "pdf" ? "_blank" : undefined}>
+                  <span class="badge-icon"><img src={`/game/icons/${name}.png`} alt="" width="36" height="36" /></span>
+                  <span class="badge-label">{label}</span>
+                </a>
+              ))}
+            </nav>
+          </header>
+
+          <section aria-labelledby="experience-title">
+            <h3 class="sheet-head-label" id="experience-title">Experience</h3>
+            <ol class="log">
+              {experience.map(({ id, company, roles }) => (
+                <li class={`entry is-${id}`}>
+                  <span class="mark">
+                    <img src={`/game/logos/${id}.png`} alt="" width="28" height="28" loading="lazy" />
+                  </span>
+                  <div class="entry-body">
+                    <h4>{company}</h4>
+                    {roles.map((role) => (
+                      <div class="role">
+                        <div class="role-line">
+                          <h5>{role.title}</h5>
+                          <p class="years">{role.years}</p>
+                        </div>
+                        <ul class="bullets">
+                          {role.bullets.map((bullet) => <li>{bullet}</li>)}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </section>
+
+          <div class="sheet-foot">
+            <section aria-labelledby="education-title">
+              <h3 class="sheet-head-label" id="education-title">Education</h3>
+              <p class="school">{resume.education.school}</p>
+              <p class="degree">{resume.education.degree} {resume.education.field}</p>
+              <p class="years">{resume.education.place}</p>
+            </section>
+            <section aria-labelledby="skills-title">
+              <h3 class="sheet-head-label" id="skills-title">Skills</h3>
+              <dl class="skills">
+                {resume.skills.map(([label, items]) => (
+                  <div>
+                    <dt class="pixel">{label}</dt>
+                    <dd>{items}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          </div>
+        </article>
+
+        <div class="after">
+          <section id="about" tabindex="-1" aria-labelledby="about-title">
+            <h2 class="sheet-head-label" id="about-title">About</h2>
+            <div class="about">
+              <img class="about-avatar" src="/images/avatar.png" alt="Dan’s pixel-art avatar" width="2084" height="2084" loading="lazy" />
+              <div class="prose">
+                <p>
+                  I’m an AI-native, product-minded engineer who works across the
+                  stack, at my best where interface design meets the systems
+                  behind it. I’ve built tools at a national lab, large-scale
+                  products at Atlassian and Chewy, and now agentic AI at
+                  Vannevar.
+                </p>
+                <p>
+                  I can help you build AI products, or anything else that needs
+                  to work well. I live in Seattle with my Samoyed, Mishka. I run
+                  a homelab, play guitar and piano, lift, read, and take photos.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section id="contact" tabindex="-1" aria-labelledby="contact-title">
+            <h2 class="sheet-head-label" id="contact-title">Contact</h2>
+            <div class="contact">
+              <p data-seattle-time hidden></p>
+              <a class="email" href={`mailto:${EMAIL}`}>{EMAIL}</a>
+              <div class="email-row">
+                <button type="button" class="copy" data-copy-email={EMAIL}>
+                  <span aria-live="polite">Copy email</span>
+                </button>
+                <ul class="elsewhere" aria-label="Elsewhere">
+                  {elsewhere.map(([label, href]) => (
+                    <li>
+                      <a href={href} rel="me noopener" aria-label={label} title={label}>
+                        <img src={`/game/icons/${label === "X" ? "x" : label.toLowerCase()}.png`} alt="" width="36" height="36" loading="lazy" />
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <footer class="colophon">
+      <p>© {new Date().getFullYear()} Dan Aimone</p>
+      <p>Built with Astro, Svelte, and canvas.</p>
+    </footer>
+
+    <script>
+      import "../scripts/pixel-wipe";
+
+      const clock = document.querySelector<HTMLElement>("[data-seattle-time]");
+      const format = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/Los_Angeles",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+      function showTime() {
+        if (!clock) return;
+        clock.textContent = `It’s ${format.format(new Date()).toLowerCase()} in Seattle.`;
+        clock.hidden = false;
+      }
+      showTime();
+      setInterval(showTime, 30000);
+
+      const copy = document.querySelector<HTMLButtonElement>("[data-copy-email]");
+      copy?.addEventListener("click", async () => {
+        const label = copy.querySelector("span")!;
+        try {
+          await navigator.clipboard.writeText(copy.dataset.copyEmail!);
+          label.textContent = "Copied";
+          setTimeout(() => (label.textContent = "Copy email"), 2400);
+        } catch {
+          location.href = `mailto:${copy.dataset.copyEmail}`;
+        }
+      });
+    </script>
+  </body>
+</html>

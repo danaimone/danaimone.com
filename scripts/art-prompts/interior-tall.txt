@@ -1,0 +1,9 @@
+Use your built-in image generation tool (imagegen skill, built-in mode) to create ONE image, then copy the generated PNG into the current working directory as ./interior-tall.png. Do not write code or any other files. Reply with just the saved path.
+
+Use case: stylized-concept
+Asset type: portrait 9:16 finale scene for phones in a pixel-art portfolio game, flat 2D room view
+Input images: Image 1 (style-ref.png) is the character reference. Image 2 (mishka.png) is the dog reference. Image 3 (interior.png) is the room to match exactly in style, palette, and furnishings.
+Subject: the same warm log cabin interior at night, recomposed for a tall narrow frame. Bottom half: the man sits at his wooden desk with a glowing monitor and steaming coffee, and directly in front of him on a rug the Samoyed is curled up asleep beside a stone fireplace with a lit fire. Both the man and the dog are fully in frame. Upper half: log wall with a bookshelf, a guitar hanging on the wall, and a window showing snowy Mount Rainier and a crescent moon. Keep the top quarter calm because a text card overlays it.
+Style/medium: the same polished 16-bit pixel art as Image 3, hard edges, no blur. Fills the whole frame. Avoid: text, logos, extra people.
+
+

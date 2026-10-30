@@ -1,0 +1,1 @@
+export const phone = "(555) 555-5555";

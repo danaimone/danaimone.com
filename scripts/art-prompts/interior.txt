@@ -1,0 +1,9 @@
+Use your built-in image generation tool (imagegen skill, built-in mode) to create ONE image, then copy the generated PNG into the current working directory as ./interior.png. Do not write code or any other files. Reply with just the saved path.
+
+Use case: stylized-concept
+Asset type: full-screen finale scene for a side-scrolling pixel-art portfolio game, flat 2D side-on room view
+Input images: Image 1 (style-ref.png) is the character and style reference: use the same man, same art-pixel size, same palette approach. Image 2 (mishka.png) is the dog reference.
+Subject: the warm interior of a small Pacific Northwest log cabin at night, seen straight on like a dollhouse cutaway, wide 16:9 composition. The man from Image 1 sits at a wooden desk near the center-right, side view, working at a computer with a softly glowing monitor, a steaming coffee mug beside him. The Samoyed from Image 2 is curled up asleep on a rug in front of a stone fireplace with a lit fire on the right. Around the room: an acoustic guitar on a stand, a small upright piano, a tall bookshelf full of books, a barbell with weight plates on a floor rack in a corner, a camera on a shelf, a wooden DIY workbench corner with a few tools. A large window on the left shows a snowy Mount Rainier and a crescent moon in a starry night sky. Warm amber lamplight and firelight, cozy log walls, wood plank floor.
+Composition: keep the upper-left wall area and window calm and uncluttered, because a text card overlays it. The man's desk and the fireplace sit in the lower half.
+Style/medium: polished 16-bit era pixel art by a professional pixel artist. Hard edges only, no anti-aliasing, no blur, limited rich palette, selective dark outlines. This image fills the whole frame with no transparent or magenta areas.
+Avoid: text, letters, numbers, logos, screens with readable text, extra people, frame borders.
