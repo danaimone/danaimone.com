@@ -8,13 +8,13 @@ layer's box, so nothing outside a layer can move.
     build-room.py ~/danaimone-art public/game src/components/game/room-layouts.json
 """
 import json
+import math
 import sys
 from collections import deque
 from pathlib import Path
 
 from PIL import Image, ImageColor
 
-DIFF = 34
 GRID = 4 / 3
 PALETTE_COLORS = 160
 
@@ -24,13 +24,20 @@ def on_grid(*values):
 
 
 ROOMS = {
-    "wide": {"size": (853, 480), "fire": on_grid(529, 156, 589, 231), "hands": on_grid(345, 170, 415, 200), "dog": on_grid(450, 210, 590, 285), "window": on_grid(24, 16, 280, 180), "fireFloorRank": 0.5, "bench": {"file": "bench-102.png", "at": (28, 272), "cleared": [((96, 300, 123, 348), (78, 96)), ((123, 288, 141, 348), (142, 154))]}, "fireSeed": 51, "sleepSeed": 91, "railTop": 289, "lakeSeed": (263, 225), "hazel": [((46, 41), "#a07a2e"), ((47, 40), "#7d8a42"), ((47, 41), "#7d8a42")], "face": ("face-wide-64.png", (448, 150)), "city": (198, 192, 312, 214), "lake": (226, 213, 300, 241), "revised": [(450, 143, 512, 217), (676, 409, 772, 458), (786, 230, 853, 345)]},
-    "tall": {"size": (480, 853), "fire": on_grid(295, 356, 338, 443), "hands": on_grid(120, 365, 195, 395), "dog": on_grid(170, 440, 325, 515), "window": on_grid(22, 135, 178, 300), "fireFloorRank": 0.75, "fireSeed": 52, "sleepSeed": 92, "railTop": 572, "lakeSeed": (142, 368), "hazel": [((43, 29), "#a07a2e"), ((44, 29), "#a07a2e"), ((45, 29), "#7d8a42"), ((45, 30), "#7d8a42"), ((45, 31), "#7d8a42")], "face": ("face-tall-61.png", (108, 400)), "city": (103, 335, 178, 362), "lake": (112, 356, 172, 382), "revised": [(110, 403, 170, 460), (358, 772, 442, 822), (420, 505, 480, 665)]},
+    "wide": {"size": (853, 480), "fire": on_grid(529, 156, 589, 231), "hands": on_grid(345, 170, 415, 200), "dog": on_grid(450, 210, 590, 285), "window": on_grid(24, 16, 280, 180), "fireFloorRank": 0.5, "typeSeed": 111, "handArea": (46, 8, 70, 25), "fireSeed": 51, "railTop": 289, "lakeSeed": (263, 225), "hazel": [((46, 41), "#a07a2e"), ((47, 40), "#7d8a42"), ((47, 41), "#7d8a42")], "face": ("face-wide-64.png", (448, 150)), "city": (198, 192, 312, 214), "lake": (226, 213, 300, 241), "revised": [(450, 143, 512, 217), (676, 409, 772, 458), (786, 230, 853, 345), (0, 186, 152, 366), (505, 228, 648, 262)]},
+    "tall": {"size": (480, 853), "fire": on_grid(295, 356, 338, 443), "hands": on_grid(120, 365, 195, 395), "dog": on_grid(170, 440, 325, 515), "window": on_grid(22, 135, 178, 300), "fireFloorRank": 0.99, "emberFade": True, "typeSeed": 112, "handArea": (24, 9, 52, 26), "fireSeed": 52, "railTop": 572, "lakeSeed": (142, 368), "hazel": [((43, 29), "#a07a2e"), ((44, 29), "#a07a2e"), ((45, 29), "#7d8a42"), ((45, 30), "#7d8a42"), ((45, 31), "#7d8a42")], "face": ("face-tall-61.png", (108, 400)), "city": (103, 335, 178, 362), "lake": (112, 356, 172, 382), "revised": [(110, 403, 170, 460), (358, 772, 442, 822), (420, 505, 480, 665), (0, 464, 68, 664), (170, 486, 333, 525)]},
 }
 FIRE_FRAMES = 8
 LOG_MIN_LIGHT = 66
-TYPE_FRAMES = 4
+TYPE_POSES = (1, 2, 5, 6, 7)
+HAND_CHANGE = 30
 SLEEP_FRAMES = 8
+BREATH_PIXELS = 3
+RIB_SPAN = (0.24, 0.62)
+RIB_DEPTH = 26
+FIRE_WALL_MARGIN = 6
+WALL_MAX_LIGHT = 150
+EMBER_FADE = [(232, 117, 31), (214, 92, 26), (184, 72, 26), (150, 56, 22), (122, 46, 20)]
 STAR_GAP = 4
 SIDE_CORNER_DROP = 2
 MIN_LAKE_SPAN = 6
@@ -142,9 +149,23 @@ def fixed_logs(plate, box):
     return logs, top
 
 
-def is_mauve(color):
+def is_flame(color):
     r, g, b = color
-    return r > 110 and b >= g * 0.85 and r - b < 75
+    return r > 150 and g > 60 and r - b > 100
+
+
+def fade_into_embers(out, left, plate, x0, y0, width, height, rail_top):
+    """Soften the flat base baked into the tall frames, over dark wall only."""
+    px = plate.load()
+    for x in range(width):
+        column = [y for y in range(height) if out[left + x, y][3] and is_flame(out[left + x, y][:3])]
+        if not column:
+            continue
+        for depth, color in enumerate(EMBER_FADE):
+            y = max(column) + 1 + depth
+            if y + y0 >= rail_top or y >= height or sum(px[x + x0, y + y0]) > WALL_MAX_LIGHT or out[left + x, y][3]:
+                break
+            out[left + x, y] = color + (255,)
 
 
 def fire_strip(art, name, plate, spec):
@@ -166,25 +187,30 @@ def fire_strip(art, name, plate, spec):
                 behind_rail = y + y0 >= spec["railTop"]
                 if point in keep or behind_rail or (y + y0 >= floor and point not in logs):
                     continue
-                color = (first if point in logs else raw)[x, y]
-                if not is_mauve(color):
-                    out[index * width + x, y] = color + (255,)
+                if y + y0 >= top.get(x + x0, y1):
+                    out[index * width + x, y] = first[x, y] + (255,)
+                elif x >= FIRE_WALL_MARGIN and is_flame(raw[x, y]):
+                    out[index * width + x, y] = raw[x, y] + (255,)
+        if spec.get("emberFade"):
+            fade_into_embers(out, index * width, plate, x0, y0, width, height, spec["railTop"])
     return strip
 
 
-def layer_strip(frames, plate, box, palette_image):
-    x0, y0, x1, y1 = box
+def typing_strip(art, name, spec):
+    """PixelLab fingers only: pixels outside the hand, or unchanged, stay on the plate."""
+    x0, y0, x1, y1 = spec["hands"]
+    hx0, hy0, hx1, hy1 = spec["handArea"]
     width, height = x1 - x0, y1 - y0
-    strip = Image.new("RGBA", (width * len(frames), height))
+    load = lambda i: Image.open(art / "pixellab" / f"type-{name}-{spec['typeSeed']}-{i}.png").convert("RGB")
+    first = load(0).load()
+    strip = Image.new("RGBA", (width * len(TYPE_POSES), height))
     out = strip.load()
-    base = plate.load()
-    for index, frame in enumerate(frames):
-        mapped = frame.quantize(palette=palette_image, dither=Image.Dither.NONE).convert("RGB").load()
-        raw = frame.load()
-        for y in range(y0, y1):
-            for x in range(x0, x1):
-                if sum(abs(a - b) for a, b in zip(raw[x, y], base[x, y])) > DIFF:
-                    out[index * width + x - x0, y - y0] = mapped[x, y] + (255,)
+    for index, pose in enumerate(TYPE_POSES):
+        frame = load(pose).load()
+        for y in range(hy0, hy1):
+            for x in range(hx0, hx1):
+                if sum(abs(a - b) for a, b in zip(frame[x, y], first[x, y])) > HAND_CHANGE:
+                    out[index * width + x, y] = frame[x, y] + (255,)
     return strip
 
 
@@ -205,24 +231,34 @@ def largest_region(points):
     return best
 
 
-def sleeping_strip(art, name, plate, spec):
-    """PixelLab's breathing loop, limited to Mishka so the rug stays still."""
+def sleeping_strip(plate, spec):
+    """Swell the fur over Mishka's ribs on a breathing curve; head and tail never move."""
     x0, y0, x1, y1 = spec["dog"]
     px = plate.load()
     fur = largest_region({
         (x, y) for y in range(y0, y1) for x in range(x0, x1)
         if px[x, y][0] > 190 and px[x, y][1] > 165 and px[x, y][2] > 110
     })
-    mask = {(x + dx, y + dy) for x, y in fur for dx in range(-3, 4) for dy in range(-3, 4)}
+    left, right = min(p[0] for p in fur), max(p[0] for p in fur)
+    rib_start = left + (right - left) * RIB_SPAN[0]
+    rib_end = left + (right - left) * RIB_SPAN[1]
+    tops = {}
+    for x, y in fur:
+        tops[x] = min(y, tops.get(x, y))
     width, height = x1 - x0, y1 - y0
     strip = Image.new("RGBA", (width * SLEEP_FRAMES, height))
     out = strip.load()
     for index in range(SLEEP_FRAMES):
-        frame = Image.open(art / "pixellab" / f"sleep-{name}-{spec['sleepSeed']}-{index}.png").convert("RGB").load()
-        for y in range(height):
-            for x in range(width):
-                if (x + x0, y + y0) in mask:
-                    out[index * width + x, y] = frame[x, y] + (255,)
+        inhale = math.sin(math.pi * index / SLEEP_FRAMES) ** 2
+        for x in range(math.ceil(rib_start), math.floor(rib_end) + 1):
+            top = tops.get(x)
+            bell = math.sin(math.pi * (x - rib_start) / (rib_end - rib_start))
+            lift = round(BREATH_PIXELS * bell * inhale)
+            if top is None or lift == 0:
+                continue
+            for y in range(top - lift, top + RIB_DEPTH):
+                source = top + (y - top + lift) * RIB_DEPTH // (RIB_DEPTH + lift)
+                out[index * width + x - x0, y - y0] = px[x, source] + (255,)
     return strip
 
 
@@ -288,24 +324,12 @@ def lake_spans(plate, box, seed):
     return spans
 
 
-def replace_bench(master, art, bench):
-    px = master.load()
-    for (x0, y0, x1, y1), (clean_start, clean_end) in bench["cleared"]:
-        for y in range(y0, y1):
-            for x in range(x0, x1):
-                px[x, y] = px[clean_start + (x - x0) % (clean_end - clean_start), y]
-    sprite = Image.open(art / "pixellab" / bench["file"]).convert("RGBA")
-    master.paste(sprite.convert("RGB"), bench["at"], sprite.getchannel("A"))
-
-
 def build(art, out, name, spec):
     size = spec["size"]
     master = sampled(art / f"master-{name}.locked.png", size)
-    revision = sampled(art / f"master-{name}5.png", size)
+    revision = sampled(art / f"master-{name}7.png", size)
     for area in spec["revised"]:
         master.paste(revision.crop(area), area[:2])
-    if "bench" in spec:
-        replace_bench(master, art, spec["bench"])
     face_file, face_at = spec["face"]
     face = Image.open(art / "pixellab" / face_file).convert("RGBA")
     for point, color in spec["hazel"]:
@@ -323,10 +347,9 @@ def build(art, out, name, spec):
     palette_image = plate_rgb.quantize(colors=PALETTE_COLORS, dither=Image.Dither.NONE)
     plate = palette_image.convert("RGB")
 
-    typing = [sampled(art / f"{name}-type-{i}.png", size) for i in range(1, TYPE_FRAMES + 1)]
     fire_strip(art, name, plate_rgb, spec).save(out / f"room-{name}-fire.png", optimize=True)
-    layer_strip(typing, plate_rgb, spec["hands"], palette_image).save(out / f"room-{name}-hands.png", optimize=True)
-    sleeping_strip(art, name, plate, spec).save(out / f"room-{name}-mishka.png", optimize=True)
+    typing_strip(art, name, spec).save(out / f"room-{name}-hands.png", optimize=True)
+    sleeping_strip(plate, spec).save(out / f"room-{name}-mishka.png", optimize=True)
     mask_image(magenta, main).save(out / f"room-{name}-screen.png", optimize=True)
     mask_image(cyan, side).save(out / f"room-{name}-side.png", optimize=True)
     plate.save(out / f"interior{'' if name == 'wide' else '-tall'}.png", optimize=True)
@@ -337,7 +360,7 @@ def build(art, out, name, spec):
         "width": size[0], "height": size[1], "main": main, "side": side,
         "mainCorners": corners(magenta), "sideCorners": corners(cyan),
         "fireBox": box(spec["fire"]), "fireFrames": FIRE_FRAMES,
-        "handsBox": box(spec["hands"]), "handFrames": TYPE_FRAMES,
+        "handsBox": box(spec["hands"]), "handFrames": len(TYPE_POSES),
         "mishkaBox": box(spec["dog"]), "mishkaFrames": SLEEP_FRAMES, "stars": stars, "city": city, "lake": lake_spans(plate, spec["lake"], spec["lakeSeed"]),
     }
 

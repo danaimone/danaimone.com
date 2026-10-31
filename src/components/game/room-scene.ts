@@ -24,6 +24,7 @@ export type RoomLayout = {
   mishkaFrames: number;
   city: number[][];
   coffee: Point;
+  blink: Box;
   candles: Point[];
   snore: Point;
 };
@@ -42,7 +43,12 @@ const TERMINAL_ROW = 12;
 const EDITOR_ROW = 6;
 const EDITOR_SCROLL_SECONDS = 1.6;
 const FIRE_FPS = 9;
-const BREATH_FPS = 3;
+const BREATH_FPS = 2.4;
+const BLINK_EVERY_SECONDS = 5.3;
+const DOUBLE_BLINK_EVERY_SECONDS = 5.6;
+const BLINK_SECONDS = 0.14;
+const EYELID = "#e8b888";
+const LASHES = "#4a2c20";
 const HANDS_LINGER_SECONDS = 0.18;
 const STEAM_HEIGHT = 18;
 const SCREEN_DETAIL = 3;
@@ -183,6 +189,15 @@ function drawWindow(ctx: Ctx, stars: number[][], city: number[][], t: number) {
   });
 }
 
+function drawBlink(ctx: Ctx, blink: Box, t: number) {
+  const closed = t % BLINK_EVERY_SECONDS < BLINK_SECONDS || t % DOUBLE_BLINK_EVERY_SECONDS < BLINK_SECONDS;
+  if (!closed) return;
+  ctx.fillStyle = EYELID;
+  ctx.fillRect(blink.x, blink.y, blink.width, blink.height);
+  ctx.fillStyle = LASHES;
+  ctx.fillRect(blink.x, blink.y + blink.height - 1, blink.width, 1);
+}
+
 function drawLake(ctx: Ctx, lake: number[][], t: number) {
   lake.forEach(([x, y, width], i) => {
     if (y % 2) return;
@@ -313,6 +328,7 @@ export function createRoomScene(art: RoomArt, room: RoomLayout, terminal: Termin
         keystrokes = screen.keystrokes;
         lastKeyAt = t;
       }
+      if (animate) drawBlink(ctx, room.blink, t);
       if (lastKeyAt >= 0 && t - lastKeyAt < HANDS_LINGER_SECONDS) {
         drawStripFrame(ctx, art.hands, room.handsBox, keystrokes % room.handFrames);
       }
