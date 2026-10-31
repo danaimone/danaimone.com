@@ -1,0 +1,10 @@
+Use your built-in image generation tool (imagegen skill, built-in mode) to edit Image 1 and create ONE image at 16:9 aspect ratio, exactly 2560x1440 pixels, the full frame with no borders, then copy the generated PNG into the current working directory as ./pilot-type-a.png. Do not write code or any other files. Reply with just the saved path.
+
+Use case: precise-object-edit
+Asset type: one animation frame for a pixel-art scene
+Input images: Image 1 is the edit target.
+
+Change only this: only the man's two hands on the keyboard: his fingers are mid-typing, with his nearer hand lifted a little above the keys and fingers curled to press, and his farther hand pressing keys. His arms, sleeves, body, head, and the keyboard stay exactly where they are.
+
+Keep everything else unchanged, pixel for pixel: camera, framing, layout, palette, lighting, every object position, the flat magenta and cyan monitor screens. Do not crop, reframe, or rescale. Do not repaint any other part of the image.
+Style: polished 16-bit pixel art on the same uniform art-pixel grid as Image 1, hard edges, no anti-aliasing, no blur, no glow halo, no text.

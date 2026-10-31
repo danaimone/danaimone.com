@@ -1,0 +1,9 @@
+Use your built-in image generation tool (imagegen skill, built-in mode) to edit Image 1 and create ONE image of exactly 2172x724 pixels, then copy the generated PNG into the current working directory as ./dan-sheet2.png. Do not write code or any other files. Reply with just the saved path.
+
+Use case: identity-preserve
+Asset type: character sprite sheet for a side-scrolling pixel-art game
+Input images: Image 1 is the edit target. Image 2 is a photo of the real man, used only as the likeness reference for his head and face.
+
+Change only the head in all 6 frames so it looks like the man in Image 2, drawn consistently in side view: short neat dark-brown hair with a soft fringe, tidy on the sides, not spiky and not tall; dark round-rectangular plastic glasses with slim frames; a short trimmed dark beard and moustache, light on the cheeks; warm light skin; a friendly open smile; youthful face. Keep the 6 poses, the row layout, frame spacing, baseline, scale, body proportions, open charcoal jacket, amber shirt, jeans, sneakers, and the perfectly flat #FF00FF magenta background unchanged.
+Style: polished 16-bit pixel art, hard edges, no anti-aliasing, no blur, no text.
+Avoid: any part of the photo's background, the dog, ground, shadows, labels, grid lines.

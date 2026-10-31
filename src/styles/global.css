@@ -234,7 +234,16 @@ a:hover {
 
 .walk {
   position: relative;
-  height: 580vh;
+  height: 690vh;
+}
+
+.walk.is-unavailable {
+  height: 100svh;
+}
+
+.walk.is-unavailable .walk-timeline,
+.walk.is-unavailable .walk-hint {
+  display: none;
 }
 
 .walk-view {

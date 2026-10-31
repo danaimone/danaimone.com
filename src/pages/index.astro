@@ -1,14 +1,14 @@
 ---
 import CareerWalk from "../components/game/CareerWalk.svelte";
-import { EMAIL, elsewhere, experience, resume } from "../data/resume";
+import { EMAIL, contact, elsewhere, experience, resume } from "../data/resume";
 import "@fontsource-variable/instrument-sans/wdth.css";
 import "@fontsource-variable/pixelify-sans/index.css";
 import "../styles/global.css";
 
 const badges: [name: string, label: string, href: string, external: boolean][] = [
   ["email", "Email", `mailto:${EMAIL}`, false],
-  ["linkedin", "LinkedIn", "https://linkedin.com/in/danaimone", true],
-  ["github", "GitHub", "https://github.com/danaimone", true],
+  ["linkedin", "LinkedIn", contact.linkedin.url, true],
+  ["github", "GitHub", contact.github.url, true],
   ["pdf", "PDF", "/resume.pdf", false],
 ];
 

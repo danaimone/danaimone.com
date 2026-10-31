@@ -1,3 +1,5 @@
+import { PATH_ROWS } from "./path";
+
 // Scenery for the career walk: sky, mountains, hills, trees, clouds, and the
 // path. Characters and landmarks are pixel-art sprites in /public/game (see
 // scripts/art-prompts and scripts/pixelize.py); everything here is drawn in
@@ -61,6 +63,8 @@ export function skyAt(p: number) {
     lights: a.lights + (b.lights - a.lights) * s,
   };
 }
+
+const SUN = { body: 12, glow: 40 };
 
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
 
@@ -126,16 +130,22 @@ export function disc(ctx: Ctx, cx: number, cy: number, r: number, color: string)
   }
 }
 
-export function crescent(ctx: Ctx, cx: number, cy: number, r: number, color: string) {
-  ctx.fillStyle = color;
-  const ox = Math.round(r * 0.55);
-  const oy = -Math.round(r * 0.35);
-  for (let y = -r; y <= r; y++)
-    for (let x = -r; x <= r; x++) {
-      const inA = x * x + y * y <= r * r + r * 0.6;
-      const inB = (x - ox) ** 2 + (y - oy) ** 2 <= r * r * 0.82;
-      if (inA && !inB) ctx.fillRect(cx + x, cy + y, 1, 1);
+export function drawSun(ctx: Ctx, sun: HTMLImageElement, warmSun: HTMLCanvasElement, cx: number, cy: number, evening: number) {
+  const left = cx - Math.floor(sun.width / 2);
+  const top = cy - Math.floor(sun.height / 2);
+  ctx.fillStyle = mix("#fff3b8", "#ff9d5c", evening);
+  for (let y = -SUN.glow; y <= SUN.glow; y++) {
+    for (let x = -SUN.glow; x <= SUN.glow; x++) {
+      const distance = Math.hypot(x, y);
+      if (distance <= SUN.body || distance >= SUN.glow) continue;
+      const falloff = 1 - (distance - SUN.body) / (SUN.glow - SUN.body);
+      if (falloff * falloff * 0.35 > BAYER[((cy + y) & 3) * 4 + ((cx + x) & 3)]) ctx.fillRect(cx + x, cy + y, 1, 1);
     }
+  }
+  ctx.drawImage(sun, left, top);
+  ctx.globalAlpha = evening;
+  ctx.drawImage(warmSun, left, top);
+  ctx.globalAlpha = 1;
 }
 
 // ---------------------------------------------------------------- layers
@@ -150,18 +160,14 @@ export const GROUND_DEPTH = 40;
 // Rows of soil under the path; the timeline sits here.
 export const SOIL_DEPTH = 25;
 
-export function paintGround(ctx: Ctx, camX: number, viewW: number, ground: number, viewH: number) {
-  rect(ctx, "#5b8a4a", 0, ground, viewW, 3);
-  rect(ctx, "#8a6a4c", 0, ground + 3, viewW, 11);
-  rect(ctx, "#6e523a", 0, ground + 14, viewW, 1);
-  rect(ctx, "#3d2f27", 0, ground + 15, viewW, viewH - ground - 15);
+export function paintGround(ctx: Ctx, path: HTMLCanvasElement, camX: number, viewW: number, ground: number, viewH: number) {
+  rect(ctx, "#3d2f27", 0, ground + PATH_ROWS, viewW, viewH - ground - PATH_ROWS);
+  const left = Math.floor(camX);
+  ctx.drawImage(path, left, 0, viewW + 1, path.height, left - camX, ground - 2, viewW + 1, path.height);
   const start = Math.floor(camX);
   for (let wx = start; wx < start + viewW + 1; wx++) {
     const n = hash(wx);
-    const x = wx - camX;
-    if (n < 0.2) rect(ctx, "#466f3b", x, ground - 1 - (n < 0.06 ? 1 : 0), 1, 1 + (n < 0.06 ? 1 : 0));
-    if (n > 0.93) rect(ctx, "#6e523a", x, ground + 5 + Math.floor(hash(wx + 9) * 7), 1 + (n > 0.98 ? 1 : 0), 1);
-    if (n > 0.6 && n < 0.615) rect(ctx, "#2f241e", x, ground + 19 + Math.floor(hash(wx + 3) * 14), 2, 1);
+    if (n > 0.6 && n < 0.615) rect(ctx, "#2f241e", wx - camX, ground + 19 + Math.floor(hash(wx + 3) * 14), 2, 1);
   }
 }
 

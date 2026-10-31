@@ -1,9 +1,11 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { EMAIL, elsewhere, experience } from "../../data/resume";
-  import { END, GEMS, START, TIMELINE, WALK_SHARE, startWalk, type Side, type ToastTone } from "./engine";
+  import { startWalk } from "./engine";
+  import type { Side, Zone } from "./simulation";
+  import { BACK_TO_START, GEMS, TIMELINE } from "./world";
 
-  type Toast = { id: number; text: string; x: number; tone: ToastTone };
+  type Toast = { id: number; text: string; x: number; tone: "gem" | "level" };
 
   const TOAST_MS = 1600;
   const COPIED_MS = 2400;
@@ -14,7 +16,8 @@
   let room: HTMLCanvasElement;
   let walk: ReturnType<typeof startWalk> | undefined;
 
-  let zone = $state("intro");
+  let zone = $state<Zone>("intro");
+  let unavailable = $state(false);
   let side = $state<Side>("right");
   let collected = $state<string[]>([]);
   let toasts = $state<Toast[]>([]);
@@ -36,8 +39,11 @@
     walk = startWalk(
       { stage, view, canvas, room },
       {
-        zone: (next) => (zone = next),
-        side: (next) => (side = next),
+        zone(next, nextSide) {
+          zone = next;
+          if (nextSide) side = nextSide;
+        },
+        unavailable: () => (unavailable = true),
         collected: (labels) => (collected = labels),
         progress: (next) => (progress = next),
         toast(text, x, tone) {
@@ -50,13 +56,6 @@
     return () => walk?.stop();
   });
 
-  function jumpTo(worldX: number) {
-    const travel = stage.offsetHeight - window.innerHeight;
-    const top = stage.getBoundingClientRect().top + window.scrollY;
-    const share = worldX === END ? 1 : ((worldX - START) / (END - START)) * WALK_SHARE;
-    walk?.teleport(top + share * travel);
-  }
-
   async function copyEmail() {
     try {
       await navigator.clipboard.writeText(EMAIL);
@@ -68,7 +67,7 @@
   }
 </script>
 
-<section class="walk" bind:this={stage} aria-label="Career walk">
+<section class="walk" class:is-unavailable={unavailable} bind:this={stage} aria-label="Career walk">
   <div class="walk-view" bind:this={view}>
     <canvas
       bind:this={canvas}
@@ -130,7 +129,7 @@
         <button type="button" class="copy copy-email" onclick={copyEmail} tabindex={zone === "contact" ? 0 : -1}>
           <span aria-live="polite">{copied ? "Copied" : "Copy email"}</span>
         </button>
-        <button type="button" class="copy" onclick={() => jumpTo(START)} tabindex={zone === "contact" ? 0 : -1}>
+        <button type="button" class="copy" onclick={() => walk?.teleport(BACK_TO_START)} tabindex={zone === "contact" ? 0 : -1}>
           Walk again
         </button>
         {#each elsewhere.slice(0, 2) as [label, href] (label)}
@@ -153,10 +152,9 @@
       </div>
       <ol>
         {#each TIMELINE as mark (mark.label)}
-          {@const at = (mark.x - START) / (END - START)}
-          <li use:cssProps={{ "--at": at }}>
-            <button type="button" class:is-passed={progress >= at - 0.01} onclick={() => jumpTo(mark.x)}>
-              <span class="walk-year">{mark.year}</span>
+          <li use:cssProps={{ "--at": mark.at }}>
+            <button type="button" class:is-passed={progress >= mark.at - 0.01} onclick={() => walk?.teleport(mark.destination)}>
+              <span class="walk-year">{mark.caption}</span>
               {mark.label}
             </button>
           </li>
