@@ -1,14 +1,24 @@
-export const EMAIL = "hello@danaimone.com";
+export const contact = {
+  email: "hello@danaimone.com",
+  site: "https://danaimone.com",
+  linkedin: { handle: "in/danaimone", url: "https://linkedin.com/in/danaimone" },
+  github: { handle: "github/danaimone", url: "https://github.com/danaimone" },
+};
+
+export const EMAIL = contact.email;
 
 export const elsewhere = [
-  ["GitHub", "https://github.com/danaimone"],
-  ["LinkedIn", "https://linkedin.com/in/danaimone"],
+  ["GitHub", contact.github.url],
+  ["LinkedIn", contact.linkedin.url],
   ["Instagram", "https://instagram.com/danaimone"],
   ["X", "https://twitter.com/dan_aimone"],
 ];
 
+export type StopId = "vannevar" | "atlassian" | "chewy" | "pnnl";
+
 export type Job = {
-  stop: "vannevar" | "atlassian" | "chewy" | "pnnl";
+  id: "vannevar" | "atlassian-2" | "atlassian-1" | "chewy" | "pnnl";
+  stop: StopId;
   company: string;
   title: string;
   years: string;
@@ -16,14 +26,17 @@ export type Job = {
 };
 
 export type Resume = {
+  contact: typeof contact;
   jobs: Job[];
   education: { school: string; place: string; degree: string; field: string };
   skills: [label: string, items: string][];
 };
 
 export const resume: Resume = {
+  contact,
   jobs: [
     {
+      id: "vannevar",
       stop: "vannevar",
       company: "Vannevar",
       title: "Software Engineer",
@@ -37,6 +50,7 @@ export const resume: Resume = {
       ],
     },
     {
+      id: "atlassian-2",
       stop: "atlassian",
       company: "Atlassian",
       title: "Full-Stack Software Engineer 2",
@@ -47,6 +61,7 @@ export const resume: Resume = {
       ],
     },
     {
+      id: "atlassian-1",
       stop: "atlassian",
       company: "Atlassian",
       title: "Full-Stack Software Engineer 1",
@@ -57,6 +72,7 @@ export const resume: Resume = {
       ],
     },
     {
+      id: "chewy",
       stop: "chewy",
       company: "Chewy",
       title: "Software Engineer",
@@ -67,6 +83,7 @@ export const resume: Resume = {
       ],
     },
     {
+      id: "pnnl",
       stop: "pnnl",
       company: "Pacific Northwest National Lab",
       title: "Software Engineer",
@@ -92,8 +109,18 @@ export const resume: Resume = {
   ],
 };
 
+export type TailoredBullets = Partial<Record<Job["id"], string[]>>;
+
+export function tailored({ bullets, skills }: { bullets: TailoredBullets; skills?: Resume["skills"] }): Resume {
+  return {
+    ...resume,
+    jobs: resume.jobs.map((job) => ({ ...job, bullets: bullets[job.id] ?? job.bullets })),
+    skills: skills ?? resume.skills,
+  };
+}
+
 export type Stop = {
-  id: Job["stop"];
+  id: StopId;
   company: string;
   span: string;
   roles: Job[];

@@ -69,11 +69,11 @@ const html = (r, contactPhone) => `<!doctype html>
 </style>
 <h1>Dan Aimone</h1>
 <p class="contact">
-  <a class="plain" href="mailto:hello@danaimone.com">hello@danaimone.com</a>
+  <a class="plain" href="mailto:${r.contact.email}">${r.contact.email}</a>
   ${contactPhone ? `&middot; ${contactPhone}` : ""}
-  &middot; <a href="https://linkedin.com/in/danaimone">in/danaimone</a>
-  &middot; <a href="https://github.com/danaimone">github/danaimone</a>
-  &middot; <a href="https://danaimone.com">danaimone.com</a>
+  &middot; <a href="${r.contact.linkedin.url}">${r.contact.linkedin.handle}</a>
+  &middot; <a href="${r.contact.github.url}">${r.contact.github.handle}</a>
+  &middot; <a href="${r.contact.site}">${new URL(r.contact.site).host}</a>
 </p>
 <h2>Work Experience</h2>
 ${r.jobs.map(job).join("")}
