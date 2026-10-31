@@ -1,12 +1,12 @@
 # danaimone.com
 
-Dan's personal site. The top of the page is a scroll-driven pixel-art career walk: Dan and his Samoyed, Mishka, walk from a research lab (PNNL, 2017) past Chewy and Atlassian to Vannevar, ending at a cabin under Mount Rainier with contact details. The sky moves from dawn to night along the way. Below the walk is a plain résumé with the same content, which also prints as a one-page PDF.
+Dan's personal site, live at https://danaimone.com. The top of the page is a scroll-driven pixel-art career walk: Dan and his Samoyed, Mishka, walk through Washington from a research lab (PNNL, 2017) past Chewy and Atlassian to Vannevar, with the Seattle skyline in the distance. The sky moves from dawn to night, Mount Rainier rises for the final reveal, and the walk ends inside a cabin with contact details. Below the walk is a résumé in Catppuccin Mocha, built from the same data as the downloadable PDF.
 
-Built with Astro, Svelte 5, TypeScript, and a single `<canvas>`. The page is static HTML. The walk is one island: a framework-free game engine and a small Svelte overlay. All UI text is set in Instrument Sans. Dan, Mishka, the landmarks, and Rainier are pixel-art sprites in `public/game/`; the sky, sun, moon, and path are drawn in code.
+Built with Bun, Astro 7, Svelte 5, TypeScript, and canvas. The page is static HTML. The walk is one island: a framework-free game engine and a small Svelte overlay. UI text is Instrument Sans, with Pixelify Sans for headings and buttons; both are self-hosted. Characters, landmarks, scenery, icons, and the title logo are pixel-art sprites in `public/game/`. The sky, sun, moon, and path are drawn in code.
 
 ### Art pipeline
 
-Sprites were generated with GPT Image (via Codex) from the prompts in `scripts/art-prompts/`, using the avatar as the identity reference and the Dan sheet as the style reference for everything else. Raw generations are not committed. Each one is cleaned into true pixel art and its night lights are extracted:
+Art was generated with GPT Image (via Codex) from the prompts in `scripts/art-prompts/`, using the avatar as the identity reference and the Dan sheet as the style reference for everything else. Raw generations are not committed. Each one is cleaned into true pixel art, and building night lights are extracted:
 
 ```sh
 python3 scripts/pixelize.py raw/dan-sheet.png out/dan --frames 6 --height 84 --colors 28
@@ -37,26 +37,42 @@ bun run build
 bun run preview
 ```
 
-Before publishing, walk the whole page at desktop and phone widths. Check the arrow keys, Space and tap to jump, the timeline buttons, the cabin finale forward and back, reduced motion, `#resume`, and the PDF link.
+Before publishing, walk the whole page at desktop and phone widths. Check the arrow keys, Space and tap to jump, the timeline teleports and Back to Start, the Rainier reveal, the cabin finale forward and back, the pixel dissolve on section links, reduced motion, and the PDF link. Open the browser console and confirm there are no Content Security Policy violations.
 
 ## Production deployment
 
-The site is static. `bun run build` writes `dist/`, and in production nginx serves it behind a reverse proxy. `bun run resume` must run first on a machine with the licensed fonts, because `public/resume.pdf` is committed output. Copy `resume/private.example.mjs` to `resume/private.mjs` first; that file holds the phone number for private PDFs and stays out of git.
+The site is static. In production nginx serves `dist/` behind a reverse proxy.
+
+1. Copy `resume/private.example.mjs` to `resume/private.mjs`. That file holds the phone number for private PDFs and stays out of git.
+2. Run `bun run resume` on a machine with the licensed fonts. `public/resume.pdf` is committed output and has no phone number.
+3. Run `bun run build`.
+4. Package `dist/`, copy it to the web server's root.
+5. Reload nginx, then check the page, `/resume.pdf`, and the security headers through https://danaimone.com.
+
+Pushing to `main` does not deploy.
+
+## Security
+
+- A strict Content Security Policy is generated at build time, with hashes for inline scripts and styles. Set dynamic styles through the CSSOM, because `style` attributes are blocked.
+- The page makes no third-party requests. Fonts and images are served from the same origin.
+- nginx allows only GET and HEAD, blocks dotfiles, and sends the usual hardening headers. HSTS is sent for the apex domain.
+- HTML, the PDF, and images send `Cache-Control: no-cache`, so browsers revalidate. Hashed `_astro` files are cached for a year.
 
 ## Structure
 
 - `src/data/resume.ts`: the résumé. The walk, the page, and the PDF all read it. Edit content here.
 - `resume/`: tailored versions, the fact bank, and the private phone number. `bun run resume` builds the PDFs, and `bun run resume <version>` builds a tailored one. PDFs use licensed fonts from the folder named by `RESUME_FONTS` and fall back to Jost and Source Serif 4 when they are missing. The fonts stay out of git.
-- `src/components/game/engine.ts`: the game, with no framework: scroll mapping, movement, camera, parallax, gems, and the cabin finale. It reports what happens through `WalkEvents`.
-- `src/components/game/CareerWalk.svelte`: the overlay: intro, cards, toolkit, toasts, and timeline.
-- `src/components/game/art.ts`: sky palettes and dithering, mountains, trees, clouds, path, gems.
-- `public/game/`: character strips, landmarks and their `-lights` layers, Rainier.
+- `src/components/game/engine.ts`: the game, with no framework: scroll mapping, movement, camera, parallax, gems, teleport, the Rainier reveal, and the cabin finale. It reports what happens through `WalkEvents`.
+- `src/components/game/CareerWalk.svelte`: the overlay: intro, cards, toolkit, toasts, timeline.
+- `src/components/game/art.ts`: sky palettes and dithering, tiled scenery, path, gems.
+- `public/game/`: sprites, scenery layers, building `-lights` layers, company logos, and icons.
 - `scripts/pixelize.py`, `scripts/asset-lights.py`, `scripts/art-prompts/`: the art pipeline.
-- `src/pages/index.astro`: page layout, metadata, and the plain résumé.
-- `src/styles/global.css`: tokens, walk overlays, résumé, print styles.
+- `src/pages/index.astro`: page layout, metadata, the résumé sheet, About, and Contact.
+- `src/styles/global.css`: tokens, walk overlays, pixel buttons, and the résumé sheet.
+- `src/scripts/pixel-wipe.ts`: the pixel dissolve on in-page links.
 
-The walk renders at a small logical resolution (about 480 × 300 on a laptop), scaled by a whole number of device pixels so every art pixel stays square and sharp. The loop stops when the walk is off screen. Skill gems are placed only where the verified history supports them; TypeScript, Node.js, and AWS sit at the cabin because they describe current day-to-day work, not a specific employer.
+The walk renders at a small logical resolution (about 480 × 300 on a laptop), scaled by a whole number of device pixels so every art pixel stays square and sharp. The cabin interior is a separate canvas at art resolution, for the same reason. Physics run at a fixed 60 steps per second on any display. The loop stops when the walk is off screen. Skill gems are placed only where the verified history supports them; TypeScript, Node.js, and AWS sit at the cabin because they describe current day-to-day work, not a specific employer.
 
 ## Content verification
 
-Roles, dates, and figures follow Dan's August 2025 résumé, confirmed by Dan on October 30, 2026. Chewy shows a year only because that job overlapped the start at Atlassian. Vannevar is not on that résumé yet.
+Roles, dates, and figures follow Dan's résumé, confirmed by Dan on October 30, 2026, plus his 2026 self-review for Vannevar. Dates are years only. Public text says "government users" and names no customers, units, or internal products.
