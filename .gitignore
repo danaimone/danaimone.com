@@ -105,3 +105,6 @@ resume/out/
 # Private résumé details and Astro cache
 resume/private.mjs
 .astro/
+
+# Python cache
+__pycache__/
