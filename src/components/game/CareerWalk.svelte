@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { EMAIL, elsewhere, experience } from "../../data/resume";
-  import { SOIL_DEPTH } from "./art";
   import { END, GEMS, START, TIMELINE, WALK_SHARE, startWalk, type Side, type ToastTone } from "./engine";
 
   type Toast = { id: number; text: string; x: number; tone: ToastTone };
@@ -76,7 +75,7 @@
       class="walk-canvas"
       role="img"
       aria-label="A pixel-art walk through Dan’s career: Dan and his Samoyed, Mishka, walk from a research lab past a warehouse and an office tower to the present, then into a cabin under Mount Rainier."
-      onpointerdown={() => walk?.jump()}
+      onclick={() => walk?.jump()}
     ></canvas>
     <canvas bind:this={room} class="walk-room" aria-hidden="true" hidden></canvas>
 
@@ -128,7 +127,7 @@
       <header><h2>Contact</h2></header>
       <a class="walk-email" href={`mailto:${EMAIL}`} tabindex={zone === "contact" ? 0 : -1}>{EMAIL}</a>
       <div class="walk-contact-row">
-        <button type="button" class="copy" onclick={copyEmail} tabindex={zone === "contact" ? 0 : -1}>
+        <button type="button" class="copy copy-email" onclick={copyEmail} tabindex={zone === "contact" ? 0 : -1}>
           <span aria-live="polite">{copied ? "Copied" : "Copy email"}</span>
         </button>
         <button type="button" class="copy" onclick={() => jumpTo(START)} tabindex={zone === "contact" ? 0 : -1}>
@@ -148,7 +147,7 @@
       {/each}
     </div>
 
-    <nav class="walk-timeline" class:is-inside={zone === "contact"} aria-label="Jump along the walk" use:cssProps={{ "--soil": SOIL_DEPTH }}>
+    <nav class="walk-timeline" class:is-inside={zone === "contact"} aria-label="Jump along the walk">
       <div class="walk-track" aria-hidden="true">
         <span use:cssProps={{ transform: `scaleX(${progress})` }}></span>
       </div>

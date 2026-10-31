@@ -1,5 +1,6 @@
 import {
   GROUND_DEPTH,
+  SOIL_DEPTH,
   crescent,
   disc,
   drawGem,
@@ -33,7 +34,7 @@ const INTERIORS = {
   tall: { src: "/game/interior-tall.png", w: 360, h: 640, focusX: 0.5, focusY: 0.63, anchorY: 0.62, subjectSpan: 0.75, fire: { x: 0.872, y: 0.634 }, coffee: { x: 0.415, y: 0.56 } },
 };
 const WIDE_ROOM_MIN_ASPECT = 1.1;
-const REVEAL = { from: 3380, to: 3930, summitAt: 0.56, topShare: 0.1, buriedTop: 70, drift: 34 };
+const REVEAL = { from: 3380, to: 3930, summitAt: 0.56, baseBelowGround: 6, buriedTop: 70, drift: 34 };
 const FOREGROUND = 1.18;
 const FIRST_NEAR_TREE = 340;
 
@@ -86,6 +87,7 @@ export const GEMS = [
   { x: 3870, label: "AWS", color: "#ffb84d" },
 ];
 const PROMOTION_X = 2480;
+const MIN_TIMELINE_PX = 60;
 const KEY_WALK_SPEED = 2.6;
 const MAX_WALK_SPEED = 4.5;
 const MAX_STRIDE_STEP = 3;
@@ -218,7 +220,9 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
       scale = device / dpr;
       vw = Math.ceil(w / scale);
       vh = Math.ceil(h / scale);
-      ground = vh - GROUND_DEPTH;
+      const soil = Math.max(SOIL_DEPTH, Math.ceil(MIN_TIMELINE_PX / scale));
+      ground = vh - GROUND_DEPTH - (soil - SOIL_DEPTH);
+      view.style.setProperty("--soil", `${soil}`);
       canvas.width = vw;
       canvas.height = vh;
       canvas.style.width = `${vw * scale}px`;
@@ -340,7 +344,7 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
     }
 
     function jump() {
-      if (jumpY > 0.5 || reduced) return;
+      if (jumpY > 0.5) return;
       jumpV = 5.6;
       dogJumpAt = performance.now() + 150;
     }
@@ -582,6 +586,7 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
       const key = `${Math.round(tod * 300)}`;
       if (key !== skyKey && skyImg) {
         paintSky(skyImg, sky, ground - 10);
+        stage.style.backgroundColor = mix("#3d2f27", sky.tint, sky.tintAlpha);
         skyKey = key;
       }
       if (skyImg) ctx.putImageData(skyImg, 0, 0);
@@ -598,7 +603,7 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
       const reveal = clamp((x - REVEAL.from) / (REVEAL.to - REVEAL.from), 0, 1);
       if (reveal > 0) {
         const eased = reveal * reveal * (3 - 2 * reveal);
-        const restTop = Math.round(ground * REVEAL.topShare);
+        const restTop = ground + REVEAL.baseBelowGround - rainier.height;
         const buried = ground - REVEAL.buriedTop;
         const mountainX = Math.round(vw * REVEAL.summitAt - rainier.width / 2 - eased * REVEAL.drift);
         const mountainY = Math.round(buried + (restTop - buried) * eased);
