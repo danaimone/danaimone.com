@@ -1,0 +1,64 @@
+---
+import files from "../components/game/doom-files.json";
+import "@fontsource-variable/instrument-sans/wdth.css";
+import "@fontsource-variable/pixelify-sans/index.css";
+import "../styles/global.css";
+
+const { doomgenericCommit, freedoomVersion, emscriptenVersion, sourceSha256 } = files;
+const commitUrl = `https://github.com/ozkl/doomgeneric/tree/${doomgenericCommit}`;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Doom in the cabin: licences and source</title>
+    <meta name="description" content="Credits, licences, and the corresponding source for the Doom engine in the cabin terminal." />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="robots" content="noindex" />
+    <link rel="icon" href="/favicon.ico" />
+  </head>
+  <body>
+    <main class="doom-credits">
+      <h1>Doom in the cabin</h1>
+      <p>Type <code>doom</code> in the cabin terminal. This page lists what runs, and where its source is.</p>
+
+      <h2>Engine</h2>
+      <p>
+        <a href={commitUrl}>doomgeneric</a> at commit <code>{doomgenericCommit}</code>, built on id Software's Doom source
+        and Chocolate Doom. It is licensed under the <a href="/doom/GPL-2.0.txt">GNU GPL, version 2</a>, and compiled to
+        WebAssembly with Emscripten {emscriptenVersion} (<a href="/doom/EMSCRIPTEN-LICENSE.txt">licence</a>), which links
+        <a href="/doom/MUSL-COPYRIGHT.txt">musl</a> and <a href="/doom/COMPILER-RT-LICENSE.txt">compiler-rt</a>.
+      </p>
+      <ul>
+        <li><a href="/doom/doom-source.tar.gz">Complete corresponding source</a>: engine, our platform layer, and build scripts.</li>
+        <li>SHA-256 of that archive: <code>{sourceSha256}</code></li>
+        <li><a href="/doom/build-doom.sh">Build script</a>, with pinned commit and checksums.</li>
+      </ul>
+
+      <h2>Game data</h2>
+      <p>
+        <a href="https://freedoom.github.io/">Freedoom</a>: Phase 1, version {freedoomVersion}, unmodified. Copyright the
+        Freedoom project, under a BSD-3-Clause <a href="/doom/FREEDOOM-COPYING.txt">licence</a>. See the
+        <a href="/doom/FREEDOOM-CREDITS.txt">Freedoom contributors</a>.
+      </p>
+
+      <h2>Not affiliated</h2>
+      <p>DOOM is a trademark of id Software. Neither this site nor Freedoom is affiliated with or endorsed by id Software.</p>
+
+      <p><a href="/">Back to the cabin</a></p>
+    </main>
+  </body>
+</html>
+
+<style>
+  .doom-credits {
+    max-width: 44rem;
+    margin: 0 auto;
+    padding: 3rem 1rem;
+  }
+  .doom-credits code {
+    overflow-wrap: anywhere;
+  }
+</style>

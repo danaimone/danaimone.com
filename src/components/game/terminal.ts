@@ -40,6 +40,7 @@ export const RESPONSES: Record<string, string[]> = {
   "play guitar": ["martin hd-28", "in tune. mostly."],
   "play piano": ["nord stage 3", "c major. always."],
   rex: ["session running"],
+  doom: ["loading doom..."],
   sudo: ["nice try"],
   "sudo make me a sandwich": ["okay."],
   hello: ["hi! type help"],
@@ -53,7 +54,7 @@ function wrap(text: string) {
   return rows.length ? rows : [""];
 }
 
-export function createTerminal() {
+export function createTerminal(onCommand: (command: string) => void = () => {}) {
   let history: string[] = ["type help"];
   let input = "";
   let keystrokes = 0;
@@ -69,6 +70,7 @@ export function createTerminal() {
     if (command === "clear") history = [];
     else if (command) history.push(...(RESPONSES[command] ?? ["unknown command", "try help"]));
     history = history.slice(-MAX_HISTORY);
+    onCommand(command);
   }
 
   function pressForDemo() {
@@ -100,6 +102,9 @@ export function createTerminal() {
       else if (key === "Backspace") input = input.slice(0, -1);
       else if (input.length < MAX_INPUT) input += key;
       return true;
+    },
+    print(line: string) {
+      history.push(line);
     },
     tick() {
       idleTicks += 1;

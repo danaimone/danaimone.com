@@ -41,6 +41,16 @@ describe("cabin terminal", () => {
     for (const row of rows) expect(row.length).toBeLessThanOrEqual(TERMINAL_COLUMNS);
   });
 
+  test("doom is hidden from help and reports itself when typed", () => {
+    const commands: string[] = [];
+    const terminal = createTerminal((command) => commands.push(command));
+    type(terminal, "help");
+    expect(terminal.screen().rows.join(" ")).not.toContain("doom");
+    expect(commands).not.toContain("doom");
+    type(terminal, "doom");
+    expect(commands).toContain("doom");
+  });
+
   test("every reply fits the screen", () => {
     for (const command of [...Object.keys(RESPONSES), "nope"]) {
       const terminal = createTerminal();

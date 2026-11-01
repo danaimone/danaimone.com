@@ -1,0 +1,8 @@
+{
+  "doomgenericCommit": "e257a09527062bfb986b6e5e0780839b6cbd5b71",
+  "freedoomVersion": "0.13.0",
+  "emscriptenVersion": "6.0.12",
+  "wasm": { "url": "/doom/doom-wasm.bin", "integrity": "sha384-GXyC6ztZZKqPfeEGh+LRXK3+OvAYwkSafA/HdevqaYUC7sQMuigbxEhkOVGnYCni" },
+  "wad": { "url": "/doom/freedoom1-wad.bin", "integrity": "sha384-/b2d9ApzhMFITwR+jghgpBLs1x5kX25AFvSAt+VDIigIkhtO6WzaGeLYFFfMqpVE" },
+  "sourceSha256": "a05e8233d9579897ca75c3c096630a3657c14a5f039707ef448deeba90fde9ae"
+}
