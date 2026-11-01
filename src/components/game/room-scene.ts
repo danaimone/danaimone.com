@@ -19,8 +19,6 @@ export type RoomLayout = {
   handsBox: Box;
   handFrames: number;
   mishkaBox: Box;
-  shiftBox: Box;
-  shiftFrames: number;
   stars: number[][];
   lake: number[][];
   mishkaFrames: number;
@@ -31,6 +29,8 @@ export type RoomLayout = {
   snore: Point;
   snoreDrift: number;
 };
+
+export type GameScreen = { picture: HTMLCanvasElement; frame: number };
 
 export const ROOM_SCALE = 2;
 
@@ -55,8 +55,6 @@ const FIRE_FPS = 9;
 const ROOM_FPS = 30;
 const OPENING_ROOM_FPS = 15;
 const BREATH_FPS = 2.4;
-const SHIFT_EVERY_SECONDS = 7;
-const SHIFT_SECONDS = 1.8;
 const BLINK_EVERY_SECONDS = 5.3;
 const DOUBLE_BLINK_EVERY_SECONDS = 5.6;
 const BLINK_SECONDS = 0.14;
@@ -263,26 +261,26 @@ function createScreen({ width, height }: Box, corners: ScreenCorners, box: Box, 
   const topLeft = place(corners.topLeft);
   const topRight = place(corners.topRight);
   const bottomLeft = place(corners.bottomLeft);
-  const bottomRight = { x: topRight.x + bottomLeft.x - topLeft.x, y: topRight.y + bottomLeft.y - topLeft.y };
+  const bottomRight = place(corners.bottomRight);
   return {
     canvas,
     flatCtx,
     flatWidth: width * ROOM_SCALE,
     flatHeight: height * ROOM_SCALE,
-    finish() {
+    finish(source: HTMLCanvasElement = flat) {
       ctx.globalCompositeOperation = "source-over";
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.fillStyle = MOCHA.base;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingEnabled = source === flat;
       ctx.imageSmoothingQuality = "high";
       const destinationWidth = Math.ceil(topRight.x - topLeft.x);
-      const sourceColumn = flat.width / destinationWidth;
+      const sourceColumn = source.width / destinationWidth;
       for (let column = 0; column < destinationWidth; column++) {
         const across = column / destinationWidth;
         const top = topLeft.y + (topRight.y - topLeft.y) * across;
         const bottom = bottomLeft.y + (bottomRight.y - bottomLeft.y) * across;
-        ctx.drawImage(flat, column * sourceColumn, 0, sourceColumn, flat.height, topLeft.x + column, top, 1, bottom - top);
+        ctx.drawImage(source, column * sourceColumn, 0, sourceColumn, source.height, topLeft.x + column, top, 1, bottom - top);
       }
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.imageSmoothingEnabled = false;
@@ -353,12 +351,13 @@ function paintEditor(ctx: Ctx, width: number, height: number, firstLine: number)
   drawText(ctx, "simulation.ts", 30, height - EDITOR_ROW);
 }
 
-export function createRoomScene(art: RoomArt, room: RoomLayout, terminal: Terminal) {
+export function createRoomScene(art: RoomArt, room: RoomLayout, terminal: Terminal, gameScreen: () => GameScreen | null | undefined) {
   const main = createScreen(room.main, room.mainCorners, room.main, art.screen);
   const side = createScreen(room.side, room.sideCorners, room.side, art.side);
   let keystrokes = 0;
   let lastKeyAt = -1;
   let paintedMain = "";
+  let paintedGameFrame = 0;
   let paintedLine = -1;
   let paintedTick = -1;
   let paintedWidth = 0;
@@ -402,7 +401,6 @@ export function createRoomScene(art: RoomArt, room: RoomLayout, terminal: Termin
         drawWindow(ctx, room.stars, room.city, t);
         const breath = Math.floor(t * BREATH_FPS) % room.mishkaFrames;
         drawStripFrame(ctx, art.mishka, room.mishkaBox, breath);
-        if (t % SHIFT_EVERY_SECONDS < SHIFT_SECONDS) drawStripFrame(ctx, art.shift, room.shiftBox, room.shiftFrames - 1);
       }
       for (const [seed, candle] of room.candles.entries()) drawCandle(ctx, candle, animate ? t : 0, seed);
 
@@ -418,7 +416,14 @@ export function createRoomScene(art: RoomArt, room: RoomLayout, terminal: Termin
       const now = new Date();
       const clock = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
       const mainContent = `${cursorOn}|${clock}|${screen.rows.join("\n")}`;
-      if (mainContent !== paintedMain) {
+      const game = gameScreen();
+      if (game) {
+        if (game.frame !== paintedGameFrame) {
+          paintedGameFrame = game.frame;
+          paintedMain = "";
+          main.finish(game.picture);
+        }
+      } else if (mainContent !== paintedMain) {
         paintedMain = mainContent;
         paintTerminal(main.flatCtx, main.flatWidth, main.flatHeight, screen.rows, cursorOn, clock);
         main.finish();

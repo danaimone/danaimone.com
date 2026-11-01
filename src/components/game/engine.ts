@@ -1,11 +1,13 @@
-import { DITHER_PERIOD, GROUND_DEPTH, SOIL_DEPTH, columnsOf, drawGem, drawPuff, drawSun, mix, paintGround, paintSky, rng, skyAt, smokePuffs, soilFlecks, sunDisc, sunHalo, tileThroughTurn } from "./art";
+import type { Doom, DoomEnd } from "./doom";
+import { driveWithFinger } from "./finger";
+import { DITHER_PERIOD, GROUND_DEPTH, SOIL_DEPTH, columnsOf, drawGem, drawPuff, drawSun, mix, paintGround, paintSky, rng, skyAt, smokePuffs, soilFlecks, sunHalo, tileThroughTurn } from "./art";
 import { buildPath, placeProps, surfaceAt } from "./path";
 import { CLOUD_KINDS, DAN_SHEET, MISHKA_SHEET, PROP_SHEET, TREE_SHEET, loadArt, type Art } from "./assets";
 import layouts from "./room-layouts.json";
 import { ROOM_SCALE, createRoomScene } from "./room-scene";
 import { CONTACT_FINALE, cameraAt, createSimulation, createStepClock, type WalkDirection, type Zone } from "./simulation";
 import { createTerminal } from "./terminal";
-import { clamp, progressAt, type Destination } from "./track";
+import { FRACTION_PER_WORLD_PX, clamp, progressAt, type Destination } from "./track";
 import { BEACON, CHIMNEY, DOOR, GEMS, LANDMARKS, WORLD_WIDTH, spriteTop } from "./world";
 
 const SEATTLE_LAYER_X = 830;
@@ -45,7 +47,7 @@ const SKYLINE_RISE = 8;
 const RANGE_RISE = -26;
 const SUN_ARC_OVERRUN = 0.14;
 const MOON_DISC = { x: 12, y: 20, radius: 20.5 };
-const SCROLLING_ROOM_HZ = 6;
+const SCROLLING_ROOM_HZ = 9;
 const SCREEN_STEADY = { startEvery: 1.6, blinkEvery: 0.5, span: 0.44 };
 const SCROLL_SETTLE_MS = 500;
 const ROOM_CLEAR_SETTLE_SECONDS = 0.1;
@@ -75,6 +77,7 @@ const ROOM_REVEAL_LEAD = 0.04;
 const ROOM_WARM_FINALE = 0.24;
 const FOOT_DROP = 3;
 const PROP_ROOT_ROW = 2;
+const BARK_MARK = { fromSide: 38, top: -14, width: 3, height: 7, gap: 2, color: "#fab387", ink: "#11111b" };
 const TELEPORT_COLORS = ["#fde3cf", "#fab387", "#cba6f7", "#ffffff"];
 
 export type WalkEvents = {
@@ -114,7 +117,29 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
   const ctx = canvas.getContext("2d")!;
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const simulation = createSimulation({ reduced });
-  const terminal = createTerminal();
+  let doom: Doom | null = null;
+  let doomRequested = false;
+
+  function launchDoom() {
+    if (doomRequested) return;
+    doomRequested = true;
+    import("./doom").then(
+      ({ startDoom }) => {
+        if (doomRequested) doom = startDoom(view, doomEnded);
+      },
+      () => doomEnded("failed"),
+    );
+  }
+
+  function doomEnded(end: DoomEnd) {
+    doom = null;
+    doomRequested = false;
+    terminal.print(end === "quit" ? "back at the cabin." : "doom did not load");
+  }
+
+  const terminal = createTerminal((command) => {
+    if (command === "doom") launchDoom();
+  });
   let cancelled = false;
   let cleanup = () => {};
 
@@ -317,7 +342,7 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
 
     function simulate(now: number) {
       const { fraction, pinned, top, travel } = measureTrack();
-      const effects = simulation.step({ fraction, walkDirection: walkDirection(pinned), viewWidth: vw, cardSpan });
+      const effects = simulation.step({ fraction, walkDirection: walkDirection(pinned), followsScroll: finger.touched(), viewWidth: vw, cardSpan });
       for (const effect of effects) {
         switch (effect.kind) {
           case "scroll":
@@ -349,7 +374,7 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
       }
 
       const walkers = simulation.view();
-      if (walkers.finale >= CONTACT_FINALE && !reduced && !scrolling) terminal.tick();
+      if (walkers.finale >= CONTACT_FINALE && !reduced && !scrolling && !doomRequested) terminal.tick();
       if (walkers.warpLevel > 0) {
         for (const wx of [walkers.dan.x, walkers.mishka.x]) {
           particles.push({ x: wx - 8 + Math.random() * 16, y: ground - Math.random() * 70, vx: 0, vy: -1.6 - Math.random() * 2, life: 0.7, color: TELEPORT_COLORS[Math.floor(Math.random() * TELEPORT_COLORS.length)] });
@@ -419,16 +444,16 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
     const sunArt = {
       halo: sunHalo("#fff3b8"),
       warmHalo: sunHalo("#ff9d5c"),
-      disc: sunDisc(["#fffbe0", "#fff0b0", "#ffdf8a"]),
-      warmDisc: sunDisc(["#ffd873", "#ff9a42", "#f0553a"]),
+      sprite: art.sun,
+      warm: tinted(art.sun, "#ff6a2c", 0.45),
     };
     const path = buildPath();
     const flecks = soilFlecks(WORLD_WIDTH);
     const puffs = smokePuffs();
 
     const scenes = {
-      wide: createRoomScene(art.rooms.wide, ROOMS.wide, terminal),
-      tall: createRoomScene(art.rooms.tall, ROOMS.tall, terminal),
+      wide: createRoomScene(art.rooms.wide, ROOMS.wide, terminal, () => doom?.screen()),
+      tall: createRoomScene(art.rooms.tall, ROOMS.tall, terminal, () => doom?.screen()),
     };
     let roomKey = "";
     let wasInside = false;
@@ -487,7 +512,6 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
         room.side,
         room.mishkaBox,
         room.handsBox,
-        room.shiftBox,
         room.blink,
         { x: coffee.x - STEAM_BOX.left, y: coffee.y - STEAM_BOX.top, width: STEAM_BOX.width, height: STEAM_BOX.height },
         { x: snore.x + Math.min(snoreDrift, 0) - SNORE_BOX.left, y: snore.y - SNORE_BOX.top, width: Math.abs(snoreDrift) + SNORE_BOX.width, height: SNORE_BOX.height },
@@ -621,7 +645,7 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
         scrolledAt = now;
       }
       scrolling = now - scrolledAt < SCROLL_SETTLE_MS;
-      const { dan: walker, mishka, collected, finale, warpLevel } = simulation.view(blend);
+      const { dan: walker, mishka, collected, finale, warpLevel } = simulation.view(blend, measureTrack().fraction);
       const camera = cameraAt(walker.x, vw);
       const camX = Math.round(camera);
       const iris = clamp((finale - IRIS_FROM_FINALE) / 0.5, 0, 1);
@@ -819,15 +843,37 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
       // The wipe grows out of the door and erases both walkers, opaque until then.
       const presence = 1 - warpLevel;
       const mishkaLeft = Math.round(mishka.x - camera - MISHKA_SHEET.width / 2);
-      const mishkaTop = Math.round(ground + FOOT_DROP + spriteTop(MISHKA_SHEET) - mishka.lift);
+      const mishkaTop = Math.round(ground + FOOT_DROP + spriteTop(MISHKA_SHEET) - mishka.lift) + mishka.depthRows;
       const danLeft = Math.round(walker.x - camera - DAN_SHEET.width / 2);
       const danTop = Math.round(ground + FOOT_DROP + spriteTop(DAN_SHEET) - walker.lift);
-      drawContactShadow(mishka.x - camera, ground + FOOT_DROP + 2, 19, mishka.lift, presence);
-      ctx.globalAlpha = presence;
-      ctx.drawImage(dog[mishka.facing][mishka.frame], mishkaLeft, mishkaTop);
-      drawContactShadow(walker.x - camera, ground + FOOT_DROP + 2, 15, walker.lift, presence);
-      ctx.globalAlpha = presence;
-      ctx.drawImage(dan[walker.facing][walker.frame], danLeft, danTop);
+      const drawMishka = () => {
+        drawContactShadow(mishka.x - camera, ground + FOOT_DROP + 2 + mishka.depthRows, 19, mishka.lift, presence);
+        ctx.globalAlpha = presence;
+        ctx.drawImage(dog[mishka.facing][mishka.frame], mishkaLeft, mishkaTop);
+        if (mishka.barking) {
+          const headX = mishkaLeft + (mishka.facing === "right" ? BARK_MARK.fromSide : MISHKA_SHEET.width - BARK_MARK.fromSide - BARK_MARK.width);
+          const { top, width, height, gap, color, ink } = BARK_MARK;
+          const stroke = (fill: string, grow: number) => {
+            ctx.fillStyle = fill;
+            ctx.fillRect(headX - grow, mishkaTop + top - grow, width + grow * 2, height + grow * 2);
+            ctx.fillRect(headX - grow, mishkaTop + top + height + gap - grow, width + grow * 2, width + grow * 2);
+          };
+          stroke(ink, 1);
+          stroke(color, 0);
+        }
+      };
+      const drawDan = () => {
+        drawContactShadow(walker.x - camera, ground + FOOT_DROP + 2, 15, walker.lift, presence);
+        ctx.globalAlpha = presence;
+        ctx.drawImage(dan[walker.facing][walker.frame], danLeft, danTop);
+      };
+      if (mishka.inFront) {
+        drawDan();
+        drawMishka();
+      } else {
+        drawMishka();
+        drawDan();
+      }
       ctx.globalAlpha = 1;
 
       for (const q of particles) {
@@ -850,14 +896,24 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
 
     function loop(now: number) {
       frame = 0;
+      finger.frame(now);
       const { steps, blend } = stepClock(now - lastFrame);
       lastFrame = now;
-      for (let step = 0; step < steps; step++) simulate(now);
+      const doomFullscreen = doom?.fullscreen() ?? false;
+      if (!doomFullscreen) for (let step = 0; step < steps; step++) simulate(now);
+      if (doom) {
+        if (doomFullscreen || (measureTrack().pinned && simulation.view().finale >= CONTACT_FINALE)) doom.pump(now);
+        else doom.end("quit");
+      }
       draw(now, blend);
       if (visible) frame = requestAnimationFrame(loop);
     }
 
     function onKey(event: KeyboardEvent) {
+      if (doom) {
+        doom.keyDown(event);
+        return;
+      }
       const inControl = event.target instanceof Element && event.target.closest("a, button, input, textarea");
       if (simulation.view().finale >= CONTACT_FINALE && !inControl && !event.metaKey && !event.ctrlKey && !event.altKey && terminal.press(event.key)) {
         event.preventDefault();
@@ -875,9 +931,17 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
       simulation.jump();
     }
 
-    const onKeyUp = (event: KeyboardEvent) => heldKeys.delete(event.key);
+    const onKeyUp = (event: KeyboardEvent) => {
+      doom?.keyUp(event);
+      heldKeys.delete(event.key);
+    };
     const releaseKeys = () => heldKeys.clear();
 
+    const finger = driveWithFinger(view, {
+      pinned: () => !doom && measureTrack().pinned,
+      glides: !reduced,
+      dragRatio: () => (measureTrack().travel * FRACTION_PER_WORLD_PX) / scale,
+    });
     const ro = new ResizeObserver(() => layout());
     ro.observe(view);
     layout();
@@ -894,6 +958,7 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
     window.addEventListener("blur", releaseKeys);
     frame = requestAnimationFrame(loop);
     return () => {
+      finger.stop();
       ro.disconnect();
       io.disconnect();
       cancelAnimationFrame(frame);
@@ -910,6 +975,8 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
     },
     stop() {
       cancelled = true;
+      doomRequested = false;
+      doom?.end("quit");
       cleanup();
     },
   };
