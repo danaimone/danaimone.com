@@ -13,6 +13,8 @@ const MAX_STRIDE_STEP = 2.4;
 const LEAD_LENGTH = 46;
 const CAMERA_ANCHOR = 0.36;
 const INTRO_END = 400;
+const STEP_MS = 1000 / 60;
+const MAX_FRAME_MS = 100;
 export const CONTACT_FINALE = 0.72;
 const TELEPORT_TICKS = 43;
 const DOG_JUMP_DELAY_TICKS = 9;
@@ -33,7 +35,6 @@ const danAirborneFrame = (speed: number) => {
 };
 
 export type Facing = "left" | "right";
-export type Side = "left" | "right";
 export type Zone = "intro" | "between" | "contact" | StopId;
 export type WalkDirection = -1 | 0 | 1;
 
@@ -41,10 +42,11 @@ export type WalkInput = {
   fraction: number;
   walkDirection: WalkDirection;
   viewWidth: number;
+  cardSpan: number;
 };
 
 export type WalkEffect =
-  | { kind: "zone"; zone: Zone; side: Side | null }
+  | { kind: "zone"; zone: Zone }
   | { kind: "collected"; labels: string[] }
   | { kind: "gem"; gem: Gem }
   | { kind: "promoted"; x: number }
@@ -64,9 +66,21 @@ function fall(height: number, speed: number) {
   return nextHeight <= 0 ? { height: 0, speed: 0 } : { height: nextHeight, speed: speed - GRAVITY };
 }
 
+export function createStepClock() {
+  let pendingMs = 0;
+  return (elapsedMs: number) => {
+    pendingMs += Math.min(elapsedMs, MAX_FRAME_MS);
+    const steps = Math.floor(pendingMs / STEP_MS);
+    pendingMs -= steps * STEP_MS;
+    return { steps, blend: pendingMs / STEP_MS };
+  };
+}
+
 export function createSimulation({ reduced }: { reduced: boolean }) {
   const dan: Walker & { vx: number } = { x: WALK_START, vx: 0, facing: "right", stride: 0, jumpHeight: 0, jumpSpeed: 0 };
   const mishka: Walker = { x: WALK_START - LEAD_LENGTH, facing: "right", stride: 0, jumpHeight: 0, jumpSpeed: 0 };
+  let danFrom = dan.x;
+  let mishkaFrom = mishka.x;
   const collected = new Set<string>();
   const collectedView: ReadonlySet<string> = collected;
   let finale = 0;
@@ -95,7 +109,9 @@ export function createSimulation({ reduced }: { reduced: boolean }) {
       dan.x = target;
       mishka.x = target - LEAD_LENGTH;
       dan.vx = 0;
+      danFrom = target;
     } else {
+      danFrom = dan.x;
       const topSpeed = sprintSpeed(distance);
       dan.vx = Math.abs(distance) < 0.3 ? 0 : clamp(distance * 0.12, -topSpeed, topSpeed);
       if (dan.x < WALK_START) dan.vx = Math.min(dan.vx, OPENING_WALK_SPEED);
@@ -111,8 +127,9 @@ export function createSimulation({ reduced }: { reduced: boolean }) {
   }
 
   function moveMishka() {
+    mishkaFrom = mishka.x;
     const lead = dan.facing === "right" ? -LEAD_LENGTH : LEAD_LENGTH;
-    const distance = (finale > 0 ? dan.x : dan.x + lead) - mishka.x;
+    const distance = dan.x + lead - mishka.x;
     const topSpeed = sprintSpeed(distance) + 0.5;
     const speed = clamp(distance * 0.075, -topSpeed, topSpeed);
     if (Math.abs(distance) > 0.4) {
@@ -139,22 +156,26 @@ export function createSimulation({ reduced }: { reduced: boolean }) {
     }
   }
 
-  function updateZone(viewWidth: number, effects: WalkEffect[]) {
+  // A span of 0 means the card sits above the scene, clear of every landmark.
+  function cardCoversFocus({ cardSide, landmark }: (typeof STOPS)[number], { viewWidth, cardSpan }: WalkInput) {
+    if (cardSpan === 0) return false;
+    const left = landmark.x + landmark.focus.x - cameraAt(dan.x, viewWidth);
+    const right = left + landmark.focus.width;
+    return cardSide === "left" ? right > 0 && left < cardSpan : left < viewWidth && right > viewWidth - cardSpan;
+  }
+
+  function updateZone(input: WalkInput, effects: WalkEffect[]) {
     const stop = dan.x < INTRO_END ? undefined : STOPS.find(({ zone: z }) => dan.x >= z.from && dan.x <= z.to);
-    const next: Zone = finale > CONTACT_FINALE ? "contact" : dan.x < INTRO_END ? "intro" : stop?.id ?? "between";
-    if (next === zone) return;
-    zone = next;
-    effects.push({ kind: "zone", zone: next, side: sideFor(next, stop, viewWidth) });
+    const shown = stop && !cardCoversFocus(stop, input) ? stop : undefined;
+    const next: Zone = finale > CONTACT_FINALE ? "contact" : dan.x < INTRO_END ? "intro" : shown?.id ?? "between";
+    if (next !== zone) {
+      zone = next;
+      effects.push({ kind: "zone", zone: next });
+    }
   }
 
-  function sideFor(next: Zone, stop: (typeof STOPS)[number] | undefined, viewWidth: number): Side | null {
-    if (next === "contact") return "left";
-    if (!stop) return null;
-    const centre = stop.landmark.x + stop.landmark.width / 2 - cameraAt(dan.x, viewWidth);
-    return centre > viewWidth * 0.5 ? "left" : "right";
-  }
-
-  function step({ fraction, walkDirection, viewWidth }: WalkInput) {
+  function step(input: WalkInput) {
+    const { fraction, walkDirection } = input;
     const effects: WalkEffect[] = [];
     let scrolled = fraction;
     const scrollTo = (next: number) => {
@@ -191,7 +212,7 @@ export function createSimulation({ reduced }: { reduced: boolean }) {
     mishka.jumpHeight = dogFall.height;
     mishka.jumpSpeed = dogFall.speed;
 
-    updateZone(viewWidth, effects);
+    updateZone(input, effects);
     const progress = Math.round(progressAt(dan.x) * 1000) / 1000;
     if (progress !== lastProgress) {
       lastProgress = progress;
@@ -212,20 +233,20 @@ export function createSimulation({ reduced }: { reduced: boolean }) {
       if (reduced) pendingScroll = fraction;
       else warp = { tick: 0, fraction, moved: false };
     },
-    view() {
+    view(blend = 1) {
       const moving = Math.abs(dan.vx) > 0.05;
       const lead = dan.facing === "right" ? -LEAD_LENGTH : LEAD_LENGTH;
       const resting = finale === 0 && idleTicks > RESTING_AFTER_TICKS && Math.abs(mishka.x - (dan.x + lead)) < 2;
       return {
         dan: {
-          x: dan.x,
+          x: danFrom + (dan.x - danFrom) * blend,
           facing: dan.facing,
           lift: dan.jumpHeight,
           moving,
           frame: dan.jumpHeight > 0 ? danAirborneFrame(dan.jumpSpeed) : moving ? Math.floor(dan.stride / DAN_STRIDE_PER_FRAME) % DAN_FRAME.walkCycle : DAN_FRAME.idle,
         },
         mishka: {
-          x: mishka.x,
+          x: mishkaFrom + (mishka.x - mishkaFrom) * blend,
           facing: mishka.facing,
           lift: mishka.jumpHeight,
           frame: mishka.jumpHeight > 0 ? MISHKA_FRAME.airborne : resting ? MISHKA_FRAME.idle : Math.floor(mishka.stride / MISHKA_STRIDE_PER_FRAME) % MISHKA_FRAME.walkCycle,

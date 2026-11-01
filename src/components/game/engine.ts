@@ -1,49 +1,85 @@
-import { GROUND_DEPTH, SOIL_DEPTH, disc, drawGem, drawSun, mix, paintGround, paintSky, rng, skyAt, tileAcross } from "./art";
-import { buildPath } from "./path";
+import { DITHER_PERIOD, GROUND_DEPTH, SOIL_DEPTH, columnsOf, drawGem, drawPuff, drawSun, mix, paintGround, paintSky, rng, skyAt, smokePuffs, soilFlecks, sunDisc, sunHalo, tileThroughTurn } from "./art";
+import { buildPath, placeProps, surfaceAt } from "./path";
 import { CLOUD_KINDS, DAN_SHEET, MISHKA_SHEET, PROP_SHEET, TREE_SHEET, loadArt, type Art } from "./assets";
 import layouts from "./room-layouts.json";
 import { ROOM_SCALE, createRoomScene } from "./room-scene";
-import { CONTACT_FINALE, cameraAt, createSimulation, type Side, type WalkDirection, type Zone } from "./simulation";
+import { CONTACT_FINALE, cameraAt, createSimulation, createStepClock, type WalkDirection, type Zone } from "./simulation";
 import { createTerminal } from "./terminal";
 import { clamp, progressAt, type Destination } from "./track";
-import { BEACON, CHIMNEY, DOOR, GEMS, WORLD_WIDTH, spriteTop } from "./world";
+import { BEACON, CHIMNEY, DOOR, GEMS, LANDMARKS, WORLD_WIDTH, spriteTop } from "./world";
 
 const SEATTLE_LAYER_X = 830;
 const ROOMS = {
   wide: {
     ...layouts.wide,
     focusX: 0.7,
-    focusY: 0.55,
-    anchorY: 0.55,
+    focusY: 0.8,
+    anchorY: 0.7889,
     subjectSpan: 0.56,
-    coffee: { x: 582, y: 236 },
-    blink: { x: 493, y: 190, width: 3, height: 2 },
-    candles: [{ x: 688, y: 123 }, { x: 705, y: 131 }],
-    snore: { x: 709, y: 304 },
   },
   tall: {
     ...layouts.tall,
-    focusX: 0.58,
-    focusY: 0.63,
-    anchorY: 0.62,
+    keep: [80, 453] as const,
+    focusY: 0.6594,
+    anchorY: 0.6642,
     subjectSpan: 0.66,
-    coffee: { x: 267, y: 490 },
-    blink: { x: 151, y: 429, width: 3, height: 3 },
-    candles: [{ x: 391, y: 372 }, { x: 407, y: 383 }],
-    snore: { x: 349, y: 616 },
   },
 };
 const WIDE_ROOM_MIN_ASPECT = 1.1;
+
+// The tall room keeps Dan's back through the firebox in view: centred when the
+// span fits, otherwise the firebox end wins and the chair back is what gets cut.
+function roomLeft(room: (typeof ROOMS)[keyof typeof ROOMS], pixel: number, viewW: number) {
+  if (!("keep" in room)) return viewW / 2 - room.focusX * room.width * pixel;
+  const [from, to] = room.keep;
+  if ((to - from) * pixel > viewW) return viewW - to * pixel;
+  return viewW / 2 - ((from + to) / 2) * pixel;
+}
+const ROOM_SCALE_SNAP = 0.05;
 const REVEAL = { from: 3380, to: 3930, summitAt: 0.56, baseBelowGround: 6, buriedTop: 70, drift: 34 };
-const FOREGROUND = 1.18;
 const FIRST_NEAR_TREE = 340;
+const TREE_BUILDING_MARGIN = 110;
+const SKYLINE_PARALLAX = 0.26;
+const SKYLINE_X = { rattlesnake: 0, olympics: 500, issaquah: 1040, beyond: 1570 };
+const SKYLINE_RISE = 8;
+const RANGE_RISE = -26;
+const SUN_ARC_OVERRUN = 0.14;
+const MOON_DISC = { x: 12, y: 20, radius: 20.5 };
+const SCROLLING_ROOM_HZ = 6;
+const SCREEN_STEADY = { startEvery: 1.6, blinkEvery: 0.5, span: 0.44 };
+const SCROLL_SETTLE_MS = 500;
+const ROOM_CLEAR_SETTLE_SECONDS = 0.1;
+const IRIS_HOLE_MARGIN = 1.3;
+const WIPE_WALK_REPAINT_EVERY = 2;
+const CANDLE_REACH = 26;
+const STEAM_BOX = { left: 10, top: 20, width: 20, height: 22 };
+const SNORE_BOX = { left: 8, top: 40, width: 16, height: 48 };
+const TALLEST_LANDMARK = LANDMARKS.reduce((tallest, landmark) => (landmark.height > tallest.height ? landmark : tallest));
+const FAR_TREE_PARALLAX = 0.55;
+const FAR_TREE_SCALE = 0.62;
+const FAR_TREE_HAZE = 0.34;
+const NEAR_TREE_PARALLAX = 0.7;
+const HILLS_PARALLAX = 0.4;
+const HILLS_TURN_WORLD_X = 1100;
+const MEADOW_PARALLAX = 0.86;
+const MEADOW_TURN_WORLD_X = 1180;
+const SEATTLE_RISE = 34;
+const GREAT_WHEEL = { offset: 236, reach: 16 };
+const SKYLINE_ROWS = 170;
+const LAYER_BASE = 2;
+const HAZE = "#8fb3c9";
+const REVEAL_FADE = 0.4;
 const MIN_TIMELINE_PX = 60;
+const IRIS_FROM_FINALE = 0.34;
+const ROOM_REVEAL_LEAD = 0.04;
+const ROOM_WARM_FINALE = 0.24;
 const FOOT_DROP = 3;
-const SIM_STEP_MS = 1000 / 60;
+const PROP_ROOT_ROW = 2;
 const TELEPORT_COLORS = ["#fde3cf", "#fab387", "#cba6f7", "#ffffff"];
 
 export type WalkEvents = {
-  zone(zone: Zone, side: Side | null): void;
+  zone(zone: Zone): void;
+  inside(inside: boolean): void;
   collected(labels: string[]): void;
   toast(text: string, worldX: number, tone: "gem" | "level"): void;
   progress(progress: number): void;
@@ -93,37 +129,55 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
     const { rainier } = art;
     const dan = slice(art.dan, DAN_SHEET.width, DAN_SHEET.height);
     const dog = slice(art.mishka, MISHKA_SHEET.width, MISHKA_SHEET.height);
-    const cloudSprites = slice(art.clouds, art.clouds.width / CLOUD_KINDS, art.clouds.height);
+    const cloudWidth = art.clouds.width / CLOUD_KINDS;
+    const tintedClouds = document.createElement("canvas");
+    tintedClouds.width = art.clouds.width;
+    tintedClouds.height = art.clouds.height * 2;
+    const tintedCloudsCtx = tintedClouds.getContext("2d")!;
     // Layout, rebuilt on resize. The canvas is scaled by a whole number of
     // device pixels, so art pixels stay square and sharp on any screen.
     let scale = 3;
     let vw = 480;
     let vh = 300;
     let ground = 260;
+    let cardSpan = 0;
+    const skyCanvas = document.createElement("canvas");
+    let skyCtx = skyCanvas.getContext("2d")!;
+    const skyTile = document.createElement("canvas");
+    skyTile.width = DITHER_PERIOD;
+    let skyTileCtx = skyTile.getContext("2d")!;
     let skyImg: ImageData | null = null;
     let skyKey = "";
-    let layers: { canvas: HTMLCanvasElement; factor: number }[] = [];
+    let layers: ({ canvas: HTMLCanvasElement; factor: number; top: number; rows: number } & ReturnType<typeof columnsOf>)[] = [];
     const world = document.createElement("canvas");
     let wctx = world.getContext("2d")!;
     let stars: { x: number; y: number; b: number; s: number }[] = [];
     let clouds: { x: number; y: number; kind: number; facing: "left" | "right"; speed: number }[] = [];
-    const cloudLayer = document.createElement("canvas");
-    let cctx = cloudLayer.getContext("2d")!;
     let props: { x: number; kind: number }[] = [];
-    const fg = document.createElement("canvas");
-    let fctx = fg.getContext("2d")!;
+    let laidOutSize = "";
+    let worldTop = 0;
+    let lastPaintTop = 0;
 
     function layout() {
       const w = view.clientWidth;
       const h = view.clientHeight;
       const dpr = window.devicePixelRatio || 1;
-      const device = Math.max(2, Math.min(Math.floor((h * dpr) / 300), Math.floor((w * dpr) / 250)));
+      const size = `${w} ${h} ${dpr}`;
+      if (size === laidOutSize) return;
+      laidOutSize = size;
+      const device =Math.max(2, Math.min(Math.floor((h * dpr) / 300), Math.floor((w * dpr) / 250)));
       scale = device / dpr;
       vw = Math.ceil(w / scale);
       vh = Math.ceil(h / scale);
       const soil = Math.max(SOIL_DEPTH, Math.ceil(MIN_TIMELINE_PX / scale));
       ground = vh - GROUND_DEPTH - (soil - SOIL_DEPTH);
       view.style.setProperty("--soil", `${soil}`);
+      const card = view.querySelector<HTMLElement>(".walk-card");
+      if (card) {
+        const gutter = Math.min(card.offsetLeft, w - card.offsetLeft - card.offsetWidth);
+        const fullWidth = card.offsetWidth + gutter * 2 >= w - 1;
+        cardSpan = fullWidth ? 0 : (card.offsetWidth + gutter) / scale;
+      }
       canvas.width = vw;
       canvas.height = vh;
       canvas.style.width = `${vw * scale}px`;
@@ -131,53 +185,83 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
       world.width = vw;
       world.height = vh;
       wctx = world.getContext("2d")!;
-      fg.width = vw;
-      fg.height = vh;
-      fctx = fg.getContext("2d")!;
-      cloudLayer.width = vw;
-      cloudLayer.height = vh;
-      cctx = cloudLayer.getContext("2d")!;
-      skyImg = ctx.createImageData(vw, vh);
+      skyCanvas.width = vw;
+      skyCanvas.height = vh;
+      skyCtx = skyCanvas.getContext("2d")!;
+      skyTile.height = vh;
+      skyTileCtx = skyTile.getContext("2d")!;
+      skyImg = skyTileCtx.createImageData(DITHER_PERIOD, vh);
       skyKey = "";
       const travel = WORLD_WIDTH - vw;
-      const layer = (factor: number, paint: (c: CanvasRenderingContext2D, width: number) => void) => {
+      const layer = (factor: number, height: number, paint: (c: CanvasRenderingContext2D, width: number) => void) => {
         const c = document.createElement("canvas");
         c.width = Math.ceil(travel * factor + vw) + 4;
-        c.height = vh;
-        paint(c.getContext("2d")!, c.width);
-        return { canvas: c, factor };
+        c.height = height;
+        const context = c.getContext("2d")!;
+        const top = ground + LAYER_BASE - height;
+        context.translate(0, -top);
+        paint(context, c.width);
+        return { canvas: c, factor, top, rows: height, ...columnsOf(c) };
+      };
+      const layerXAt = (worldX: number, parallax: number) => Math.round((worldX - vw / 2) * parallax + vw / 2);
+      const paintGroves = (c: CanvasRenderingContext2D, width: number, parallax: number, r: () => number, scale: number) => {
+        const drawn = { width: Math.round(TREE_SHEET.width * scale), height: Math.round(TREE_SHEET.height * scale) };
+        const centredWorldX = (layerX: number) => (layerX - vw / 2) / parallax + vw / 2;
+        const clearOfBuildings = (worldX: number) =>
+          LANDMARKS.every((landmark) => worldX < landmark.x - TREE_BUILDING_MARGIN || worldX > landmark.x + landmark.width + TREE_BUILDING_MARGIN);
+        const wheelX = SEATTLE_LAYER_X + GREAT_WHEEL.offset;
+        const wheelOnScreenFrom = Math.max(0, (wheelX - vw) / HILLS_PARALLAX);
+        const wheelOnScreenTo = Math.min(travel, wheelX / HILLS_PARALLAX);
+        const clearOfWheel = (layerX: number) =>
+          layerX + drawn.width + GREAT_WHEEL.reach < wheelX + (parallax - HILLS_PARALLAX) * wheelOnScreenFrom ||
+          layerX - GREAT_WHEEL.reach > wheelX + (parallax - HILLS_PARALLAX) * wheelOnScreenTo;
+        let tx = FIRST_NEAR_TREE;
+        while (tx < width) {
+          const surface = surfaceAt(centredWorldX(tx));
+          const sparse = surface.name === "sand";
+          const grove = sparse ? 1 + Math.floor(r() * 2) : 2 + Math.floor(r() * 5);
+          for (let i = 0; i < grove && tx < width; i++) {
+            const kind = surface.trees[Math.floor(r() * surface.trees.length)];
+            if (clearOfBuildings(centredWorldX(tx)) && clearOfWheel(tx)) {
+              c.drawImage(art.trees, kind * TREE_SHEET.width, 0, TREE_SHEET.width, TREE_SHEET.height, Math.round(tx), ground + LAYER_BASE - drawn.height, drawn.width, drawn.height);
+            }
+            tx += (34 + r() * 40) * scale;
+          }
+          tx += (sparse ? 240 : 80) + r() * 220;
+        }
       };
       layers = [
-        layer(0.12, (c, width) => {
-          tileAcross(c, art.cascades, width, ground - 40);
+        layer(SKYLINE_PARALLAX, SKYLINE_ROWS, (c) => {
+          const [rattlesnake, olympics, issaquah] = art.skylines;
+          const place = (skyline: HTMLImageElement, x: number, rise: number) => c.drawImage(skyline, x, ground - rise - skyline.height);
+          c.save();
+          c.translate(SKYLINE_X.beyond * 2 + issaquah.width, 0);
+          c.scale(-1, 1);
+          place(issaquah, SKYLINE_X.beyond, RANGE_RISE);
+          c.restore();
+          place(olympics, SKYLINE_X.olympics, RANGE_RISE);
+          place(issaquah, SKYLINE_X.issaquah, RANGE_RISE);
+          place(rattlesnake, SKYLINE_X.rattlesnake, SKYLINE_RISE);
         }),
-        layer(0.4, (c, width) => {
-          tileAcross(c, art.foothills, width, ground + 2);
-          c.drawImage(art.seattle, SEATTLE_LAYER_X, ground - 34 - art.seattle.height);
+        layer(HILLS_PARALLAX, art.seattle.height + SEATTLE_RISE + LAYER_BASE, (c, width) => {
+          tileThroughTurn(c, art.foothills, layerXAt(HILLS_TURN_WORLD_X, HILLS_PARALLAX), width, ground + LAYER_BASE);
+          c.drawImage(art.seattle, SEATTLE_LAYER_X, ground - SEATTLE_RISE - art.seattle.height);
         }),
-        layer(0.7, (c, width) => {
-          // Groves of real trees; firs most often, the odd maple.
-          const r = rng(21);
-          let tx = FIRST_NEAR_TREE;
-          while (tx < width) {
-            const grove = 2 + Math.floor(r() * 5);
-            for (let i = 0; i < grove && tx < width; i++) {
-              const n = r();
-              const kind = n < 0.3 ? 0 : n < 0.55 ? 1 : n < 0.72 ? 2 : n < 0.85 ? 3 : n < 0.93 ? 4 : 5;
-              c.drawImage(art.trees, kind * TREE_SHEET.width, 0, TREE_SHEET.width, TREE_SHEET.height, Math.round(tx), ground + spriteTop(TREE_SHEET), TREE_SHEET.width, TREE_SHEET.height);
-              tx += 34 + r() * 40;
-            }
-            tx += 80 + r() * 220;
-          }
+        layer(FAR_TREE_PARALLAX, TREE_SHEET.height, (c, width) => {
+          c.imageSmoothingEnabled = false;
+          paintGroves(c, width, FAR_TREE_PARALLAX, rng(34), FAR_TREE_SCALE);
+          c.globalCompositeOperation = "source-atop";
+          c.globalAlpha = FAR_TREE_HAZE;
+          c.fillStyle = HAZE;
+          c.fillRect(0, 0, width, vh);
+          c.globalAlpha = 1;
+          c.globalCompositeOperation = "source-over";
         }),
-        layer(0.86, (c, width) => tileAcross(c, art.meadow, width, ground + 2)),
+        layer(NEAR_TREE_PARALLAX, TREE_SHEET.height, (c, width) => paintGroves(c, width, NEAR_TREE_PARALLAX, rng(21), 1)),
+        layer(MEADOW_PARALLAX, art.meadow.after.height, (c, width) => tileThroughTurn(c, art.meadow, layerXAt(MEADOW_TURN_WORLD_X, MEADOW_PARALLAX), width, ground + LAYER_BASE)),
       ];
-      // Path-side props, placed once in foreground coordinates.
-      props = [];
-      const pr = rng(9);
-      for (let px = 260; px < WORLD_WIDTH * FOREGROUND + vw; px += 150 + pr() * 260) {
-        props.push({ x: Math.round(px), kind: Math.floor(pr() * PROP_SHEET.count) });
-      }
+      worldTop = Math.max(0, Math.min(ground + spriteTop(TALLEST_LANDMARK), ...layers.map(({ top }) => top)));
+      props = placeProps(rng(9));
       const r = rng(3);
       clouds = [];
       for (let cx = 0; cx < vw + 400; cx += 150 + r() * 170) {
@@ -206,10 +290,11 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
 
     function measureTrack() {
       const rect = stage.getBoundingClientRect();
-      const travel = stage.offsetHeight - window.innerHeight;
+      const pinnedHeight = view.offsetHeight;
+      const travel = stage.offsetHeight - pinnedHeight;
       return {
         fraction: clamp(-rect.top / Math.max(1, travel), 0, 1),
-        pinned: rect.top <= 1 && rect.bottom >= window.innerHeight - 1,
+        pinned: rect.top <= 1 && rect.bottom >= pinnedHeight - 1,
         top: rect.top + window.scrollY,
         travel,
       };
@@ -232,14 +317,15 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
 
     function simulate(now: number) {
       const { fraction, pinned, top, travel } = measureTrack();
-      const effects = simulation.step({ fraction, walkDirection: walkDirection(pinned), viewWidth: vw });
+      const effects = simulation.step({ fraction, walkDirection: walkDirection(pinned), viewWidth: vw, cardSpan });
       for (const effect of effects) {
         switch (effect.kind) {
           case "scroll":
             window.scrollTo(0, top + effect.fraction * travel);
             break;
           case "zone":
-            on.zone(effect.zone, effect.side);
+            on.zone(effect.zone);
+            pageRestyled = true;
             break;
           case "collected":
             on.collected(effect.labels);
@@ -263,7 +349,7 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
       }
 
       const walkers = simulation.view();
-      if (walkers.finale > 0) terminal.tick();
+      if (walkers.finale >= CONTACT_FINALE && !reduced && !scrolling) terminal.tick();
       if (walkers.warpLevel > 0) {
         for (const wx of [walkers.dan.x, walkers.mishka.x]) {
           particles.push({ x: wx - 8 + Math.random() * 16, y: ground - Math.random() * 70, vx: 0, vy: -1.6 - Math.random() * 2, life: 0.7, color: TELEPORT_COLORS[Math.floor(Math.random() * TELEPORT_COLORS.length)] });
@@ -272,22 +358,48 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
 
       // Particles: sparks fall, chimney smoke drifts.
       if (!reduced && now > smokeAt) {
-        smokeAt = now + 320;
-        particles.push({ x: CHIMNEY.x + Math.random() * 4, y: ground + CHIMNEY.y, vx: 0.12 + Math.random() * 0.08, vy: -0.32, life: 1, color: "#b9b4cc", smoke: true });
+        smokeAt = now + 110 + Math.random() * 110;
+        particles.push({ x: CHIMNEY.x + Math.random() * 4, y: ground + CHIMNEY.y, vx: 0.02 + Math.random() * 0.08, vy: -(0.14 + Math.random() * 0.12), life: 1, color: "", smoke: true });
       }
       for (let i = particles.length - 1; i >= 0; i--) {
         const q = particles[i];
         q.x += q.vx;
         q.y += q.vy;
         if (q.smoke) {
-          q.life -= 0.004;
-          q.vx += 0.003;
+          q.life -= 0.0032;
+          q.vx += 0.0009;
         } else {
           q.vy += 0.12;
           q.life -= 0.02;
         }
         if (q.life <= 0) particles.splice(i, 1);
       }
+    }
+
+    function cloudLeft(cloud: (typeof clouds)[number], camera: number, drift: number) {
+      const span = vw + 400;
+      let cx = (cloud.x - camera * 0.08 + drift * cloud.speed) % span;
+      if (cx < 0) cx += span;
+      return Math.round(cx - 200);
+    }
+
+    const layerRows = [0, 0, 0, 0, 0];
+    const layerEnds = [0, 0, 0, 0, 0];
+
+    function tintClouds(sky: ReturnType<typeof skyAt>) {
+      const { width, height } = art.clouds;
+      const c = tintedCloudsCtx;
+      c.globalCompositeOperation = "source-over";
+      c.clearRect(0, 0, width, height * 2);
+      c.drawImage(art.clouds, 0, 0);
+      c.setTransform(-1, 0, 0, 1, width, 0);
+      c.drawImage(art.clouds, 0, height);
+      c.setTransform(1, 0, 0, 1, 0, 0);
+      c.globalCompositeOperation = "source-atop";
+      c.globalAlpha = Math.min(0.8, sky.tintAlpha * 2.2);
+      c.fillStyle = mix(sky.low, sky.tint, 0.5);
+      c.fillRect(0, 0, width, height * 2);
+      c.globalAlpha = 1;
     }
 
     function tinted(img: HTMLImageElement, color: string, alpha: number) {
@@ -304,30 +416,98 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
     }
     const alpenglow = tinted(rainier, "#ff8a78", 0.5);
     const moonlit = tinted(rainier, "#1f2350", 0.62);
-    const warmSun = tinted(art.sun, "#ff6a2c", 0.45);
+    const sunArt = {
+      halo: sunHalo("#fff3b8"),
+      warmHalo: sunHalo("#ff9d5c"),
+      disc: sunDisc(["#fffbe0", "#fff0b0", "#ffdf8a"]),
+      warmDisc: sunDisc(["#ffd873", "#ff9a42", "#f0553a"]),
+    };
     const path = buildPath();
+    const flecks = soilFlecks(WORLD_WIDTH);
+    const puffs = smokePuffs();
 
     const scenes = {
       wide: createRoomScene(art.rooms.wide, ROOMS.wide, terminal),
       tall: createRoomScene(art.rooms.tall, ROOMS.tall, terminal),
     };
     let roomKey = "";
-    const rctx = roomCanvas.getContext("2d")!;
+    let wasInside = false;
+    let wasCovered = false;
+    let wasWarm = false;
+    let paintedIris = 0;
+    let paintedCamX = 0;
+    let wipeFrames = 0;
+    let roomClearedAt = -Infinity;
+    let pageRestyled = false;
+    let scrolling = false;
+    let scrolledFrom = 0;
+    let scrolledAt = -Infinity;
+    let lastScrollY = window.scrollY;
+    const rctx = roomCanvas.getContext("2d", { alpha: false })!;
 
-    function paintRoom(iris: number, t: number, camX: number) {
-      roomCanvas.hidden = iris === 0;
+    const roomName = () => (view.clientWidth / view.clientHeight >= WIDE_ROOM_MIN_ASPECT ? "wide" : "tall");
+
+    function irisRadius(iris: number) {
+      return iris * iris * (3 - 2 * iris) * Math.hypot(view.clientWidth, view.clientHeight) * 1.15;
+    }
+
+    const irisCentre = (camX: number) => ({ x: DOOR.x + DOOR.width / 2 - camX, y: ground + DOOR.y + DOOR.height / 2 });
+
+    function irisCoversView(iris: number, camX: number) {
+      if (iris === 0) return false;
+      const { x, y } = irisCentre(camX);
+      return Math.hypot(Math.max(x, vw - x), Math.max(y, vh - y)) < irisRadius(iris) / scale;
+    }
+
+    // The room sits under the walk canvas, which opens this hole onto it. A
+    // clip-path on the room instead rebuilds a full-screen mask every frame.
+    function openIris(iris: number, camX: number) {
+      const { x, y } = irisCentre(camX);
+      ctx.globalCompositeOperation = "destination-out";
+      ctx.beginPath();
+      ctx.arc(x, y, irisRadius(iris) / scale, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalCompositeOperation = "source-over";
+    }
+
+    // Re-projecting a screen costs more than the rest of a paint. Mid-scroll the
+    // room's clock loops inside one cursor blink and one editor line, so the
+    // screens hold still while the fire and Mishka keep moving.
+    function steadyScreenTime(t: number) {
+      const { startEvery, blinkEvery, span } = SCREEN_STEADY;
+      const start = Math.ceil(Math.floor(scrolledFrom / startEvery) * startEvery / blinkEvery) * blinkEvery;
+      return start + (Math.floor(t * SCROLLING_ROOM_HZ) / SCROLLING_ROOM_HZ) % span;
+    }
+
+    function movingBoxes(room: (typeof ROOMS)[keyof typeof ROOMS]) {
+      const { coffee, snore, snoreDrift } = room;
+      return [
+        room.fireBox,
+        room.main,
+        room.side,
+        room.mishkaBox,
+        room.handsBox,
+        room.shiftBox,
+        room.blink,
+        { x: coffee.x - STEAM_BOX.left, y: coffee.y - STEAM_BOX.top, width: STEAM_BOX.width, height: STEAM_BOX.height },
+        { x: snore.x + Math.min(snoreDrift, 0) - SNORE_BOX.left, y: snore.y - SNORE_BOX.top, width: Math.abs(snoreDrift) + SNORE_BOX.width, height: SNORE_BOX.height },
+        ...room.candles.map(({ x, y }) => ({ x: x - CANDLE_REACH, y: y - CANDLE_REACH, width: CANDLE_REACH * 2, height: CANDLE_REACH * 2 })),
+      ];
+    }
+
+    function paintRoom(iris: number, t: number) {
       if (iris === 0) return;
       const viewW = view.clientWidth;
       const viewH = view.clientHeight;
       const dpr = window.devicePixelRatio || 1;
-      const name = viewW / viewH >= WIDE_ROOM_MIN_ASPECT ? "wide" : "tall";
+      const name = roomName();
       const room = ROOMS[name];
       const cover = Math.max(viewW / room.width, viewH / room.height);
-      const crisp = Math.ceil(cover * dpr) / dpr;
-      const pixel = room.width * crisp * room.subjectSpan <= viewW ? crisp : cover;
+      const crisp = Math.ceil(cover * dpr - ROOM_SCALE_SNAP) / dpr;
+      const pixel = room.width * crisp * room.subjectSpan <= viewW ? Math.max(crisp, cover) : cover;
       const w = room.width * pixel;
       const h = room.height * pixel;
-      const left = Math.round(clamp(viewW / 2 - room.focusX * w, viewW - w, 0));
+      const left = Math.round(clamp(roomLeft(room, pixel, viewW), viewW - w, 0));
       const top = Math.round(clamp(viewH * room.anchorY - room.focusY * h, viewH - h, 0));
       const key = `${name} ${w} ${h} ${left} ${top}`;
       if (key !== roomKey) {
@@ -338,14 +518,37 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
         roomCanvas.style.height = `${h}px`;
         roomCanvas.style.left = `${left}px`;
         roomCanvas.style.top = `${top}px`;
+        roomClearedAt = t;
       }
 
-      const doorX = (DOOR.x + DOOR.width / 2 - camX) * scale;
-      const doorY = viewH - (vh - (ground + DOOR.y + DOOR.height / 2)) * scale;
-      const radius = iris * iris * (3 - 2 * iris) * Math.hypot(viewW, viewH) * 1.15;
-      roomCanvas.style.clipPath = `circle(${radius}px at ${doorX - left}px ${doorY - top}px)`;
-
-      scenes[name].draw(rctx, t, !reduced);
+      // The plate is already on the canvas, so a scroll only repaints what moves:
+      // a full repaint costs a long task, and nobody reads the room mid-swipe. A
+      // frame that restyled the page waits a frame, so the two never share a task.
+      const quick = scrolling && t - roomClearedAt > ROOM_CLEAR_SETTLE_SECONDS;
+      if (quick && pageRestyled) {
+        pageRestyled = false;
+        return;
+      }
+      rctx.save();
+      if (quick && iris < 1) {
+        const { x, y } = irisCentre(paintedCamX);
+        const reach = (irisRadius(iris) * IRIS_HOLE_MARGIN) / scale;
+        const toRoom = (cssX: number, cssY: number) => ({ x: ((cssX * scale - left) / pixel) * ROOM_SCALE, y: ((cssY * scale - top) / pixel) * ROOM_SCALE });
+        const corner = toRoom(x - reach, y - reach);
+        const across = toRoom(x + reach, y + reach);
+        rctx.beginPath();
+        rctx.rect(corner.x, corner.y, across.x - corner.x, across.y - corner.y);
+        rctx.clip();
+      }
+      rctx.beginPath();
+      if (quick) {
+        for (const box of movingBoxes(room)) rctx.rect(box.x * ROOM_SCALE, box.y * ROOM_SCALE, box.width * ROOM_SCALE, box.height * ROOM_SCALE);
+      } else {
+        rctx.rect((-left / pixel) * ROOM_SCALE, (-top / pixel) * ROOM_SCALE, (viewW / pixel) * ROOM_SCALE, (viewH / pixel) * ROOM_SCALE);
+      }
+      rctx.clip();
+      scenes[name].draw(rctx, quick ? steadyScreenTime(t) : t, !reduced, iris < 1);
+      rctx.restore();
     }
 
     function drawContactShadow(x: number, y: number, halfWidth: number, lift: number, presence: number) {
@@ -358,10 +561,105 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
       ctx.globalAlpha = 1;
     }
 
-    function draw(now: number) {
+    // Toasts track world positions, so their layer takes the camera as a plain
+    // transform. The camera is also published as --cam for tooling, but not while
+    // a toast is scrolling past: it inherits, and would restyle the toast each frame.
+    const toastLayer = view.querySelector<HTMLElement>(".walk-toasts")!;
+    let transformedCamera: number | null = null;
+    let publishedCamera: number | null = null;
+    function publishCamera(camX: number) {
+      const hasToasts = toastLayer.childElementCount > 0;
+      if (hasToasts && camX !== transformedCamera) {
+        transformedCamera = camX;
+        toastLayer.style.transform = `translateX(${-camX * scale}px)`;
+      }
+      if (camX !== publishedCamera && !(hasToasts && scrolling)) {
+        publishedCamera = camX;
+        toastLayer.style.setProperty("--cam", `${camX}`);
+      }
+    }
+
+    // Blits each layer's rows between its highest paint in view and the highest
+    // row the solid layers in front of it leave showing. Returns the top row painted.
+    function paintLayers(camX: number) {
+      let top = vh;
+      for (const { landmark } of art.landmarks) {
+        const sx = landmark.x - camX;
+        if (sx > -landmark.width && sx < vw) top = Math.min(top, ground + spriteTop(landmark));
+      }
+      let hiddenFrom = vh;
+      for (let i = layers.length - 1; i >= 0; i--) {
+        const layer = layers[i];
+        const left = Math.round(camX * layer.factor);
+        let first = layer.rows;
+        let solid = 0;
+        for (let column = left; column < left + vw; column++) {
+          first = Math.min(first, layer.painted[column]);
+          solid = Math.max(solid, layer.solid[column]);
+        }
+        layerRows[i] = first;
+        layerEnds[i] = Math.min(layer.rows, hiddenFrom - layer.top);
+        hiddenFrom = Math.min(hiddenFrom, layer.top + solid);
+        top = Math.min(top, layer.top + first);
+      }
+      top = Math.max(worldTop, top);
+      const cleared = Math.min(top, lastPaintTop);
+      wctx.clearRect(0, cleared, vw, vh - cleared);
+      lastPaintTop = top;
+      layers.forEach((layer, i) => {
+        const rows = layerEnds[i] - layerRows[i];
+        if (rows > 0) wctx.drawImage(layer.canvas, Math.round(camX * layer.factor), layerRows[i], vw, rows, 0, layer.top + layerRows[i], vw, rows);
+      });
+      return top;
+    }
+
+    function draw(now: number, blend: number) {
       const t = now / 1000;
-      const { dan: walker, mishka, collected, finale, warpLevel } = simulation.view();
-      const camX = Math.round(cameraAt(walker.x, vw));
+      if (window.scrollY !== lastScrollY) {
+        lastScrollY = window.scrollY;
+        if (!scrolling) scrolledFrom = t;
+        scrolledAt = now;
+      }
+      scrolling = now - scrolledAt < SCROLL_SETTLE_MS;
+      const { dan: walker, mishka, collected, finale, warpLevel } = simulation.view(blend);
+      const camera = cameraAt(walker.x, vw);
+      const camX = Math.round(camera);
+      const iris = clamp((finale - IRIS_FROM_FINALE) / 0.5, 0, 1);
+      if (iris > 0 !== wasInside) {
+        wasInside = iris > 0;
+        on.inside(wasInside);
+        pageRestyled = true;
+      }
+      publishCamera(camX);
+      // The first paint re-projects both screens, so it gets a quiet frame of its
+      // own before the reveal and the wipe, which are heavy enough by themselves.
+      const roomWarm = finale >= ROOM_WARM_FINALE;
+      if (roomWarm !== wasWarm) {
+        wasWarm = roomWarm;
+        if (roomWarm) paintRoom(1, t);
+      }
+      const roomAhead = finale <= IRIS_FROM_FINALE - ROOM_REVEAL_LEAD;
+      if (roomCanvas.hidden !== roomAhead) roomCanvas.hidden = roomAhead;
+      const covered = irisCoversView(iris, camX);
+      if (covered !== wasCovered) {
+        wasCovered = covered;
+        canvas.style.visibility = covered ? "hidden" : "";
+        pageRestyled = true;
+      }
+      if (covered) {
+        paintRoom(iris, t);
+        return;
+      }
+      // While the wipe grows the walk behind it hardly moves, so on most frames
+      // it only needs the hole cut wider. Shrinking has to repaint what it uncovers.
+      const wipeGrowing = iris > 0 && iris >= paintedIris && camX === paintedCamX;
+      paintedIris = iris;
+      paintedCamX = camX;
+      if (wipeGrowing && (pageRestyled || ++wipeFrames % WIPE_WALK_REPAINT_EVERY)) {
+        openIris(iris, camX);
+        paintRoom(iris, t);
+        return;
+      }
       const tod = progressAt(walker.x);
       const sky = skyAt(tod);
 
@@ -369,83 +667,96 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
       const key = `${Math.round(tod * 300)}`;
       if (key !== skyKey && skyImg) {
         paintSky(skyImg, sky, ground - 10);
+        skyTileCtx.putImageData(skyImg, 0, 0);
+        skyCtx.fillStyle = skyCtx.createPattern(skyTile, "repeat")!;
+        skyCtx.fillRect(0, 0, vw, vh);
+        tintClouds(sky);
         stage.style.backgroundColor = mix("#3d2f27", sky.tint, sky.tintAlpha);
         skyKey = key;
       }
-      if (skyImg) ctx.putImageData(skyImg, 0, 0);
+      ctx.drawImage(skyCanvas, 0, 0, vw, ground, 0, 0, vw, ground);
 
+      const moonRise = clamp((tod - 0.9) / 0.1, 0, 1);
+      const moonLeft = Math.round(vw * 0.18) - art.moon.width / 2;
+      const moonTop = Math.round(ground * (0.42 - moonRise * 0.22)) - art.moon.height / 2;
       if (sky.stars > 0.02) {
+        ctx.fillStyle = "#fff7e6";
         for (const s of stars) {
           const tw = reduced ? 1 : 0.6 + 0.4 * Math.sin(t * 1.7 + s.s);
-          ctx.globalAlpha = clamp(sky.stars * s.b * tw, 0, 1);
-          ctx.fillStyle = "#fff7e6";
+          const behindMoon = moonRise > 0 && Math.hypot(s.x - moonLeft - MOON_DISC.x, s.y - moonTop - MOON_DISC.y) < MOON_DISC.radius;
+          ctx.globalAlpha = clamp(sky.stars * s.b * tw * (behindMoon ? 1 - moonRise : 1), 0, 1);
           ctx.fillRect(s.x, s.y, 1, 1);
         }
         ctx.globalAlpha = 1;
       }
       const reveal = clamp((walker.x - REVEAL.from) / (REVEAL.to - REVEAL.from), 0, 1);
+      const drift = reduced ? 0 : t * 2;
+      const cloudAlpha = clamp((tod - 0.06) / 0.06, 0, 1) * (1 - clamp(reveal / REVEAL_FADE, 0, 1));
+      if (moonRise > 0) {
+        ctx.globalAlpha = moonRise;
+        ctx.drawImage(art.moon, moonLeft, moonTop);
+        ctx.globalAlpha = 1;
+      }
+
+      // The sun's arc runs on past the horizon, so the world hides it at both ends.
+      const sunT = (tod - 0.02) / 0.76;
+      if (sunT > -SUN_ARC_OVERRUN && sunT < 1 + SUN_ARC_OVERRUN) {
+        const sx = Math.round(vw * (0.12 + sunT * 0.8));
+        const sy = Math.round(ground - 14 - Math.sin(sunT * Math.PI) * (ground * 0.72));
+        drawSun(ctx, sunArt, sx, sy, clamp((sunT - 0.6) / 0.4, 0, 1));
+      }
+
+      ctx.globalAlpha = cloudAlpha;
+      if (cloudAlpha > 0) {
+        const { height } = art.clouds;
+        for (const c of clouds) {
+          const column = c.facing === "right" ? c.kind : CLOUD_KINDS - 1 - c.kind;
+          const row = c.facing === "right" ? 0 : height;
+          ctx.drawImage(tintedClouds, column * cloudWidth, row, cloudWidth, height, cloudLeft(c, camera, drift), c.y, cloudWidth, height);
+        }
+      }
+      ctx.globalAlpha = 1;
+
+      // The world: parallax layers, ground, and landmarks, tinted with the time
+      // of day so it all sits in the same light.
+      const paintTop = paintLayers(camX);
+      const worldRows = vh - paintTop;
+      paintGround(wctx, path, flecks, camX, vw, ground, vh);
+      for (const prop of props) {
+        const sx = prop.x - camX;
+        if (sx > -PROP_SHEET.width && sx < vw) {
+          wctx.drawImage(art.props, prop.kind * PROP_SHEET.width, 0, PROP_SHEET.width, PROP_SHEET.height, Math.round(sx), ground + PROP_ROOT_ROW - PROP_SHEET.height, PROP_SHEET.width, PROP_SHEET.height);
+        }
+      }
+      for (const { landmark, sprite } of art.landmarks) {
+        const sx = landmark.x - camX;
+        if (sx > -landmark.width && sx < vw) wctx.drawImage(sprite, sx, ground + spriteTop(landmark));
+      }
+
       if (reveal > 0) {
         const eased = reveal * reveal * (3 - 2 * reveal);
         const restTop = ground + REVEAL.baseBelowGround - rainier.height;
         const buried = ground - REVEAL.buriedTop;
         const mountainX = Math.round(vw * REVEAL.summitAt - rainier.width / 2 - eased * REVEAL.drift);
         const mountainY = Math.round(buried + (restTop - buried) * eased);
+        const emerged = clamp(reveal / REVEAL_FADE, 0, 1);
+        ctx.globalAlpha = emerged;
         ctx.drawImage(rainier, mountainX, mountainY);
-        ctx.globalAlpha = Math.sin(Math.PI * Math.min(reveal * 1.15, 1)) * 0.75;
+        ctx.globalAlpha = clamp((reveal - REVEAL_FADE) / REVEAL_FADE, 0, 1) * Math.sin(Math.PI * Math.min(reveal * 1.15, 1)) * 0.75;
         ctx.drawImage(alpenglow, mountainX, mountainY);
         ctx.globalAlpha = clamp((reveal - 0.55) / 0.45, 0, 1) * 0.6;
         ctx.drawImage(moonlit, mountainX, mountainY);
         ctx.globalAlpha = 1;
       }
-      const sunT = clamp((tod - 0.02) / 0.76, 0, 1);
-      if (sunT > 0 && sunT < 1) {
-        const sx = Math.round(vw * (0.12 + sunT * 0.8));
-        const sy = Math.round(ground - 14 - Math.sin(sunT * Math.PI) * (ground * 0.72));
-        drawSun(ctx, art.sun, warmSun, sx, sy, clamp((sunT - 0.6) / 0.4, 0, 1));
-      }
-      if (tod > 0.9) {
-        const mt = clamp((tod - 0.9) / 0.1, 0, 1);
-        ctx.globalAlpha = mt;
-        ctx.drawImage(art.moon, Math.round(vw * 0.18) - art.moon.width / 2, Math.round(ground * (0.42 - mt * 0.22)) - art.moon.height / 2);
-        ctx.globalAlpha = 1;
-      }
-
-      const drift = reduced ? 0 : t * 2;
-      cctx.clearRect(0, 0, vw, vh);
-      for (const c of clouds) {
-        const span = vw + 400;
-        let cx = (c.x - camX * 0.08 + drift * c.speed) % span;
-        if (cx < 0) cx += span;
-        cctx.drawImage(cloudSprites[c.facing][c.kind], Math.round(cx - 200), c.y);
-      }
-      cctx.globalCompositeOperation = "source-atop";
-      cctx.globalAlpha = Math.min(0.8, sky.tintAlpha * 2.2);
-      cctx.fillStyle = mix(sky.low, sky.tint, 0.5);
-      cctx.fillRect(0, 0, vw, vh);
-      cctx.globalAlpha = 1;
-      cctx.globalCompositeOperation = "source-over";
-      ctx.globalAlpha = clamp((tod - 0.06) / 0.06, 0, 1);
-      ctx.drawImage(cloudLayer, 0, 0);
-      ctx.globalAlpha = 1;
-
-      // The world: parallax layers, ground, and landmarks, then tinted with
-      // the time of day so it all sits in the same light.
-      wctx.clearRect(0, 0, vw, vh);
-      for (const l of layers) wctx.drawImage(l.canvas, -Math.round(camX * l.factor), 0);
-      paintGround(wctx, path, camX, vw, ground, vh);
-      for (const { landmark, sprite } of art.landmarks) {
-        const sx = landmark.x - camX;
-        if (sx > -landmark.width && sx < vw) wctx.drawImage(sprite, sx, ground + spriteTop(landmark));
-      }
       if (sky.tintAlpha > 0.005) {
         wctx.globalCompositeOperation = "source-atop";
         wctx.globalAlpha = sky.tintAlpha;
         wctx.fillStyle = sky.tint;
-        wctx.fillRect(0, 0, vw, vh);
+        wctx.fillRect(0, paintTop, vw, worldRows);
         wctx.globalAlpha = 1;
         wctx.globalCompositeOperation = "source-over";
       }
-      ctx.drawImage(world, 0, 0);
+      ctx.drawImage(world, 0, paintTop, vw, worldRows, 0, paintTop, vw, worldRows);
 
       // Light sources sit on top of the tint.
       for (const { landmark, lights } of art.landmarks) {
@@ -460,14 +771,10 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
       ctx.imageSmoothingEnabled = false;
       for (const { landmark, logo } of art.landmarks) {
         if (!logo || !landmark.sign) continue;
-        const { size, plate } = landmark.sign;
+        const { size } = landmark.sign;
         const sx = landmark.x - camX + landmark.sign.x;
         const sy = ground + spriteTop(landmark) + landmark.sign.y;
         if (sx < -40 || sx > vw) continue;
-        if (plate) {
-          ctx.fillStyle = "#1e1e2e";
-          ctx.fillRect(sx - 2, sy - 2, size + 4, size + 4);
-        }
         ctx.drawImage(logo, sx, sy, size, size);
       }
       if (Math.sin(t * 3) > 0.2) {
@@ -509,62 +816,44 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
         ctx.globalAlpha = 1;
       }
 
-      // Mishka, then Dan.
-      const dogPresence = (1 - clamp((finale - 0.2) / 0.14, 0, 1)) * (1 - warpLevel);
-      const danPresence = (1 - clamp((finale - 0.1) / 0.14, 0, 1)) * (1 - warpLevel);
-      drawContactShadow(mishka.x - camX, ground + FOOT_DROP + 2, 19, mishka.lift, dogPresence);
-      drawContactShadow(walker.x - camX, ground + FOOT_DROP + 2, 15, walker.lift, danPresence);
-      ctx.globalAlpha = dogPresence;
-      ctx.drawImage(dog[mishka.facing][mishka.frame], Math.round(mishka.x - camX - MISHKA_SHEET.width / 2), Math.round(ground + FOOT_DROP + spriteTop(MISHKA_SHEET) - mishka.lift));
-
-      ctx.globalAlpha = danPresence;
-      ctx.drawImage(dan[walker.facing][walker.frame], Math.round(walker.x - camX - DAN_SHEET.width / 2), Math.round(ground + FOOT_DROP + spriteTop(DAN_SHEET) - walker.lift));
+      // The wipe grows out of the door and erases both walkers, opaque until then.
+      const presence = 1 - warpLevel;
+      const mishkaLeft = Math.round(mishka.x - camera - MISHKA_SHEET.width / 2);
+      const mishkaTop = Math.round(ground + FOOT_DROP + spriteTop(MISHKA_SHEET) - mishka.lift);
+      const danLeft = Math.round(walker.x - camera - DAN_SHEET.width / 2);
+      const danTop = Math.round(ground + FOOT_DROP + spriteTop(DAN_SHEET) - walker.lift);
+      drawContactShadow(mishka.x - camera, ground + FOOT_DROP + 2, 19, mishka.lift, presence);
+      ctx.globalAlpha = presence;
+      ctx.drawImage(dog[mishka.facing][mishka.frame], mishkaLeft, mishkaTop);
+      drawContactShadow(walker.x - camera, ground + FOOT_DROP + 2, 15, walker.lift, presence);
+      ctx.globalAlpha = presence;
+      ctx.drawImage(dan[walker.facing][walker.frame], danLeft, danTop);
       ctx.globalAlpha = 1;
-
-      // Foreground props, in the same light as the world.
-      fctx.clearRect(0, 0, vw, vh);
-      const fx = camX * FOREGROUND;
-      for (const p of props) {
-        const sx = p.x - fx;
-        if (sx < -PROP_SHEET.width || sx > vw) continue;
-        fctx.drawImage(art.props, p.kind * PROP_SHEET.width, 0, PROP_SHEET.width, PROP_SHEET.height, Math.round(sx), ground + 15 - PROP_SHEET.height, PROP_SHEET.width, PROP_SHEET.height);
-      }
-      if (sky.tintAlpha > 0.005) {
-        fctx.globalCompositeOperation = "source-atop";
-        fctx.globalAlpha = sky.tintAlpha;
-        fctx.fillStyle = sky.tint;
-        fctx.fillRect(0, 0, vw, vh);
-        fctx.globalAlpha = 1;
-        fctx.globalCompositeOperation = "source-over";
-      }
-      ctx.drawImage(fg, 0, 0);
 
       for (const q of particles) {
-        ctx.globalAlpha = q.smoke ? q.life * 0.4 : clamp(q.life * 1.4, 0, 1);
+        if (q.smoke) {
+          drawPuff(ctx, puffs, q.x - camX, q.y, 1 - q.life);
+          continue;
+        }
+        ctx.globalAlpha = clamp(q.life * 1.4, 0, 1);
         ctx.fillStyle = q.color;
-        const size = q.smoke ? 2 + Math.round((1 - q.life) * 3) : 2;
-        ctx.fillRect(Math.round(q.x - camX), Math.round(q.y), size, size);
+        ctx.fillRect(Math.round(q.x - camX), Math.round(q.y), 2, 2);
       }
       ctx.globalAlpha = 1;
 
-      paintRoom(clamp((finale - 0.34) / 0.5, 0, 1), t, camX);
-
-      // Hand the camera to the DOM so toasts can track world positions.
-      view.style.setProperty("--cam", `${camX}`);
+      if (iris > 0) openIris(iris, camX);
+      paintRoom(iris, t);
     }
 
     let lastFrame = performance.now();
-    let unsimulatedMs = 0;
+    const stepClock = createStepClock();
 
     function loop(now: number) {
       frame = 0;
-      unsimulatedMs += Math.min(now - lastFrame, 100);
+      const { steps, blend } = stepClock(now - lastFrame);
       lastFrame = now;
-      while (unsimulatedMs >= SIM_STEP_MS) {
-        simulate(now);
-        unsimulatedMs -= SIM_STEP_MS;
-      }
-      draw(now);
+      for (let step = 0; step < steps; step++) simulate(now);
+      draw(now, blend);
       if (visible) frame = requestAnimationFrame(loop);
     }
 
@@ -592,6 +881,9 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
     const ro = new ResizeObserver(() => layout());
     ro.observe(view);
     layout();
+    paintRoom(1, performance.now() / 1000);
+    rctx.getImageData(0, 0, 1, 1);
+    roomCanvas.hidden = true;
     const io = new IntersectionObserver(([entry]) => {
       visible = entry.isIntersecting;
       if (visible && !frame) frame = requestAnimationFrame(loop);

@@ -1,16 +1,16 @@
 import { describe, expect, test } from "bun:test";
-import { createSimulation, type WalkEffect, type WalkInput } from "./simulation";
+import { cameraAt, createSimulation, createStepClock, type WalkEffect, type WalkInput } from "./simulation";
 import { fractionOf } from "./track";
 import { GEMS, PROMOTION_X, STOPS } from "./world";
 
 const fractionFor = (x: number) => fractionOf({ kind: "world", x });
 
-function walker({ reduced = false, viewWidth = 480 } = {}) {
+function walker({ reduced = false, viewWidth = 480, cardSpan = 163 } = {}) {
   const simulation = createSimulation({ reduced });
   const seen: WalkEffect[] = [];
   let fraction = 0;
   const tick = (overrides: Partial<WalkInput> = {}) => {
-    const effects = simulation.step({ fraction, walkDirection: 0, viewWidth, ...overrides });
+    const effects = simulation.step({ fraction, walkDirection: 0, viewWidth, cardSpan, ...overrides });
     for (const effect of effects) if (effect.kind === "scroll") fraction = effect.fraction;
     seen.push(...effects);
     return effects;
@@ -29,8 +29,12 @@ function walker({ reduced = false, viewWidth = 480 } = {}) {
     }
     settle(60);
   };
+  const walkOne = (x: number) => {
+    fraction = fractionFor(x);
+    return [...tick(), ...tick(), ...tick(), ...tick()];
+  };
   const kinds = (kind: WalkEffect["kind"]) => seen.filter((effect) => effect.kind === kind);
-  return { simulation, tick, settle, scrollTo, walkTo, kinds };
+  return { simulation, tick, settle, scrollTo, walkTo, walkOne, kinds };
 }
 
 describe("walking", () => {
@@ -57,6 +61,17 @@ describe("walking", () => {
     expect(Math.abs(dan.x - mishka.x - 46)).toBeLessThan(1);
   });
 
+  test("Mishka stays beside Dan at the cabin door instead of walking through him", () => {
+    const walk = walker();
+    walk.settle();
+    walk.scrollTo(fractionFor(3900));
+    walk.settle(480);
+    walk.scrollTo(0.95);
+    walk.settle(240);
+    const { dan, mishka } = walk.simulation.view();
+    expect(Math.abs(dan.x - mishka.x - 46)).toBeLessThan(1);
+  });
+
   test("jump lifts Dan first, then Mishka, and both land", () => {
     const walk = walker();
     walk.settle();
@@ -77,6 +92,44 @@ describe("walking", () => {
     expect(walk.tick({ walkDirection: -1 }).find((e) => e.kind === "scroll")).toEqual({ kind: "scroll", fraction: 0 });
     walk.scrollTo(1);
     expect(walk.tick({ walkDirection: 1 }).find((e) => e.kind === "scroll")).toEqual({ kind: "scroll", fraction: 1 });
+  });
+});
+
+describe("frame pacing", () => {
+  const STEADY_SCROLL_PER_STEP = 0.0004;
+
+  function frameMoves(frameMs: (frame: number) => number) {
+    const walk = walker();
+    const clock = createStepClock();
+    let fraction = 0.05;
+    const advance = (steps: number) => {
+      for (let i = 0; i < steps; i++) {
+        fraction += STEADY_SCROLL_PER_STEP;
+        walk.scrollTo(fraction);
+        walk.tick();
+      }
+    };
+    advance(240);
+    let last = 0;
+    const moves = Array.from({ length: 240 }, (_, frame) => {
+      const { steps, blend } = clock(frameMs(frame));
+      advance(steps);
+      const { x } = walk.simulation.view(blend).dan;
+      const move = x - last;
+      last = x;
+      return move;
+    });
+    return moves.slice(1);
+  }
+
+  const spread = (moves: number[]) => Math.max(...moves) / Math.min(...moves);
+
+  test("Dan moves on every frame of a 120 Hz screen, by an even amount", () => {
+    expect(spread(frameMoves(() => 1000 / 120))).toBeLessThan(1.1);
+  });
+
+  test("a screen just faster than the step rate never drops a beat", () => {
+    expect(spread(frameMoves(() => 16.5))).toBeLessThan(1.1);
   });
 });
 
@@ -163,6 +216,15 @@ describe("teleport", () => {
     expect(walk.kinds("promoted")).toHaveLength(0);
   });
 
+  test("the frame after the move shows Dan there, not on the way", () => {
+    const walk = walker();
+    walk.settle();
+    walk.simulation.teleport({ kind: "world", x: 2420 });
+    for (let i = 0; i < 22; i++) walk.tick();
+    expect(walk.simulation.view(0).dan.x).toBeCloseTo(2420);
+    expect(walk.simulation.view(0).mishka.x).toBeCloseTo(2420 - 46);
+  });
+
   test("a short teleport still snaps instead of walking", () => {
     const walk = walker();
     walk.settle();
@@ -198,12 +260,34 @@ describe("zones", () => {
     expect(zones.filter((z) => z !== "between")).toEqual(["intro", ...STOPS.map((stop) => stop.id)]);
   });
 
-  test("the card sits on the side away from the building", () => {
-    const walk = walker({ viewWidth: 480 });
+  for (const [viewWidth, cardSpan] of [[480, 163], [854, 163]]) {
+    test(`no card covers its landmark's focus at any step, ${viewWidth} wide`, () => {
+      const walk = walker({ viewWidth, cardSpan });
+      walk.settle();
+      let zone = "";
+      const overlaps: string[] = [];
+      for (let x = 100; x < 3900; x += 2) {
+        for (const effect of walk.walkOne(x)) {
+          if (effect.kind === "zone") zone = effect.zone;
+        }
+        const stop = STOPS.find((candidate) => candidate.id === zone);
+        if (!stop) continue;
+        const left = stop.landmark.x + stop.landmark.focus.x - cameraAt(walk.simulation.view().dan.x, viewWidth);
+        const right = left + stop.landmark.focus.width;
+        const covered = stop.cardSide === "left" ? right > 0 && left < cardSpan : left < viewWidth && right > viewWidth - cardSpan;
+        if (covered) overlaps.push(`${stop.id} at ${x}`);
+      }
+      expect(overlaps).toEqual([]);
+    });
+  }
+
+  test("a full-width phone card stays up the whole stretch of its stop", () => {
+    const walk = walker({ viewWidth: 293, cardSpan: 0 });
     walk.settle();
-    walk.walkTo(600);
-    const zone = walk.kinds("zone").at(-1);
-    expect(zone).toEqual({ kind: "zone", zone: "pnnl", side: "left" });
+    walk.walkTo(1400);
+    for (let x = 1402; x <= 1860; x += 2) walk.walkOne(x);
+    const zones = walk.kinds("zone").flatMap((e) => (e.kind === "zone" ? [e.zone] : []));
+    expect(zones.slice(-1)).toEqual(["chewy"]);
   });
 
   test("contact opens inside the cabin", () => {
@@ -211,6 +295,6 @@ describe("zones", () => {
     walk.settle();
     walk.scrollTo(1);
     walk.settle(5);
-    expect(walk.kinds("zone").at(-1)).toEqual({ kind: "zone", zone: "contact", side: "left" });
+    expect(walk.kinds("zone").at(-1)).toEqual({ kind: "zone", zone: "contact" });
   });
 });

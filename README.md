@@ -6,17 +6,17 @@ Built with Bun, Astro 7, Svelte 5, TypeScript, and canvas. The page is static HT
 
 ### Art pipeline
 
-Art was generated with GPT Image (via Codex) from the prompts in `scripts/art-prompts/`, using the avatar as the identity reference and the Dan sheet as the style reference for everything else. Raw generations are not committed. Each one is cleaned into true pixel art, and building night lights are extracted. The cabin is built differently: `scripts/build-room.py` takes one locked master and a set of frames, each a separate edit of that master, and writes a plate plus fire, hands, Mishka, and screen layers on one grid and palette, with `room-layouts.json` as the manifest. The monitors are generated as flat key colors, so the masks come straight from the art.
+Art was generated with GPT Image (via Codex) from the prompts in `scripts/art-prompts/`, using the avatar as the identity reference and the Dan sheet as the style reference for everything else. Raw generations are not committed. Each one is cleaned into true pixel art, and building night lights are extracted. The cabin is built differently: `scripts/build-room.py` takes one generated scene per layout (`master-wide13.png`, `master-tall13.png` in the art folder), samples it onto the art grid and palette, places the head and bench tools as sprites, and cuts the fire, hands, Mishka, and screen layers to fit that plate, with `room-layouts.json` as the manifest. Nothing on the plate comes from a second generation. The monitors are generated as flat key colors, so the masks come straight from the art.
 
 ```sh
 python3 scripts/pixelize.py raw/dan-sheet.png out/dan --frames 6 --height 84 --colors 28
 python3 scripts/pixelize.py raw/lab.png public/game/lab.png --height 112 --colors 32
-python3 scripts/asset-lights.py public/game/lab.png public/game/lab-lights.png --rule blue --share 0.6 --color b8f2d6
+python3 scripts/asset-lights.py public/game/lab.png public/game/lab-lights.png --rule blue --share 0.6 --color b8f2d6 --max 2000 --region 0,0,0.8,1 --no-lamps
 ```
 
 Scenery layers: cascades 92, foothills 84, meadow 38, seattle 104 (water tapered by hand), title 112 with `--strict-key`, icons 34 with `--strict-key`, 
 
-Per-asset settings used: Mishka `--frames 6 --height 40 --colors 16`; warehouse 150 (`--colors 40`), tower 224, labsnow 132, cabin 124, sign 50 (all `--colors 32`), rainier 240 (`--colors 64 --strict-key`). Lights: warehouse `--rule blue --share 0.8 --min 8 --max 300`; tower `--rule glass --share 0.38 --mullions --max 300`; labsnow `--rule teal --share 1 --color 7fd8ff --min 12 --max 3000`; cabin `--rule dark --share 1 --color ffcf6a --min 6 --region 0.3,0.5,1,0.85`.
+Per-asset settings used: Mishka `--frames 6 --height 40 --colors 16`; Chewy office 231 (`--colors 40`), tower 224, labsnow 132, cabin 124, sign 50 (all `--colors 32`), rainier 240 (`--colors 64 --strict-key`). Lights: warehouse `--rule blue --share 0.8 --min 8 --max 300`; tower `--rule glass --share 0.38 --mullions --max 300`; labsnow `--rule teal --share 1 --color 7fd8ff --min 12 --max 3000`; cabin `--rule dark --share 1 --color ffcf6a --min 6 --region 0.3,0.5,1,0.85`.
 
 ## Development
 

@@ -61,6 +61,7 @@ def main():
     ap.add_argument("--grid", help="WxH: light glass in grid cells instead of connected panes")
     ap.add_argument("--mullions", action="store_true", help="split glass into panes along detected mullion lines")
     ap.add_argument("--region", help="x0,y0,x1,y1 as fractions: only look for glass inside")
+    ap.add_argument("--no-lamps", action="store_true", help="skip warm lamp pixels, for buildings with tan walls")
     ap.add_argument("--debug")
     args = ap.parse_args()
 
@@ -71,7 +72,7 @@ def main():
     x0, y0, x1, y1 = (float(v) for v in (args.region or "0,0,1,1").split(","))
     inside = lambda x, y: x0 * w <= x <= x1 * w and y0 * h <= y <= y1 * h
     mask = {(x, y) for y in range(h) for x in range(w) if px[x, y][3] and inside(x, y) and rule(*px[x, y][:3])}
-    lamps = {(x, y) for y in range(h) for x in range(w) if px[x, y][3] and LAMP(*px[x, y][:3])}
+    lamps = set() if args.no_lamps else {(x, y) for y in range(h) for x in range(w) if px[x, y][3] and LAMP(*px[x, y][:3])}
 
     rnd = random.Random(args.seed)
     base = tuple(int(args.color[i : i + 2], 16) for i in (0, 2, 4))

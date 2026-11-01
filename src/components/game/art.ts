@@ -64,8 +64,7 @@ export function skyAt(p: number) {
   };
 }
 
-const SUN = { body: 12, glow: 40 };
-
+export const DITHER_PERIOD = 4;
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
 
 // Banded, ordered-dithered sky: the gradient is quantised into steps and the
@@ -122,36 +121,137 @@ function rect(ctx: Ctx, color: string, x: number, y: number, w: number, h: numbe
   ctx.fillRect(Math.round(x), Math.round(y), w, h);
 }
 
-export function disc(ctx: Ctx, cx: number, cy: number, r: number, color: string) {
-  ctx.fillStyle = color;
-  for (let y = -r; y <= r; y++) {
-    const w = Math.round(Math.sqrt(r * r - y * y + r * 0.6));
-    ctx.fillRect(cx - w, cy + y, w * 2 + 1, 1);
+const SUN_HALO = { inner: 16, outer: 56, strength: 0.34 };
+
+export function sunHalo(color: string) {
+  const size = SUN_HALO.outer * 2;
+  const halo = document.createElement("canvas");
+  halo.width = size;
+  halo.height = size;
+  const c = halo.getContext("2d")!;
+  const [r, g, b] = hex(color);
+  const glow = c.createRadialGradient(SUN_HALO.outer, SUN_HALO.outer, SUN_HALO.inner, SUN_HALO.outer, SUN_HALO.outer, SUN_HALO.outer);
+  for (let stop = 0; stop <= 8; stop++) {
+    const fade = 1 - stop / 8;
+    glow.addColorStop(stop / 8, `rgba(${r},${g},${b},${fade * fade * SUN_HALO.strength})`);
   }
+  c.fillStyle = glow;
+  c.fillRect(0, 0, size, size);
+  return halo;
 }
 
-export function drawSun(ctx: Ctx, sun: HTMLImageElement, warmSun: HTMLCanvasElement, cx: number, cy: number, evening: number) {
-  const left = cx - Math.floor(sun.width / 2);
-  const top = cy - Math.floor(sun.height / 2);
-  ctx.fillStyle = mix("#fff3b8", "#ff9d5c", evening);
-  for (let y = -SUN.glow; y <= SUN.glow; y++) {
-    for (let x = -SUN.glow; x <= SUN.glow; x++) {
-      const distance = Math.hypot(x, y);
-      if (distance <= SUN.body || distance >= SUN.glow) continue;
-      const falloff = 1 - (distance - SUN.body) / (SUN.glow - SUN.body);
-      if (falloff * falloff * 0.35 > BAYER[((cy + y) & 3) * 4 + ((cx + x) & 3)]) ctx.fillRect(cx + x, cy + y, 1, 1);
+const SUN_DISC_RADIUS = 21;
+const SUN_RING_ROWS = [SUN_DISC_RADIUS * 0.68, SUN_DISC_RADIUS * 0.88];
+
+export function sunDisc(colors: [string, string, string]) {
+  const size = SUN_DISC_RADIUS * 2 + 1;
+  const disc = document.createElement("canvas");
+  disc.width = size;
+  disc.height = size;
+  const c = disc.getContext("2d")!;
+  const stops = colors.map(hex);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const reach = Math.hypot(x - SUN_DISC_RADIUS, y - SUN_DISC_RADIUS);
+      if (reach > SUN_DISC_RADIUS + 0.3) continue;
+      const [r, g, b] = stops[reach < SUN_RING_ROWS[0] ? 0 : reach < SUN_RING_ROWS[1] ? 1 : 2];
+      c.fillStyle = `rgb(${r},${g},${b})`;
+      c.fillRect(x, y, 1, 1);
     }
   }
-  ctx.drawImage(sun, left, top);
-  ctx.globalAlpha = evening;
-  ctx.drawImage(warmSun, left, top);
+  return disc;
+}
+
+export type SunArt = { halo: HTMLCanvasElement; warmHalo: HTMLCanvasElement; disc: HTMLCanvasElement; warmDisc: HTMLCanvasElement };
+
+export function drawSun(ctx: Ctx, { halo, warmHalo, disc, warmDisc }: SunArt, cx: number, cy: number, evening: number) {
+  if (evening < 1) {
+    ctx.globalAlpha = 1 - evening;
+    ctx.drawImage(halo, cx - SUN_HALO.outer, cy - SUN_HALO.outer);
+  }
+  if (evening > 0) {
+    ctx.globalAlpha = evening;
+    ctx.drawImage(warmHalo, cx - SUN_HALO.outer, cy - SUN_HALO.outer);
+  }
+  const left = cx - SUN_DISC_RADIUS;
+  const top = cy - SUN_DISC_RADIUS;
   ctx.globalAlpha = 1;
+  ctx.drawImage(disc, left, top);
+  if (evening > 0) {
+    ctx.globalAlpha = evening;
+    ctx.drawImage(warmDisc, left, top);
+  }
+  ctx.globalAlpha = 1;
+}
+
+const PUFF_RADII = [2, 3, 4, 5, 6, 7];
+const PUFF_CELL = 18;
+const PUFF_LOBES = [[0, 0, 1], [-0.65, 0.3, 0.68], [0.65, 0.25, 0.72], [0.1, -0.55, 0.7]];
+const PUFF_LIGHT = "#e4e6f4";
+const PUFF_BODY = "#b8bcd8";
+const PUFF_SHADE = "#7c80a8";
+const PUFF_ALPHA = 0.62;
+
+// One row per size: solid lobed puffs in three flat shades.
+export function smokePuffs() {
+  const atlas = document.createElement("canvas");
+  atlas.width = PUFF_CELL;
+  atlas.height = PUFF_CELL * PUFF_RADII.length;
+  const c = atlas.getContext("2d")!;
+  PUFF_RADII.forEach((radius, row) => {
+    for (let y = 0; y < PUFF_CELL; y++) {
+      for (let x = 0; x < PUFF_CELL; x++) {
+        const dx = x - PUFF_CELL / 2 + 0.5;
+        const dy = y - PUFF_CELL / 2 + 0.5;
+        const reach = Math.max(...PUFF_LOBES.map(([lx, ly, size]) => 1 - Math.hypot(dx - lx * radius * 0.6, dy - ly * radius * 0.6) / (radius * size)));
+        if (reach <= 0) continue;
+        const lit = (-dx - dy) / radius;
+        c.fillStyle = lit > 0.5 ? PUFF_LIGHT : lit < -0.45 ? PUFF_SHADE : PUFF_BODY;
+        c.fillRect(x, row * PUFF_CELL + y, 1, 1);
+      }
+    }
+  });
+  return atlas;
+}
+
+export function drawPuff(ctx: Ctx, puffs: HTMLCanvasElement, x: number, y: number, age: number) {
+  const row = Math.min(PUFF_RADII.length - 1, Math.floor(age * 1.15 * PUFF_RADII.length));
+  ctx.globalAlpha = PUFF_ALPHA * (1 - age) ** 0.7;
+  ctx.drawImage(puffs, 0, row * PUFF_CELL, PUFF_CELL, PUFF_CELL, Math.round(x - PUFF_CELL / 2), Math.round(y - PUFF_CELL / 2), PUFF_CELL, PUFF_CELL);
 }
 
 // ---------------------------------------------------------------- layers
 
-export function tileAcross(ctx: Ctx, tile: HTMLImageElement, width: number, baseY: number) {
-  for (let x = 0; x < width; x += tile.width) ctx.drawImage(tile, x, baseY - tile.height);
+export type TurningTiles = { before: HTMLImageElement; turn: HTMLImageElement; after: HTMLImageElement };
+
+export function tileThroughTurn(ctx: Ctx, { before, turn, after }: TurningTiles, turnX: number, width: number, baseY: number) {
+  for (let x = turnX - before.width; x > -before.width; x -= before.width) ctx.drawImage(before, x, baseY - before.height);
+  ctx.drawImage(turn, turnX, baseY - turn.height);
+  for (let x = turnX + turn.width; x < width; x += after.width) ctx.drawImage(after, x, baseY - after.height);
+}
+
+// Per column: the first row with any paint, and the row from which everything
+// down is opaque. They let a frame skip the empty and the hidden rows of a layer.
+export function columnsOf(source: HTMLImageElement | HTMLCanvasElement) {
+  const { width, height } = source;
+  const copy = document.createElement("canvas");
+  copy.width = width;
+  copy.height = height;
+  const c = copy.getContext("2d", { willReadFrequently: true })!;
+  c.drawImage(source, 0, 0);
+  const { data } = c.getImageData(0, 0, width, height);
+  const painted = new Int16Array(width).fill(height);
+  const solid = new Int16Array(width).fill(height);
+  for (let x = 0; x < width; x++) {
+    let opaqueToBottom = true;
+    for (let y = height - 1; y >= 0; y--) {
+      const alpha = data[(y * width + x) * 4 + 3];
+      if (alpha > 0) painted[x] = y;
+      opaqueToBottom &&= alpha === 255;
+      if (opaqueToBottom) solid[x] = y;
+    }
+  }
+  return { painted, solid };
 }
 
 // ---------------------------------------------------------------- ground
@@ -160,14 +260,25 @@ export const GROUND_DEPTH = 40;
 // Rows of soil under the path; the timeline sits here.
 export const SOIL_DEPTH = 25;
 
-export function paintGround(ctx: Ctx, path: HTMLCanvasElement, camX: number, viewW: number, ground: number, viewH: number) {
+const SOIL_FLECK = { from: 0.6, to: 0.615, topRow: 19, rows: 14 };
+
+// World columns and rows of the dark flecks in the soil, in x order.
+export function soilFlecks(worldWidth: number) {
+  const flecks: { x: number; row: number }[] = [];
+  for (let x = 0; x < worldWidth; x++) {
+    const n = hash(x);
+    if (n > SOIL_FLECK.from && n < SOIL_FLECK.to) flecks.push({ x, row: SOIL_FLECK.topRow + Math.floor(hash(x + 3) * SOIL_FLECK.rows) });
+  }
+  return flecks;
+}
+
+export function paintGround(ctx: Ctx, path: HTMLCanvasElement, flecks: ReturnType<typeof soilFlecks>, camX: number, viewW: number, ground: number, viewH: number) {
   rect(ctx, "#3d2f27", 0, ground + PATH_ROWS, viewW, viewH - ground - PATH_ROWS);
   const left = Math.floor(camX);
   ctx.drawImage(path, left, 0, viewW + 1, path.height, left - camX, ground - 2, viewW + 1, path.height);
-  const start = Math.floor(camX);
-  for (let wx = start; wx < start + viewW + 1; wx++) {
-    const n = hash(wx);
-    if (n > 0.6 && n < 0.615) rect(ctx, "#2f241e", wx - camX, ground + 19 + Math.floor(hash(wx + 3) * 14), 2, 1);
+  ctx.fillStyle = "#2f241e";
+  for (const { x, row } of flecks) {
+    if (x >= left && x <= left + viewW) ctx.fillRect(x - camX, ground + row, 2, 1);
   }
 }
 

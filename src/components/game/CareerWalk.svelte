@@ -2,8 +2,8 @@
   import { onMount } from "svelte";
   import { EMAIL, elsewhere, experience } from "../../data/resume";
   import { startWalk } from "./engine";
-  import type { Side, Zone } from "./simulation";
-  import { BACK_TO_START, GEMS, TIMELINE } from "./world";
+  import type { Zone } from "./simulation";
+  import { BACK_TO_START, GEMS, STOPS, TIMELINE } from "./world";
 
   type Toast = { id: number; text: string; x: number; tone: "gem" | "level" };
 
@@ -17,8 +17,8 @@
   let walk: ReturnType<typeof startWalk> | undefined;
 
   let zone = $state<Zone>("intro");
+  let inside = $state(false);
   let unavailable = $state(false);
-  let side = $state<Side>("right");
   let collected = $state<string[]>([]);
   let toasts = $state<Toast[]>([]);
   let progress = $state(0);
@@ -26,6 +26,7 @@
   let nextToast = 0;
 
   const stop = $derived(experience.find((s) => s.id === zone));
+  const cardSide = (id: string) => STOPS.find((s) => s.id === id)?.cardSide;
 
   function cssProps(node: HTMLElement, props: Record<string, string | number>) {
     const apply = (next: Record<string, string | number>) => {
@@ -39,15 +40,15 @@
     walk = startWalk(
       { stage, view, canvas, room },
       {
-        zone(next, nextSide) {
-          zone = next;
-          if (nextSide) side = nextSide;
-        },
+        zone: (next) => (zone = next),
+        inside: (next) => (inside = next),
         unavailable: () => (unavailable = true),
         collected: (labels) => (collected = labels),
         progress: (next) => (progress = next),
         toast(text, x, tone) {
           const id = ++nextToast;
+          const cardFloor = Math.max(...Array.from(view.querySelectorAll(".walk-card"), (card) => card.getBoundingClientRect().bottom));
+          view.style.setProperty("--card-floor", `${cardFloor}px`);
           toasts = [...toasts.slice(-3), { id, text, x, tone }];
           setTimeout(() => (toasts = toasts.filter((t) => t.id !== id)), TOAST_MS);
         },
@@ -69,6 +70,7 @@
 
 <section class="walk" class:is-unavailable={unavailable} bind:this={stage} aria-label="Career walk">
   <div class="walk-view" bind:this={view}>
+    <canvas bind:this={room} class="walk-room" aria-hidden="true" hidden></canvas>
     <canvas
       bind:this={canvas}
       class="walk-canvas"
@@ -76,7 +78,6 @@
       aria-label="A pixel-art walk through Dan’s career: Dan and his Samoyed, Mishka, walk from a research lab past a warehouse and an office tower to the present, then into a cabin under Mount Rainier."
       onclick={() => walk?.jump()}
     ></canvas>
-    <canvas bind:this={room} class="walk-room" aria-hidden="true" hidden></canvas>
 
     <div class="walk-intro" class:is-shown={zone === "intro"}>
       <h1><img src="/game/title.png" alt="Dan Aimone" /></h1>
@@ -97,7 +98,7 @@
       </div>
     </div>
 
-    <a class="walk-skip" class:is-shown={zone !== "intro"} href="#resume">Skip to résumé</a>
+    <a class="walk-skip" class:is-shown={zone !== "intro" && !inside} href="#resume">Skip to résumé</a>
 
     <div class="walk-toolkit" class:is-shown={zone !== "intro"} aria-live="polite">
       <span class="walk-toolkit-count">Toolkit {collected.length}/{GEMS.length}</span>
@@ -105,7 +106,7 @@
     </div>
 
     {#each experience as s (s.id)}
-      <article class={`walk-card is-${side}`} class:is-shown={stop?.id === s.id} aria-hidden={stop?.id !== s.id}>
+      <article class={`walk-card is-${cardSide(s.id)}`} class:is-shown={stop?.id === s.id} aria-hidden={stop?.id !== s.id}>
         <header>
           <h2>{s.company}</h2>
           <p>{s.span}</p>
@@ -122,7 +123,7 @@
       </article>
     {/each}
 
-    <article class={`walk-card walk-contact is-${side}`} class:is-shown={zone === "contact"} aria-hidden={zone !== "contact"}>
+    <article class="walk-card walk-contact" class:is-shown={zone === "contact"} aria-hidden={zone !== "contact"}>
       <header><h2>Contact</h2></header>
       <a class="walk-email" href={`mailto:${EMAIL}`} tabindex={zone === "contact" ? 0 : -1}>{EMAIL}</a>
       <div class="walk-contact-row">
@@ -135,6 +136,7 @@
         {#each elsewhere.slice(0, 2) as [label, href] (label)}
           <a {href} rel="me" tabindex={zone === "contact" ? 0 : -1}>{label}</a>
         {/each}
+        <a href="#resume" tabindex={zone === "contact" ? 0 : -1}>Résumé</a>
       </div>
     </article>
 
@@ -146,7 +148,7 @@
       {/each}
     </div>
 
-    <nav class="walk-timeline" class:is-inside={zone === "contact"} aria-label="Jump along the walk">
+    <nav class="walk-timeline" class:is-inside={inside} inert={inside} aria-label="Jump along the walk">
       <div class="walk-track" aria-hidden="true">
         <span use:cssProps={{ transform: `scaleX(${progress})` }}></span>
       </div>

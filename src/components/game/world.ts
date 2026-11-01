@@ -5,7 +5,7 @@ export const WORLD_WIDTH = 4260;
 export const BASELINE = 2;
 export const PROMOTION_X = 2480;
 
-type Sign = { logo: string; x: number; y: number; size: number; plate: boolean };
+type Sign = { logo: string; x: number; y: number; size: number };
 
 export type Landmark = {
   name: string;
@@ -14,16 +14,17 @@ export type Landmark = {
   height: number;
   lights: { daylight: number } | null;
   sign: Sign | null;
+  focus: { x: number; width: number };
 };
 
-const TRAIL_SIGN: Landmark = { name: "sign", x: 150, width: 63, height: 50, lights: null, sign: null };
-const LAB: Landmark = { name: "lab", x: 640, width: 264, height: 112, lights: { daylight: 0.3 }, sign: { logo: "pnnl", x: 186, y: 30, size: 20, plate: true } };
-const WAREHOUSE: Landmark = { name: "warehouse", x: 1500, width: 526, height: 150, lights: { daylight: 0 }, sign: { logo: "chewy-sign", x: 287, y: 13, size: 16, plate: false } };
-const TOWER: Landmark = { name: "tower", x: 2350, width: 146, height: 224, lights: { daylight: 0 }, sign: { logo: "atlassian", x: 16, y: 2, size: 24, plate: true } };
-const LABS_NOW: Landmark = { name: "labsnow", x: 3150, width: 238, height: 132, lights: { daylight: 0.45 }, sign: { logo: "vannevar", x: 158, y: 66, size: 24, plate: true } };
-const CABIN: Landmark = { name: "cabin", x: 3950, width: 197, height: 124, lights: { daylight: 0 }, sign: null };
+const TRAIL_SIGN: Landmark = { name: "sign", x: 150, width: 63, height: 50, lights: null, sign: null, focus: { x: 0, width: 63 } };
+const LAB: Landmark = { name: "lab", x: 590, width: 510, height: 224, lights: { daylight: 0.1 }, sign: null, focus: { x: 400, width: 100 } };
+const CHEWY_OFFICE: Landmark = { name: "chewy", x: 1500, width: 453, height: 205, lights: { daylight: 0 }, sign: null, focus: { x: 134, width: 136 } };
+const TOWER: Landmark = { name: "tower", x: 2350, width: 146, height: 224, lights: { daylight: 0 }, sign: { logo: "atlassian", x: 10, y: -16, size: 40 }, focus: { x: 0, width: 80 } };
+const LABS_NOW: Landmark = { name: "labsnow", x: 3150, width: 238, height: 132, lights: { daylight: 0.45 }, sign: null, focus: { x: 150, width: 75 } };
+const CABIN: Landmark = { name: "cabin", x: 3980, width: 197, height: 124, lights: { daylight: 0 }, sign: null, focus: { x: 0, width: 197 } };
 
-export const LANDMARKS = [TRAIL_SIGN, LAB, WAREHOUSE, TOWER, LABS_NOW, CABIN];
+export const LANDMARKS = [TRAIL_SIGN, LAB, CHEWY_OFFICE, TOWER, LABS_NOW, CABIN];
 
 export const spriteTop = ({ height }: { height: number }) => BASELINE - height;
 
@@ -42,6 +43,7 @@ type Place = {
   landmark: Landmark;
   zone: { from: number; to: number };
   markerX: number;
+  cardSide: "left" | "right";
   gems: Gem[];
 };
 
@@ -51,6 +53,7 @@ const PLACES: Record<StopId, Place> = {
     landmark: LAB,
     zone: { from: 540, to: 1000 },
     markerX: 770,
+    cardSide: "left",
     gems: [
       { x: 560, label: "D3", color: "#f2994a" },
       { x: 640, label: "ASP.NET", color: "#a98bf0" },
@@ -60,9 +63,10 @@ const PLACES: Record<StopId, Place> = {
   },
   chewy: {
     label: "Chewy",
-    landmark: WAREHOUSE,
+    landmark: CHEWY_OFFICE,
     zone: { from: 1400, to: 1860 },
     markerX: 1640,
+    cardSide: "right",
     gems: [{ x: 1420, label: "React", color: "#61dafb" }],
   },
   atlassian: {
@@ -70,6 +74,7 @@ const PLACES: Record<StopId, Place> = {
     landmark: TOWER,
     zone: { from: 2250, to: 2620 },
     markerX: 2420,
+    cardSide: "right",
     gems: [
       { x: 2260, label: "C#", color: "#c08cff" },
       { x: 2330, label: "REST APIs", color: "#7ee0a1" },
@@ -80,6 +85,7 @@ const PLACES: Record<StopId, Place> = {
     landmark: LABS_NOW,
     zone: { from: 3050, to: 3480 },
     markerX: 3270,
+    cardSide: "right",
     gems: [{ x: 3070, label: "Agentic AI", color: "#ffac42" }],
   },
 };

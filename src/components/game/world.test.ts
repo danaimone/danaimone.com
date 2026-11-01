@@ -57,7 +57,7 @@ describe("art matches the code", () => {
       if (!sign) continue;
       expect(sign.x + sign.size).toBeLessThanOrEqual(width);
       expect(sign.y + sign.size).toBeLessThanOrEqual(height);
-      expect(pngSize(`logos/${sign.logo}`).width).toBe(28);
+      expect(pngSize(`logos/${sign.logo}`).width).toBe(sign.size);
     }
   });
 

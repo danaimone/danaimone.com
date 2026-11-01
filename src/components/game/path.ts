@@ -1,9 +1,11 @@
+import { PROP_SHEET } from "./assets";
 import { WORLD_WIDTH } from "./world";
 
 export const PATH_ROWS = 15;
 const VERGE_ROWS = 3;
 const LIP_ROW = 14;
-const BLEND_WIDTH = 96;
+export const BLEND_WIDTH = 96;
+const FIRST_PROP_X = 260;
 
 const hash = (a: number, b = 0) => {
   const value = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453;
@@ -13,7 +15,22 @@ const hash = (a: number, b = 0) => {
 const pick = (colors: string[], noise: number) => colors[Math.floor(noise * colors.length)];
 
 type Texel = (x: number, row: number) => string;
-export type Surface = { name: string; until: number; tufts: string | null; texel: Texel };
+const kinds = (first: number, count: number) => Array.from({ length: count }, (_, i) => first + i);
+const STEPPE_PLANTS = kinds(0, 8);
+const SEATTLE_PLANTS = kinds(8, 8);
+const ALPINE_PLANTS = kinds(16, 8);
+const ROCK = 24;
+const MUSHROOMS = 25;
+const FERNS = [8, 9];
+const FIR_TREES = [0, 1, 2];
+const YOUNG_FIRS = [3, 4];
+const MAPLE = 5;
+const COTTONWOODS = [6, 7];
+const MADRONES = [8, 9];
+const CEDARS = [10, 11];
+const HEMLOCKS = [12, 13];
+
+export type Surface = { name: string; until: number; tufts: string | null; props: number[]; trees: number[]; texel: Texel };
 
 const sand: Texel = (x, row) => {
   if (row < VERGE_ROWS) return pick(["#a8a06a", "#9a9460", "#b3ab76"], hash(x, row));
@@ -24,10 +41,18 @@ const sand: Texel = (x, row) => {
   return pick(["#c2a374", "#b89a6a", "#bd9e6f"], noise);
 };
 
+const DASH = { period: 48, length: 26, firstRow: 8, lastRow: 9 };
+const ROAD = { from: 1180, to: 2080 };
+
+export function hasCentreDash(x: number) {
+  const start = x - (x % DASH.period);
+  return x - start < DASH.length && start >= ROAD.from && start + DASH.length <= ROAD.to - BLEND_WIDTH;
+}
+
 const asphalt: Texel = (x, row) => {
   if (row < VERGE_ROWS) return row === 0 ? "#b4b2aa" : "#92908a";
   if (row === LIP_ROW) return "#34363b";
-  if ((row === 8 || row === 9) && x % 48 < 26) return "#e3bf45";
+  if (row >= DASH.firstRow && row <= DASH.lastRow && hasCentreDash(x)) return "#e3bf45";
   const noise = hash(x, row);
   if (noise > 0.93) return "#6a6c72";
   return pick(["#484a50", "#4e5056", "#44464c"], noise);
@@ -56,8 +81,6 @@ const pavers: Texel = (x, row) => {
 const trail: Texel = (x, row) => {
   if (row < VERGE_ROWS) return pick(["#3f6b3a", "#35602f", "#4b7a42"], hash(x, row));
   if (row === LIP_ROW) return "#3f2c1f";
-  const stone = hash(Math.floor(x / 15), Math.floor(row / 4));
-  if (stone > 0.9 && (x % 15) > 4 && (x % 15) < 12) return row % 4 === 0 ? "#a9a49a" : "#86827a";
   const noise = hash(x, row);
   if (noise > 0.9) return "#a06a34";
   if (noise < 0.1) return "#4f3827";
@@ -75,13 +98,15 @@ const boardwalk: Texel = (x, row) => {
 };
 
 export const SURFACES: Surface[] = [
-  { name: "sand", until: 1180, tufts: "#8c8a55", texel: sand },
-  { name: "asphalt", until: 2080, tufts: null, texel: asphalt },
-  { name: "sidewalk", until: 2800, tufts: "#466f3b", texel: sidewalk },
-  { name: "pavers", until: 3420, tufts: null, texel: pavers },
-  { name: "trail", until: 3860, tufts: "#2f5a2b", texel: trail },
-  { name: "boardwalk", until: Infinity, tufts: null, texel: boardwalk },
+  { name: "sand", until: ROAD.from, tufts: "#8c8a55", props: [...STEPPE_PLANTS, ROCK], trees: [...COTTONWOODS, MAPLE], texel: sand },
+  { name: "asphalt", until: ROAD.to, tufts: null, props: [], trees: [...FIR_TREES, ...CEDARS, ...MADRONES, MAPLE], texel: asphalt },
+  { name: "sidewalk", until: 2800, tufts: "#466f3b", props: SEATTLE_PLANTS, trees: [...FIR_TREES, ...MADRONES, ...CEDARS, MAPLE], texel: sidewalk },
+  { name: "pavers", until: 3420, tufts: null, props: SEATTLE_PLANTS, trees: [...FIR_TREES, ...YOUNG_FIRS, ...CEDARS, ...HEMLOCKS], texel: pavers },
+  { name: "trail", until: 3860, tufts: "#2f5a2b", props: [...FERNS, ...ALPINE_PLANTS, ROCK, MUSHROOMS], trees: [...HEMLOCKS, ...CEDARS, ...FIR_TREES, ...YOUNG_FIRS], texel: trail },
+  { name: "boardwalk", until: Infinity, tufts: null, props: ALPINE_PLANTS, trees: [...HEMLOCKS, ...FIR_TREES, ...YOUNG_FIRS], texel: boardwalk },
 ];
+
+export const surfaceAt = (x: number) => SURFACES[surfaceIndexAt(x)];
 
 export function surfaceIndexAt(x: number) {
   return SURFACES.findIndex((surface) => x < surface.until);
@@ -96,6 +121,19 @@ function blendedSurface(x: number, row: number) {
   const reach = (SURFACES[index].until - x) / BLEND_WIDTH;
   if (reach >= 1) return SURFACES[index];
   return 1 - reach > BAYER[(row & 3) * 4 + (x & 3)] ? next : SURFACES[index];
+}
+
+export function placeProps(random: () => number) {
+  const props: { x: number; kind: number }[] = [];
+  for (let x = FIRST_PROP_X; x < WORLD_WIDTH; x += 70 + random() * 170) {
+    const roll = random();
+    const surface = SURFACES[surfaceIndexAt(x)];
+    const clearOfBlend = x + PROP_SHEET.width < surface.until - BLEND_WIDTH;
+    if (surface.props.length && clearOfBlend) {
+      props.push({ x: Math.round(x), kind: surface.props[Math.floor(roll * surface.props.length)] });
+    }
+  }
+  return props;
 }
 
 export function buildPath() {
