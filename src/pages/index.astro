@@ -1,4 +1,5 @@
 ---
+import { gameUrl } from "../components/game/art-url";
 import CareerWalk from "../components/game/CareerWalk.svelte";
 import { EMAIL, contact, elsewhere, experience, resume } from "../data/resume";
 import "@fontsource-variable/instrument-sans/wdth.css";
@@ -66,7 +67,7 @@ const description =
             <nav class="badges" aria-label="Links">
               {badges.map(([name, label, href, external]) => (
                 <a class={`badge is-${name}`} href={href} rel={external ? "me noopener" : undefined} target={name === "pdf" ? "_blank" : undefined}>
-                  <span class="badge-icon"><img src={`/game/icons/${name}.png`} alt="" width="36" height="36" /></span>
+                  <span class="badge-icon"><img src={gameUrl(`icons/${name}`)} alt="" width="36" height="36" /></span>
                   <span class="badge-label">{label}</span>
                 </a>
               ))}
@@ -79,7 +80,7 @@ const description =
               {experience.map(({ id, company, roles }) => (
                 <li class={`entry is-${id}`}>
                   <span class="mark">
-                    <img src={`/game/logos/${id}.png`} alt="" width="28" height="28" loading="lazy" />
+                    <img src={gameUrl(`logos/${id}`)} alt="" width="28" height="28" loading="lazy" />
                   </span>
                   <div class="entry-body">
                     <h4>{company}</h4>
@@ -156,7 +157,7 @@ const description =
                   {elsewhere.map(([label, href]) => (
                     <li>
                       <a href={href} rel="me noopener" aria-label={label} title={label}>
-                        <img src={`/game/icons/${label === "X" ? "x" : label.toLowerCase()}.png`} alt="" width="36" height="36" loading="lazy" />
+                        <img src={gameUrl(`icons/${label === "X" ? "x" : label.toLowerCase()}`)} alt="" width="36" height="36" loading="lazy" />
                       </a>
                     </li>
                   ))}

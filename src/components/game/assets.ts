@@ -1,3 +1,4 @@
+import { gameUrl } from "./art-url";
 import { LANDMARKS } from "./world";
 
 export const DAN_SHEET = { width: 57, height: 78 };
@@ -13,26 +14,26 @@ const load = async (src: string) => {
   return image;
 };
 
-const game = (name: string) => load(`/game/${name}.png`);
+const game = (name: string) => load(gameUrl(name));
 
 const loadRoom = async (name: "wide" | "tall") => {
-  const [plate, fire, hands, mishka, shift, screen, side] = await Promise.all([
+  const [plate, fire, hands, mishka, screen, side] = await Promise.all([
     game(name === "wide" ? "interior" : "interior-tall"),
     game(`room-${name}-fire`),
     game(`room-${name}-hands`),
     game(`room-${name}-mishka`),
-    game(`room-${name}-shift`),
     game(`room-${name}-screen`),
     game(`room-${name}-side`),
   ]);
-  return { plate, fire, hands, mishka, shift, screen, side };
+  return { plate, fire, hands, mishka, screen, side };
 };
 
 export type RoomArt = Awaited<ReturnType<typeof loadRoom>>;
 
 export async function loadArt() {
-  const [dan, moon, mishka, rainier, trees, props, clouds, rattlesnake, olympics, issaquah, foothills, foothillsDry, foothillsTurn, meadow, meadowDry, meadowTurn, seattle, wide, tall, landmarks] = await Promise.all([
+  const [dan, sun, moon, mishka, rainier, trees, props, clouds, rattlesnake, olympics, issaquah, foothills, foothillsDry, foothillsTurn, meadow, meadowDry, meadowTurn, seattle, wide, tall, landmarks] = await Promise.all([
     game("dan"),
+    game("sun"),
     game("moon"),
     game("mishka"),
     game("rainier"),
@@ -62,7 +63,7 @@ export async function loadArt() {
       }),
     ),
   ]);
-  return { dan, moon, mishka, rainier, trees, props, clouds, skylines: [rattlesnake, olympics, issaquah], foothills: { before: foothillsDry, turn: foothillsTurn, after: foothills }, meadow: { before: meadowDry, turn: meadowTurn, after: meadow }, seattle, rooms: { wide, tall }, landmarks };
+  return { dan, sun, moon, mishka, rainier, trees, props, clouds, skylines: [rattlesnake, olympics, issaquah], foothills: { before: foothillsDry, turn: foothillsTurn, after: foothills }, meadow: { before: meadowDry, turn: meadowTurn, after: meadow }, seattle, rooms: { wide, tall }, landmarks };
 }
 
 export type Art = Awaited<ReturnType<typeof loadArt>>;

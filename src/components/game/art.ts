@@ -140,31 +140,10 @@ export function sunHalo(color: string) {
   return halo;
 }
 
-const SUN_DISC_RADIUS = 21;
-const SUN_RING_ROWS = [SUN_DISC_RADIUS * 0.68, SUN_DISC_RADIUS * 0.88];
+export type SunArt = { halo: HTMLCanvasElement; warmHalo: HTMLCanvasElement; sprite: HTMLImageElement; warm: HTMLCanvasElement };
 
-export function sunDisc(colors: [string, string, string]) {
-  const size = SUN_DISC_RADIUS * 2 + 1;
-  const disc = document.createElement("canvas");
-  disc.width = size;
-  disc.height = size;
-  const c = disc.getContext("2d")!;
-  const stops = colors.map(hex);
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const reach = Math.hypot(x - SUN_DISC_RADIUS, y - SUN_DISC_RADIUS);
-      if (reach > SUN_DISC_RADIUS + 0.3) continue;
-      const [r, g, b] = stops[reach < SUN_RING_ROWS[0] ? 0 : reach < SUN_RING_ROWS[1] ? 1 : 2];
-      c.fillStyle = `rgb(${r},${g},${b})`;
-      c.fillRect(x, y, 1, 1);
-    }
-  }
-  return disc;
-}
-
-export type SunArt = { halo: HTMLCanvasElement; warmHalo: HTMLCanvasElement; disc: HTMLCanvasElement; warmDisc: HTMLCanvasElement };
-
-export function drawSun(ctx: Ctx, { halo, warmHalo, disc, warmDisc }: SunArt, cx: number, cy: number, evening: number) {
+// One sprite along the whole arc; only the warm overlay grows with the evening.
+export function drawSun(ctx: Ctx, { halo, warmHalo, sprite, warm }: SunArt, cx: number, cy: number, evening: number) {
   if (evening < 1) {
     ctx.globalAlpha = 1 - evening;
     ctx.drawImage(halo, cx - SUN_HALO.outer, cy - SUN_HALO.outer);
@@ -173,13 +152,13 @@ export function drawSun(ctx: Ctx, { halo, warmHalo, disc, warmDisc }: SunArt, cx
     ctx.globalAlpha = evening;
     ctx.drawImage(warmHalo, cx - SUN_HALO.outer, cy - SUN_HALO.outer);
   }
-  const left = cx - SUN_DISC_RADIUS;
-  const top = cy - SUN_DISC_RADIUS;
+  const left = cx - Math.floor(sprite.width / 2);
+  const top = cy - Math.floor(sprite.height / 2);
   ctx.globalAlpha = 1;
-  ctx.drawImage(disc, left, top);
+  ctx.drawImage(sprite, left, top);
   if (evening > 0) {
     ctx.globalAlpha = evening;
-    ctx.drawImage(warmDisc, left, top);
+    ctx.drawImage(warm, left, top);
   }
   ctx.globalAlpha = 1;
 }
