@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { TERMINAL_COLUMNS, TERMINAL_ROWS, createTerminal } from "./terminal";
+import { PROMPT, RESPONSES, TERMINAL_COLUMNS, TERMINAL_ROWS, createTerminal } from "./terminal";
 
 const type = (terminal: ReturnType<typeof createTerminal>, text: string) => {
   for (const key of text) terminal.press(key);
@@ -24,7 +24,7 @@ describe("cabin terminal", () => {
     terminal.press("x");
     terminal.press("Backspace");
     type(terminal, "clear");
-    expect(terminal.screen().rows).toEqual(["> "]);
+    expect(terminal.screen().rows).toEqual([PROMPT]);
   });
 
   test("ignores keys that are not typing", () => {
@@ -42,7 +42,7 @@ describe("cabin terminal", () => {
   });
 
   test("every reply fits the screen", () => {
-    for (const command of ["help", "whoami", "ls", "mishka", "hire", "rex", "sudo", "nope"]) {
+    for (const command of [...Object.keys(RESPONSES), "nope"]) {
       const terminal = createTerminal();
       type(terminal, command);
       for (const row of terminal.screen().rows) expect(row.length).toBeLessThanOrEqual(TERMINAL_COLUMNS);
@@ -55,7 +55,7 @@ describe("cabin terminal", () => {
     expect(terminal.screen().rows.join(" ")).toContain("whoami");
     terminal.press("h");
     const typing = terminal.screen().rows.at(-1);
-    expect(typing).toBe("> h");
+    expect(typing).toBe(`${PROMPT}h`);
     for (let i = 0; i < 300; i++) terminal.tick();
     expect(terminal.screen().rows.at(-1)).toBe(typing);
   });

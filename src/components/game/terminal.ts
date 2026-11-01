@@ -1,22 +1,50 @@
-export const TERMINAL_COLUMNS = 17;
-export const TERMINAL_ROWS = 6;
+export const TERMINAL_COLUMNS = 20;
+export const TERMINAL_ROWS = 7;
 
-const PROMPT = "> ";
+export const PROMPT = "→ ";
 const MAX_INPUT = 40;
 const MAX_HISTORY = 40;
 const TICKS_PER_DEMO_KEY = 7;
 const TICKS_AFTER_DEMO_COMMAND = 150;
 const DEMO_RESUMES_AFTER_TICKS = 900;
-const DEMO_COMMANDS = ["whoami", "ls", "mishka"];
+const DEMO_COMMANDS = ["whoami", "neofetch", "mishka", "top"];
 
-const RESPONSES: Record<string, string[]> = {
-  help: ["whoami ls hire", "mishka rex clear"],
-  whoami: ["dan aimone", "software engineer"],
-  ls: ["resume.pdf", "rainier/ mishka/"],
+export const RESPONSES: Record<string, string[]> = {
+  help: ["whoami ls hire top", "neofetch mishka pwd", "the rest is hidden"],
+  whoami: ["dan aimone", "software engineer", "seattle, wa"],
+  pwd: ["~/cabin", "under rainier"],
+  ls: ["resume.pdf rainier/", "mishka/ guitars/"],
+  "ls -a": [".mishka-treats", ".fire-is-on", "resume.pdf"],
+  "cat resume.pdf": ["scroll down.", "or type hire"],
+  "cat .mishka-treats": ["empty.", "she knows."],
+  hire: ["hello@danaimone.com"],
+  "sudo hire dan": ["granted.", "hello@danaimone.com"],
+  neofetch: ["os: log cabin", "wm: firewood", "shell: warm", "dog: samoyed"],
+  top: ["mishka  100% nap", "fire     12% cpu", "dan      coffee"],
+  uptime: ["up since 2017", "load: 1 samoyed"],
   mishka: ["zzz", "she is asleep"],
-  hire: ["hello@", "danaimone.com"],
+  "pet mishka": ["tail: wag wag", "still asleep"],
+  walk: ["one ear moved.", "she heard that."],
+  treat: ["she is awake.", "you did this."],
+  coffee: ["brewing...", "mug is on the right.", "obviously."],
+  vim: ["already open.", "other monitor."],
+  nvim: ["already open.", "other monitor."],
+  ":q": ["nice try."],
+  ":wq": ["saved. stay."],
+  exit: ["nah. stay.", "the fire is on."],
+  "git blame": ["it was mishka"],
+  "git status": ["nothing to do", "dog tree clean"],
+  "git push": ["everything up", "to date"],
+  "ping rainier": ["14,411 ft", "still out there"],
+  weather: ["pnw: yes", "chance of rain"],
+  "play guitar": ["martin hd-28", "in tune. mostly."],
+  "play piano": ["nord stage 3", "c major. always."],
   rex: ["session running"],
   sudo: ["nice try"],
+  "sudo make me a sandwich": ["okay."],
+  hello: ["hi! type help"],
+  hi: ["hi! type help"],
+  42: ["yes."],
 };
 
 function wrap(text: string) {

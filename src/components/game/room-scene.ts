@@ -1,6 +1,6 @@
 import type { RoomArt } from "./assets";
 import simulationSource from "./simulation.ts?raw";
-import type { Terminal } from "./terminal";
+import { PROMPT, type Terminal } from "./terminal";
 
 type Ctx = CanvasRenderingContext2D;
 type Point = { x: number; y: number };
@@ -19,6 +19,8 @@ export type RoomLayout = {
   handsBox: Box;
   handFrames: number;
   mishkaBox: Box;
+  shiftBox: Box;
+  shiftFrames: number;
   stars: number[][];
   lake: number[][];
   mishkaFrames: number;
@@ -27,6 +29,7 @@ export type RoomLayout = {
   blink: Box;
   candles: Point[];
   snore: Point;
+  snoreDrift: number;
 };
 
 export const ROOM_SCALE = 2;
@@ -35,15 +38,25 @@ const NIGHT_SKY = "#101a4a";
 const RIPPLE_HIGH = "#6f93dc";
 const RIPPLE_LOW = "#3f5fae";
 const RIPPLE_SPEED = 2.2;
-const RIPPLE_SPACING = 17;
-const RIPPLE_LENGTH = 4;
+const RIPPLE_SPACING = 26;
+const RIPPLE_LENGTH = 3;
+const RIPPLE_ROW_GAP = 4;
+const GLINT_EVERY = 6;
 const NIGHT_WATER = "#16204f";
 const TERMINAL_FONT = 2;
 const TERMINAL_ROW = 12;
+const TERMINAL_TOP = 2;
+const TERMINAL_MARGIN = 4;
+const PILL_HEIGHT = 12;
+const PILL_PADDING = 2;
 const EDITOR_ROW = 6;
 const EDITOR_SCROLL_SECONDS = 1.6;
 const FIRE_FPS = 9;
+const ROOM_FPS = 30;
+const OPENING_ROOM_FPS = 15;
 const BREATH_FPS = 2.4;
+const SHIFT_EVERY_SECONDS = 7;
+const SHIFT_SECONDS = 1.8;
 const BLINK_EVERY_SECONDS = 5.3;
 const DOUBLE_BLINK_EVERY_SECONDS = 5.6;
 const BLINK_SECONDS = 0.14;
@@ -58,23 +71,25 @@ const MOCHA = {
   mantle: "#181825",
   surface: "#313244",
   overlay: "#6c7086",
+  overlay2: "#9399b2",
   text: "#cdd6f4",
   green: "#a6e3a1",
   mauve: "#cba6f7",
   blue: "#89b4fa",
   peach: "#fab387",
   yellow: "#f9e2af",
+  pink: "#f5c2e7",
 };
 
 const GLYPHS: Record<string, string> = {
   a: "25755", b: "65656", c: "34443", d: "65556", e: "74647", f: "74644", g: "34753", h: "55755", i: "72227",
-  j: "11152", k: "55655", l: "44447", m: "57755", n: "57775", o: "25552", p: "65644", q: "25573", r: "65765",
-  s: "34216", t: "72222", u: "55557", v: "55522", w: "55775", x: "55255", y: "55222", z: "71247",
+  j: "11152", k: "55655", l: "44447", m: "77555", n: "65555", o: "25552", p: "65644", q: "25573", r: "65765",
+  s: "34216", t: "72222", u: "55557", v: "55522", w: "55577", x: "55255", y: "55222", z: "71247",
   "0": "75557", "1": "26227", "2": "61247", "3": "61216", "4": "55711", "5": "74616", "6": "34757", "7": "71222",
   "8": "75757", "9": "75716", ".": "00002", ",": "00021", "-": "00700", _: "00007", "/": "11224", ":": "02020",
   ">": "42124", "<": "12421", "@": "25743", "?": "61202", "!": "22202", "=": "07070", "+": "02720", "*": "05250",
   "#": "57575", "'": "22000", '"': "55000", "~": "03600", "(": "24442", ")": "42224", "{": "32623", "}": "62326",
-  "[": "64446", "]": "62226", ";": "02021", "&": "25353", "|": "22222", "%": "51245", $: "36736", "`": "42000",
+  "→": "21712", "[": "64446", "]": "62226", ";": "02021", "&": "25353", "|": "22222", "%": "51245", $: "36736", "`": "42000",
 };
 
 const KEYWORDS = /^(const|let|function|return|if|else|for|of|type|export|import|from|new|switch|case|default)\b/;
@@ -112,15 +127,32 @@ function drawCode(ctx: Ctx, line: string, x: number, y: number, columns: number)
   }
 }
 
-function softLight(ctx: Ctx, x: number, y: number, radius: number, strength: number) {
-  const light = ctx.createRadialGradient(x, y, 0, x, y, radius);
-  light.addColorStop(0, `rgba(255, 150, 60, ${strength})`);
-  light.addColorStop(0.35, `rgba(255, 130, 50, ${strength * 0.45})`);
-  light.addColorStop(0.7, `rgba(255, 110, 40, ${strength * 0.12})`);
+const lightSprites = new Map<number, HTMLCanvasElement>();
+
+function lightSprite(radius: number) {
+  const known = lightSprites.get(radius);
+  if (known) return known;
+  const size = radius * ROOM_SCALE;
+  const sprite = document.createElement("canvas");
+  sprite.width = size * 2;
+  sprite.height = size * 2;
+  const ctx = sprite.getContext("2d")!;
+  const light = ctx.createRadialGradient(size, size, 0, size, size, size);
+  light.addColorStop(0, "rgba(255, 150, 60, 1)");
+  light.addColorStop(0.35, "rgba(255, 130, 50, 0.45)");
+  light.addColorStop(0.7, "rgba(255, 110, 40, 0.12)");
   light.addColorStop(1, "rgba(255, 100, 30, 0)");
-  ctx.globalCompositeOperation = "lighter";
   ctx.fillStyle = light;
-  ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+  ctx.fillRect(0, 0, size * 2, size * 2);
+  lightSprites.set(radius, sprite);
+  return sprite;
+}
+
+function softLight(ctx: Ctx, x: number, y: number, radius: number, strength: number) {
+  ctx.globalCompositeOperation = "lighter";
+  ctx.globalAlpha = strength;
+  ctx.drawImage(lightSprite(radius), x - radius, y - radius, radius * 2, radius * 2);
+  ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = "source-over";
 }
 
@@ -144,23 +176,27 @@ function drawCandle(ctx: Ctx, { x, y }: Point, t: number, seed: number) {
 function drawSteam(ctx: Ctx, { x, y }: Point, t: number) {
   ctx.fillStyle = "#f4efe6";
   for (let wisp = 0; wisp < 2; wisp++) {
+    const sway = wisp ? 1 : -1;
     for (let rise = 0; rise < STEAM_HEIGHT; rise++) {
       const travel = rise / STEAM_HEIGHT;
-      if (Math.sin(rise * 0.5 - t * 3.5 + wisp * 2.4) < -0.35) continue;
-      ctx.globalAlpha = 0.85 * (1 - travel * travel);
-      const curl = Math.sin(rise * 0.34 - t * 2.4 + wisp * 2.6) * (1.2 + travel * 3);
-      ctx.fillRect(Math.round(x + (wisp ? 2 : -2) + curl), y - rise, 1, 1);
+      const flow = rise * 0.55 - t * 2.6 + wisp * 2.1;
+      if (Math.sin(flow * 1.7) < travel * 1.2 - 0.9) continue;
+      ctx.globalAlpha = 0.8 * (1 - travel) ** 1.5;
+      const curl = Math.sin(flow) * (1 + travel * 3.5) * sway;
+      const column = Math.round(x + sway * 1.5 + curl);
+      ctx.fillRect(column, y - rise, 1, 1);
+      if (travel < 0.5 && Math.cos(flow) > 0.6) ctx.fillRect(column + sway, y - rise, 1, 1);
     }
   }
   ctx.globalAlpha = 1;
 }
 
-function drawSnore(ctx: Ctx, { x, y }: Point, t: number) {
+function drawSnore(ctx: Ctx, { x, y }: Point, drift: number, t: number) {
   ctx.fillStyle = "#cdd6f4";
   for (let i = 0; i < 3; i++) {
     const phase = (t * 0.28 + i / 3) % 1;
     ctx.globalAlpha = Math.sin(Math.PI * phase) * 0.9;
-    drawText(ctx, "z", Math.round(x - phase * 14 + Math.sin(phase * 6) * 2), Math.round(y - phase * 30), phase > 0.5 ? 2 : 1);
+    drawText(ctx, "z", Math.round(x + phase * drift + Math.sin(phase * 6) * 2), Math.round(y - phase * 30), phase > 0.5 ? 2 : 1);
   }
   ctx.globalAlpha = 1;
 }
@@ -173,8 +209,11 @@ function drawWindow(ctx: Ctx, stars: number[][], city: number[][], t: number) {
       ctx.fillRect(x, y, 1, 1);
     } else if (twinkle > 0.5) {
       ctx.fillStyle = "#ffffff";
-      ctx.fillRect(x - 1, y, 3, 1);
-      ctx.fillRect(x, y - 1, 1, 3);
+      ctx.fillRect(x, y, 1, 1);
+      if (i % GLINT_EVERY === 0) {
+        ctx.fillRect(x - 1, y, 3, 1);
+        ctx.fillRect(x, y - 1, 1, 3);
+      }
     }
   });
   city.forEach(([x, y], i) => {
@@ -200,7 +239,7 @@ function drawBlink(ctx: Ctx, blink: Box, t: number) {
 
 function drawLake(ctx: Ctx, lake: number[][], t: number) {
   lake.forEach(([x, y, width], i) => {
-    if (y % 2) return;
+    if (y % RIPPLE_ROW_GAP) return;
     const drift = t * (RIPPLE_SPEED + (i % 3) * 1.1) + i * 37;
     ctx.fillStyle = i % 3 ? RIPPLE_LOW : RIPPLE_HIGH;
     for (let dash = 0; dash < width / RIPPLE_SPACING; dash++) {
@@ -224,7 +263,7 @@ function createScreen({ width, height }: Box, corners: ScreenCorners, box: Box, 
   const topLeft = place(corners.topLeft);
   const topRight = place(corners.topRight);
   const bottomLeft = place(corners.bottomLeft);
-  const bottomRight = place(corners.bottomRight);
+  const bottomRight = { x: topRight.x + bottomLeft.x - topLeft.x, y: topRight.y + bottomLeft.y - topLeft.y };
   return {
     canvas,
     flatCtx,
@@ -253,22 +292,42 @@ function createScreen({ width, height }: Box, corners: ScreenCorners, box: Box, 
   };
 }
 
-function paintTerminal(ctx: Ctx, width: number, height: number, rows: string[], cursorOn: boolean) {
-  const margin = 6;
+function paintStatusBar(ctx: Ctx, y: number, width: number, clock: string) {
+  const textWidth = (text: string) => text.length * 4 * TERMINAL_FONT;
+  const segment = (text: string, background: string, left: number, right: number) => {
+    ctx.fillStyle = background;
+    ctx.fillRect(left, y, right - left, PILL_HEIGHT);
+    ctx.fillStyle = MOCHA.base;
+    drawText(ctx, text, left + PILL_PADDING, y + 1, TERMINAL_FONT);
+  };
+  const user = textWidth("dan") + PILL_PADDING * 2;
+  const path = user + textWidth("~/cabin") + PILL_PADDING * 2;
+  const clockLeft = width - textWidth(clock) - PILL_PADDING * 2;
+  segment("dan", MOCHA.overlay2, 0, user);
+  segment("~/cabin", MOCHA.peach, user, path);
+  ctx.fillStyle = MOCHA.surface;
+  ctx.fillRect(path, y, clockLeft - path, PILL_HEIGHT);
+  segment(clock, MOCHA.pink, clockLeft, width);
+}
+
+function paintTerminal(ctx: Ctx, width: number, height: number, rows: string[], cursorOn: boolean, clock: string) {
   ctx.fillStyle = MOCHA.base;
   ctx.fillRect(0, 0, width, height);
-  ctx.fillStyle = MOCHA.surface;
-  ctx.fillRect(0, 0, width, 16);
-  ctx.fillStyle = MOCHA.green;
-  drawText(ctx, "rex", margin, 4, TERMINAL_FONT);
-  rows.forEach((row, index) => {
-    ctx.fillStyle = row.startsWith(">") ? MOCHA.mauve : MOCHA.text;
-    drawText(ctx, row, margin, 19 + index * TERMINAL_ROW, TERMINAL_FONT);
+  const history = rows.slice(0, -1);
+  const input = rows.at(-1) ?? PROMPT;
+  history.forEach((row, index) => {
+    ctx.fillStyle = row.startsWith(PROMPT) ? MOCHA.green : MOCHA.text;
+    drawText(ctx, row, TERMINAL_MARGIN, TERMINAL_TOP + index * TERMINAL_ROW, TERMINAL_FONT);
   });
+  const barY = TERMINAL_TOP + history.length * TERMINAL_ROW;
+  paintStatusBar(ctx, barY, width, clock);
+  const inputY = barY + PILL_HEIGHT + 2;
+  ctx.fillStyle = MOCHA.green;
+  drawText(ctx, PROMPT, TERMINAL_MARGIN, inputY, TERMINAL_FONT);
+  ctx.fillStyle = MOCHA.text;
+  drawText(ctx, input.slice(PROMPT.length), TERMINAL_MARGIN + PROMPT.length * 4 * TERMINAL_FONT, inputY, TERMINAL_FONT);
   if (cursorOn) {
-    const last = rows.at(-1) ?? "";
-    ctx.fillStyle = MOCHA.text;
-    ctx.fillRect(margin + last.length * 4 * TERMINAL_FONT, 19 + (rows.length - 1) * TERMINAL_ROW, 3 * TERMINAL_FONT, 5 * TERMINAL_FONT);
+    ctx.fillRect(TERMINAL_MARGIN + input.length * 4 * TERMINAL_FONT, inputY, 3 * TERMINAL_FONT, 5 * TERMINAL_FONT);
   }
 }
 
@@ -299,16 +358,38 @@ export function createRoomScene(art: RoomArt, room: RoomLayout, terminal: Termin
   const side = createScreen(room.side, room.sideCorners, room.side, art.side);
   let keystrokes = 0;
   let lastKeyAt = -1;
+  let paintedMain = "";
+  let paintedLine = -1;
+  let paintedTick = -1;
+  let paintedWidth = 0;
 
   function drawStripFrame(ctx: Ctx, strip: HTMLImageElement, box: Box, frame: number) {
     ctx.drawImage(strip, frame * box.width, 0, box.width, box.height, box.x, box.y, box.width, box.height);
   }
 
+  let scaledPlate: HTMLCanvasElement | null = null;
+
+  function plateAtRoomScale() {
+    if (scaledPlate) return scaledPlate;
+    scaledPlate = document.createElement("canvas");
+    scaledPlate.width = room.width * ROOM_SCALE;
+    scaledPlate.height = room.height * ROOM_SCALE;
+    const ctx = scaledPlate.getContext("2d")!;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(art.plate, 0, 0, scaledPlate.width, scaledPlate.height);
+    return scaledPlate;
+  }
+
   return {
-    draw(ctx: Ctx, t: number, animate: boolean) {
+    draw(ctx: Ctx, t: number, animate: boolean, opening: boolean) {
+      const tick = Math.floor(t * (opening ? OPENING_ROOM_FPS : ROOM_FPS));
+      if (tick === paintedTick && ctx.canvas.width === paintedWidth) return;
+      paintedTick = tick;
+      paintedWidth = ctx.canvas.width;
       ctx.imageSmoothingEnabled = false;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(plateAtRoomScale(), 0, 0);
       ctx.setTransform(ROOM_SCALE, 0, 0, ROOM_SCALE, 0, 0);
-      ctx.drawImage(art.plate, 0, 0);
       const screen = terminal.screen();
 
       const fireFrame = Math.floor(t * FIRE_FPS) % room.fireFrames;
@@ -321,6 +402,7 @@ export function createRoomScene(art: RoomArt, room: RoomLayout, terminal: Termin
         drawWindow(ctx, room.stars, room.city, t);
         const breath = Math.floor(t * BREATH_FPS) % room.mishkaFrames;
         drawStripFrame(ctx, art.mishka, room.mishkaBox, breath);
+        if (t % SHIFT_EVERY_SECONDS < SHIFT_SECONDS) drawStripFrame(ctx, art.shift, room.shiftBox, room.shiftFrames - 1);
       }
       for (const [seed, candle] of room.candles.entries()) drawCandle(ctx, candle, animate ? t : 0, seed);
 
@@ -332,18 +414,26 @@ export function createRoomScene(art: RoomArt, room: RoomLayout, terminal: Termin
       if (lastKeyAt >= 0 && t - lastKeyAt < HANDS_LINGER_SECONDS) {
         drawStripFrame(ctx, art.hands, room.handsBox, keystrokes % room.handFrames);
       }
-
-      paintTerminal(main.flatCtx, main.flatWidth, main.flatHeight, screen.rows, Math.floor(t * 2) % 2 === 0);
-      main.finish();
-      paintEditor(side.flatCtx, side.flatWidth, side.flatHeight, animate ? Math.floor(t / EDITOR_SCROLL_SECONDS) : 0);
-      side.finish();
+      const cursorOn = !animate || Math.floor(t * 2) % 2 === 0;
+      const now = new Date();
+      const clock = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+      const mainContent = `${cursorOn}|${clock}|${screen.rows.join("\n")}`;
+      if (mainContent !== paintedMain) {
+        paintedMain = mainContent;
+        paintTerminal(main.flatCtx, main.flatWidth, main.flatHeight, screen.rows, cursorOn, clock);
+        main.finish();
+      }
+      const firstLine = animate ? Math.floor(t / EDITOR_SCROLL_SECONDS) : 0;
+      if (firstLine !== paintedLine) {
+        paintedLine = firstLine;
+        paintEditor(side.flatCtx, side.flatWidth, side.flatHeight, firstLine);
+        side.finish();
+      }
       ctx.drawImage(main.canvas, room.main.x, room.main.y, room.main.width, room.main.height);
       ctx.drawImage(side.canvas, room.side.x, room.side.y, room.side.width, room.side.height);
+      if (animate) drawSteam(ctx, room.coffee, t);
 
-      if (animate) {
-        drawSteam(ctx, room.coffee, t);
-        drawSnore(ctx, room.snore, t);
-      }
+      if (animate) drawSnore(ctx, room.snore, room.snoreDrift, t);
     },
   };
 }
