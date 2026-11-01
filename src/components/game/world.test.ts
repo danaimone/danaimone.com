@@ -63,7 +63,7 @@ describe("art matches the code", () => {
 
   test("sprite sheets divide evenly into frames", () => {
     expect(pngSize("dan")).toEqual({ width: DAN_SHEET.width * 14, height: DAN_SHEET.height });
-    expect(pngSize("mishka")).toEqual({ width: MISHKA_SHEET.width * 10, height: MISHKA_SHEET.height });
+    expect(pngSize("mishka")).toEqual({ width: MISHKA_SHEET.width * 13, height: MISHKA_SHEET.height });
     expect(pngSize("trees").height).toBe(TREE_SHEET.height);
     expect(pngSize("props")).toEqual({ width: PROP_SHEET.width * PROP_SHEET.count, height: PROP_SHEET.height });
     expect(pngSize("clouds").width % CLOUD_KINDS).toBe(0);

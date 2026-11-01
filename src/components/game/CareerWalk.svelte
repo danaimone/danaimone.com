@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { EMAIL, elsewhere, experience } from "../../data/resume";
+  import { gameUrl } from "./art-url";
   import { startWalk } from "./engine";
   import type { Zone } from "./simulation";
   import { BACK_TO_START, GEMS, STOPS, TIMELINE } from "./world";
@@ -80,7 +81,7 @@
     ></canvas>
 
     <div class="walk-intro" class:is-shown={zone === "intro"}>
-      <h1><img src="/game/title.png" alt="Dan Aimone" /></h1>
+      <h1><img src={gameUrl("title")} alt="Dan Aimone" /></h1>
       <p class="walk-lede">
         AI-native software engineer at Vannevar, building agentic products
         end to end, from the harness to the interface. Previously Atlassian

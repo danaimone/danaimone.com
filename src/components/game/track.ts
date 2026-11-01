@@ -4,7 +4,8 @@ const WALK_RANGE = WALK_END - WALK_START;
 const WALK_SHARE = 0.88;
 const KEY_WALK_SPEED = 2.15;
 
-export const KEY_STEP = (KEY_WALK_SPEED / WALK_RANGE) * WALK_SHARE;
+export const FRACTION_PER_WORLD_PX = WALK_SHARE / WALK_RANGE;
+export const KEY_STEP = KEY_WALK_SPEED * FRACTION_PER_WORLD_PX;
 
 export type Destination = { kind: "world"; x: number } | { kind: "cabin" };
 

@@ -23,10 +23,21 @@ const GRAVITY = 0.32;
 const JUMP_SPEED = 5.6;
 const DOG_JUMP_SPEED = 4.8;
 
-const MISHKA_FRAME = { walkCycle: 8, idle: 8, airborne: 9 };
+const MISHKA_FRAME = { walkCycle: 8, idle: 8, airborne: 9, firstBark: 10, barkFrames: 3 };
 const MISHKA_STRIDE_PER_FRAME = 11;
 const DAN_FRAME = { walkCycle: 8, idle: 8, firstAirborne: 9, airborneFrames: 5 };
 const DAN_STRIDE_PER_FRAME = 15;
+const FINGER_STRIDE_HOLD_TICKS = 6;
+const FINGER_DOG_LAG = 44;
+
+const TRICK_AFTER_STILL_TICKS = 240;
+const TRICK_REST_TICKS = 720;
+const TRICK_CHANCE_PER_TICK = 1 / 420;
+const CIRCLE_TICKS = 170;
+const CIRCLE_DEPTH_ROWS = 3;
+const BARK_TICKS_PER_FRAME = 7;
+const BARKS = 3;
+const BARK_TICKS = BARKS * BARK_TICKS_PER_FRAME * (MISHKA_FRAME.barkFrames + 1);
 
 const danAirborneFrame = (speed: number) => {
   const progress = (1 - speed / JUMP_SPEED) / 2;
@@ -37,10 +48,12 @@ const danAirborneFrame = (speed: number) => {
 export type Facing = "left" | "right";
 export type Zone = "intro" | "between" | "contact" | StopId;
 export type WalkDirection = -1 | 0 | 1;
+type Trick = { kind: "circle" | "bark"; tick: number };
 
 export type WalkInput = {
   fraction: number;
   walkDirection: WalkDirection;
+  followsScroll?: boolean;
   viewWidth: number;
   cardSpan: number;
 };
@@ -76,7 +89,7 @@ export function createStepClock() {
   };
 }
 
-export function createSimulation({ reduced }: { reduced: boolean }) {
+export function createSimulation({ reduced, random = Math.random }: { reduced: boolean; random?: () => number }) {
   const dan: Walker & { vx: number } = { x: WALK_START, vx: 0, facing: "right", stride: 0, jumpHeight: 0, jumpSpeed: 0 };
   const mishka: Walker = { x: WALK_START - LEAD_LENGTH, facing: "right", stride: 0, jumpHeight: 0, jumpSpeed: 0 };
   let danFrom = dan.x;
@@ -94,9 +107,14 @@ export function createSimulation({ reduced }: { reduced: boolean }) {
   let lastProgress = -1;
   let idleTicks = 0;
   let dogJumpIn = 0;
+  let fingerStrideHold = 0;
+  let following = false;
+  let trick: Trick | null = null;
+  let trickRest = 0;
 
-  function moveDan(target: number, canAnimate: boolean, effects: WalkEffect[]) {
+  function moveDan(target: number, canAnimate: boolean, followsScroll: boolean, effects: WalkEffect[]) {
     const opening = first && !reduced && target <= WALK_START + 1;
+    following = false;
     if (opening) {
       dan.x = WALK_START - 130;
       mishka.x = WALK_START - 190;
@@ -110,6 +128,11 @@ export function createSimulation({ reduced }: { reduced: boolean }) {
       mishka.x = target - LEAD_LENGTH;
       dan.vx = 0;
       danFrom = target;
+    } else if (followsScroll && !(dan.x < WALK_START && target <= WALK_START)) {
+      danFrom = dan.x;
+      dan.vx = distance;
+      dan.x = target;
+      following = true;
     } else {
       danFrom = dan.x;
       const topSpeed = sprintSpeed(distance);
@@ -119,6 +142,7 @@ export function createSimulation({ reduced }: { reduced: boolean }) {
     }
     if (dan.vx > 0.05) dan.facing = "right";
     else if (dan.vx < -0.05) dan.facing = "left";
+    if (followsScroll) fingerStrideHold = Math.abs(dan.vx) > 0.05 ? FINGER_STRIDE_HOLD_TICKS : Math.max(0, fingerStrideHold - 1);
     if (Math.abs(dan.vx) > 0.05) {
       idleTicks = 0;
       dan.stride += Math.min(Math.abs(dan.vx), MAX_STRIDE_STEP);
@@ -126,9 +150,10 @@ export function createSimulation({ reduced }: { reduced: boolean }) {
     collect(!snap && Math.abs(dan.vx) <= QUIET_SPEED, effects);
   }
 
-  function moveMishka() {
+  function moveMishka(followsScroll: boolean) {
     mishkaFrom = mishka.x;
     const lead = dan.facing === "right" ? -LEAD_LENGTH : LEAD_LENGTH;
+    if (followsScroll) mishka.x = clamp(mishka.x, dan.x + lead - FINGER_DOG_LAG, dan.x + lead + FINGER_DOG_LAG);
     const distance = dan.x + lead - mishka.x;
     const topSpeed = sprintSpeed(distance) + 0.5;
     const speed = clamp(distance * 0.075, -topSpeed, topSpeed);
@@ -141,6 +166,40 @@ export function createSimulation({ reduced }: { reduced: boolean }) {
       dogJumpIn -= 1;
       if (dogJumpIn === 0) mishka.jumpSpeed = DOG_JUMP_SPEED;
     }
+  }
+
+  function standsStill() {
+    return !reduced && finale === 0 && !warp && dan.jumpHeight === 0 && mishka.jumpHeight === 0 && Math.abs(dan.vx) <= 0.05 && fingerStrideHold === 0 && dogJumpIn === 0;
+  }
+
+  function pickTrick() {
+    trickRest = Math.max(0, trickRest - 1);
+    const lead = dan.facing === "right" ? -LEAD_LENGTH : LEAD_LENGTH;
+    const beside = Math.abs(mishka.x - (dan.x + lead)) < 2;
+    if (!standsStill() || !beside || idleTicks < TRICK_AFTER_STILL_TICKS || trickRest > 0) return;
+    if (random() >= TRICK_CHANCE_PER_TICK) return;
+    trick = { kind: random() < 0.5 ? "circle" : "bark", tick: 0 };
+    trickRest = TRICK_REST_TICKS;
+  }
+
+  // The circle starts and ends at her resting spot behind Dan, passing behind
+  // him going out and in front of him coming back.
+  const circleAngle = ({ tick }: Trick) => (tick / CIRCLE_TICKS) * Math.PI * 2;
+
+  function performTrick(current: Trick) {
+    mishkaFrom = mishka.x;
+    current.tick += 1;
+    if (current.kind === "bark") {
+      mishka.facing = dan.facing;
+    } else {
+      const lead = dan.facing === "right" ? -LEAD_LENGTH : LEAD_LENGTH;
+      const nextX = dan.x + lead * Math.cos(circleAngle(current));
+      const moved = nextX - mishka.x;
+      mishka.x = nextX;
+      mishka.stride += Math.abs(moved);
+      if (Math.abs(moved) > 0.05) mishka.facing = moved > 0 ? "right" : "left";
+    }
+    if (current.tick >= (current.kind === "bark" ? BARK_TICKS : CIRCLE_TICKS)) trick = null;
   }
 
   function collect(announce: boolean, effects: WalkEffect[]) {
@@ -175,7 +234,7 @@ export function createSimulation({ reduced }: { reduced: boolean }) {
   }
 
   function step(input: WalkInput) {
-    const { fraction, walkDirection } = input;
+    const { fraction, walkDirection, followsScroll = false } = input;
     const effects: WalkEffect[] = [];
     let scrolled = fraction;
     const scrollTo = (next: number) => {
@@ -203,11 +262,14 @@ export function createSimulation({ reduced }: { reduced: boolean }) {
     }
 
     finale = finaleAt(scrolled);
-    moveDan(worldAt(scrolled), !reduced, effects);
+    moveDan(worldAt(scrolled), !reduced, followsScroll, effects);
     const danFall = fall(dan.jumpHeight, dan.jumpSpeed);
     dan.jumpHeight = danFall.height;
     dan.jumpSpeed = danFall.speed;
-    moveMishka();
+    if (trick && !standsStill()) trick = null;
+    if (!trick) pickTrick();
+    if (trick) performTrick(trick);
+    else moveMishka(followsScroll);
     const dogFall = fall(mishka.jumpHeight, mishka.jumpSpeed);
     mishka.jumpHeight = dogFall.height;
     mishka.jumpSpeed = dogFall.speed;
@@ -225,6 +287,7 @@ export function createSimulation({ reduced }: { reduced: boolean }) {
     step,
     jump() {
       if (dan.jumpHeight > 0.5) return;
+      trick = null;
       dan.jumpSpeed = JUMP_SPEED;
       dogJumpIn = DOG_JUMP_DELAY_TICKS;
     },
@@ -233,13 +296,18 @@ export function createSimulation({ reduced }: { reduced: boolean }) {
       if (reduced) pendingScroll = fraction;
       else warp = { tick: 0, fraction, moved: false };
     },
-    view(blend = 1) {
-      const moving = Math.abs(dan.vx) > 0.05;
+    // A followed finger moves the page every frame, between ticks too, so Dan is
+    // drawn where the page is now rather than eased between the last two ticks.
+    view(blend = 1, fraction?: number) {
+      const moving = Math.abs(dan.vx) > 0.05 || fingerStrideHold > 0;
       const lead = dan.facing === "right" ? -LEAD_LENGTH : LEAD_LENGTH;
-      const resting = finale === 0 && idleTicks > RESTING_AFTER_TICKS && Math.abs(mishka.x - (dan.x + lead)) < 2;
+      const resting = !trick && finale === 0 && idleTicks > RESTING_AFTER_TICKS && Math.abs(mishka.x - (dan.x + lead)) < 2;
+      const circling = trick?.kind === "circle" ? circleAngle(trick) : null;
+      const barkBeat = trick?.kind === "bark" ? Math.floor(trick.tick / BARK_TICKS_PER_FRAME) % (MISHKA_FRAME.barkFrames + 1) : 0;
+      const walkFrame = Math.floor(mishka.stride / MISHKA_STRIDE_PER_FRAME) % MISHKA_FRAME.walkCycle;
       return {
         dan: {
-          x: danFrom + (dan.x - danFrom) * blend,
+          x: following && fraction !== undefined ? worldAt(fraction) : danFrom + (dan.x - danFrom) * blend,
           facing: dan.facing,
           lift: dan.jumpHeight,
           moving,
@@ -249,7 +317,10 @@ export function createSimulation({ reduced }: { reduced: boolean }) {
           x: mishkaFrom + (mishka.x - mishkaFrom) * blend,
           facing: mishka.facing,
           lift: mishka.jumpHeight,
-          frame: mishka.jumpHeight > 0 ? MISHKA_FRAME.airborne : resting ? MISHKA_FRAME.idle : Math.floor(mishka.stride / MISHKA_STRIDE_PER_FRAME) % MISHKA_FRAME.walkCycle,
+          frame: mishka.jumpHeight > 0 ? MISHKA_FRAME.airborne : barkBeat > 0 ? MISHKA_FRAME.firstBark + barkBeat - 1 : trick?.kind === "bark" || resting ? MISHKA_FRAME.idle : walkFrame,
+          depthRows: circling === null ? 0 : Math.round(-Math.sin(circling) * CIRCLE_DEPTH_ROWS),
+          inFront: circling !== null && circling > Math.PI,
+          barking: barkBeat > 0,
         },
         collected: collectedView,
         finale,
