@@ -2,7 +2,6 @@ import type { StopId } from "../../data/resume";
 import { GEMS, PROMOTION_X, STOPS, WORLD_WIDTH, type Gem } from "./world";
 import { KEY_STEP, WALK_START, clamp, finaleAt, fractionOf, progressAt, worldAt, type Destination } from "./track";
 
-
 const MAX_WALK_SPEED = 2.6;
 const SPRINT_RATE = 0.06;
 const SPRINT_LAG = 90;
@@ -45,7 +44,7 @@ const danAirborneFrame = (speed: number) => {
   return DAN_FRAME.firstAirborne + Math.min(Math.max(frame, 0), DAN_FRAME.airborneFrames - 1);
 };
 
-export type Facing = "left" | "right";
+type Facing = "left" | "right";
 export type Zone = "intro" | "between" | "contact" | StopId;
 export type WalkDirection = -1 | 0 | 1;
 type Trick = { kind: "circle" | "bark"; tick: number };

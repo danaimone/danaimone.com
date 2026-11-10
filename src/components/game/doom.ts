@@ -74,7 +74,6 @@ export function startDoom(host: HTMLElement, onEnd: (end: DoomEnd) => void) {
   let fullscreenSettling = 0;
   let escapeIgnoredUntil = 0;
 
-  stage.className = "doom-stage";
   stage.tabIndex = -1;
   Object.assign(stage.style, { position: "absolute", inset: "0", pointerEvents: "none", outline: "none" });
   picture.width = WIDTH;
@@ -195,7 +194,6 @@ export function startDoom(host: HTMLElement, onEnd: (end: DoomEnd) => void) {
       pictureCtx.putImageData(new ImageData(data.pixels, WIDTH, HEIGHT), 0, 0);
       spare = data.pixels;
       frame += 1;
-      picture.dataset.frame = String(frame);
       waitingForFrame = false;
       return;
     }

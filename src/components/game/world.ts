@@ -2,12 +2,12 @@ import { experience, type StopId } from "../../data/resume";
 import { WALK_START, progressAt, type Destination } from "./track";
 
 export const WORLD_WIDTH = 4260;
-export const BASELINE = 2;
+const BASELINE = 2;
 export const PROMOTION_X = 2480;
 
 type Sign = { logo: string; x: number; y: number; size: number };
 
-export type Landmark = {
+type Landmark = {
   name: string;
   x: number;
   width: number;
@@ -104,7 +104,7 @@ export const STOPS = [...experience].reverse().map((stop) => ({
 
 export const GEMS = [...STOPS.flatMap((stop) => stop.gems), ...DAILY_TOOLS];
 
-export type TimelineMark = { label: string; caption: string; at: number; destination: Destination };
+type TimelineMark = { label: string; caption: string; at: number; destination: Destination };
 
 export const BACK_TO_START: Destination = { kind: "world", x: WALK_START };
 

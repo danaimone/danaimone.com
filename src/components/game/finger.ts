@@ -12,9 +12,9 @@ const MAX_GLIDE_MS = 1000;
 const FINGER_DELAY_MS = 20;
 const SAMPLE_CLOCK_SKEW_MS = 1000;
 
-export type FingerSample = { y: number; at: number };
-export type Glide = { speed: number; ms: number };
-export type Take = { pinned: boolean; scrollY: number; drag: number; cardScrolls: boolean };
+type FingerSample = { y: number; at: number };
+type Glide = { speed: number; ms: number };
+type Take = { pinned: boolean; scrollY: number; drag: number; cardScrolls: boolean };
 
 // Finger pixels per ms at the moment of lifting, positive for a swipe up; a finger that paused first has none.
 export function releaseSpeed(samples: FingerSample[], liftedAt: number) {
@@ -57,7 +57,7 @@ export function fingerAt(samples: FingerSample[], at: number) {
 export const fingerTakes = ({ pinned, scrollY, drag, cardScrolls }: Take) =>
   pinned && !cardScrolls && !(scrollY <= 0 && drag > 0);
 
-export type Lift = { at: number; glide: Glide | null };
+type Lift = { at: number; glide: Glide | null };
 type Drive = { startY: number; startScroll: number; ratio: number; samples: FingerSample[]; lift: Lift | null };
 
 // How far the finger has dragged by `at`, and after it lifts, how far the glide has

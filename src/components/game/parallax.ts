@@ -1,6 +1,6 @@
 import { rng, tileThroughTurn } from "./art";
 import { PROP_SHEET, TREE_SHEET, type Art } from "./assets";
-import { plantStands, plantUnderstory, surfaceAt } from "./path";
+import { plantStands, plantUnderstory, groundAt } from "./path";
 import { cutHole, tintOver, type Frame, type Viewport, type WalkSurface } from "./surface";
 import { LANDMARKS, WORLD_WIDTH } from "./world";
 
@@ -64,7 +64,7 @@ function paintGroves(c: CanvasRenderingContext2D, width: number, { art, viewport
   const clearOfWheel = (layerX: number) =>
     layerX + drawn.width + GREAT_WHEEL.reach < wheelX + (parallax - HILLS_PARALLAX) * wheelOnScreenFrom ||
     layerX - GREAT_WHEEL.reach > wheelX + (parallax - HILLS_PARALLAX) * wheelOnScreenTo;
-  for (const tree of plantStands(random, FIRST_NEAR_TREE, width, drawn.width, (x) => surfaceAt(worldXAt(x, parallax, vw)))) {
+  for (const tree of plantStands(random, FIRST_NEAR_TREE, width, drawn.width, (x) => groundAt(worldXAt(x, parallax, vw)))) {
     if (!clearOfBuildings(worldXAt(tree.x, parallax, vw)) || !clearOfWheel(tree.x)) continue;
     drawSprite(c, art.trees, tree.kind, TREE_SHEET, tree.x, ground + LAYER_BASE - drawn.height, drawn, tree.flipped);
   }
@@ -72,7 +72,7 @@ function paintGroves(c: CanvasRenderingContext2D, width: number, { art, viewport
 
 function paintUnderstory(c: CanvasRenderingContext2D, width: number, { art, viewport }: Scene) {
   const { width: vw, ground } = viewport;
-  for (const plant of plantUnderstory(rng(57), width, (x) => surfaceAt(worldXAt(x, MEADOW_PARALLAX, vw)))) {
+  for (const plant of plantUnderstory(rng(57), width, (x) => groundAt(worldXAt(x, MEADOW_PARALLAX, vw)))) {
     const top = ground + LAYER_BASE - PROP_SHEET.height - Math.round(plant.depth * UNDERSTORY_DEPTH);
     drawSprite(c, art.props, plant.kind, PROP_SHEET, plant.x, top, PROP_SHEET, plant.flipped);
   }

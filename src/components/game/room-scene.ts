@@ -263,7 +263,6 @@ export function createRoomScene(art: RoomArt, room: RoomLayout, terminal: Termin
       if (animate) drawBlink(ctx, room.blink, t);
       if (lastKeyAt >= 0 && t - lastKeyAt < FINGER_TAP_SECONDS) drawStripFrame(ctx, art.hands, room.handsBox, tap);
       if (animate) drawSteam(ctx, room.coffee, t);
-
       if (animate) drawSnore(ctx, room.snore, room.snoreDrift, t);
     },
   };

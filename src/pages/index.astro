@@ -68,7 +68,7 @@ const description =
       </a>
       <nav aria-label="Sections">
         <a href="#resume">Résumé</a>
-        <a class="nav-about" href="#about">About</a>
+        <a href="#about">About</a>
         <a href="#contact">Contact</a>
       </nav>
     </header>
@@ -85,7 +85,7 @@ const description =
             </div>
             <nav class="badges" aria-label="Links">
               {badges.map(([name, label, href, external]) => (
-                <a class={`badge is-${name}`} href={href} rel={external ? "me noopener" : undefined} target={name === "pdf" ? "_blank" : undefined}>
+                <a class="badge" href={href} rel={external ? "me noopener" : undefined} target={name === "pdf" ? "_blank" : undefined}>
                   <span class="badge-icon"><img src={gameUrl(`icons/${name}`)} alt="" width="36" height="36" /></span>
                   <span class="badge-label">{label}</span>
                 </a>

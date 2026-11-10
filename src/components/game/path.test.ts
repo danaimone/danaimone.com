@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { PROP_SHEET } from "./assets";
-import { BLEND_WIDTH, SURFACES, hasCentreDash, placeProps, plantStands, surfaceAt, surfaceIndexAt } from "./path";
+import { BLEND_WIDTH, GROUNDS, hasCentreDash, placeProps, plantStands, groundAt, groundIndexAt } from "./path";
 
 const seeded = (start: number) => {
   let value = start;
@@ -11,19 +11,19 @@ const seeded = (start: number) => {
 };
 
 describe("path props", () => {
-  test("nothing grows out of a paved surface, at any seed", () => {
+  test("nothing grows out of paved ground, at any seed", () => {
     for (const seed of [1, 9, 77, 12345]) {
       for (const prop of placeProps(seeded(seed))) {
-        const left = SURFACES[surfaceIndexAt(prop.x)];
-        const right = SURFACES[surfaceIndexAt(prop.x + PROP_SHEET.width)];
+        const left = GROUNDS[groundIndexAt(prop.x)];
+        const right = GROUNDS[groundIndexAt(prop.x + PROP_SHEET.width)];
         expect(left.props).toContain(prop.kind);
         expect(right.props).toContain(prop.kind);
       }
     }
   });
 
-  test("no prop touches a surface change or the dithered blend before it, across many walks", () => {
-    const seams = SURFACES.filter((surface) => surface.until !== Infinity).map((surface) => surface.until);
+  test("no prop touches a change of ground or the dithered blend before it, across many walks", () => {
+    const seams = GROUNDS.filter((ground) => ground.until !== Infinity).map((ground) => ground.until);
     for (let seed = 1; seed <= 500; seed++) {
       for (const prop of placeProps(seeded(seed))) {
         const touched = seams.filter((seam) => prop.x + PROP_SHEET.width > seam - BLEND_WIDTH && prop.x < seam);
@@ -39,10 +39,10 @@ describe("path props", () => {
 
 describe("tree stands", () => {
   const TREE_WIDTH = 112;
-  const speciesOf = (kind: number, x: number) => surfaceAt(x).trees.findIndex((species) => species.includes(kind));
+  const speciesOf = (kind: number, x: number) => groundAt(x).trees.findIndex((species) => species.includes(kind));
   const standsOf = (seed: number) => {
     const stands: { species: number; x: number }[][] = [];
-    for (const tree of plantStands(seeded(seed), 340, 4000, TREE_WIDTH, surfaceAt)) {
+    for (const tree of plantStands(seeded(seed), 340, 4000, TREE_WIDTH, groundAt)) {
       const last = stands.at(-1)?.at(-1);
       const member = { species: speciesOf(tree.kind, tree.x), x: tree.x };
       if (last && tree.x - last.x <= TREE_WIDTH * 0.7) stands.at(-1)!.push(member);
@@ -53,7 +53,7 @@ describe("tree stands", () => {
 
   test("every tree is a species of the stretch it grows in", () => {
     for (const seed of [1, 9, 77, 12345]) {
-      for (const tree of plantStands(seeded(seed), 340, 4000, TREE_WIDTH, surfaceAt)) expect(speciesOf(tree.kind, tree.x)).toBeGreaterThanOrEqual(0);
+      for (const tree of plantStands(seeded(seed), 340, 4000, TREE_WIDTH, groundAt)) expect(speciesOf(tree.kind, tree.x)).toBeGreaterThanOrEqual(0);
     }
   });
 
@@ -67,7 +67,7 @@ describe("tree stands", () => {
 
   test("trees in a stand overlap less than two thirds, so none hides another", () => {
     for (const seed of [1, 9, 77]) {
-      const trees = plantStands(seeded(seed), 340, 4000, TREE_WIDTH, surfaceAt);
+      const trees = plantStands(seeded(seed), 340, 4000, TREE_WIDTH, groundAt);
       for (let i = 1; i < trees.length; i++) expect(trees[i].x - trees[i - 1].x).toBeGreaterThan(TREE_WIDTH / 3);
     }
   });
@@ -75,9 +75,9 @@ describe("tree stands", () => {
 
 describe("road markings", () => {
   test("centre dashes run on full asphalt only and stop before each dithered blend", () => {
-    const road = SURFACES.findIndex((surface) => surface.name === "asphalt");
-    const from = SURFACES[road - 1].until;
-    const to = SURFACES[road].until;
+    const road = GROUNDS.findIndex((ground) => ground.name === "asphalt");
+    const from = GROUNDS[road - 1].until;
+    const to = GROUNDS[road].until;
     const dashed = Array.from({ length: to + 200 }, (_, x) => x).filter(hasCentreDash);
     expect(dashed.length).toBeGreaterThan(100);
     expect(Math.min(...dashed)).toBeGreaterThanOrEqual(from);

@@ -16,7 +16,7 @@ export const elsewhere = [
 
 export type StopId = "vannevar" | "atlassian" | "chewy" | "pnnl";
 
-export type Job = {
+type Job = {
   id: "vannevar" | "atlassian-2" | "atlassian-1" | "chewy" | "pnnl";
   stop: StopId;
   company: string;
@@ -25,7 +25,7 @@ export type Job = {
   bullets: string[];
 };
 
-export type Resume = {
+type Resume = {
   contact: typeof contact;
   jobs: Job[];
   education: { school: string; place: string; degree: string; field: string };
@@ -112,7 +112,7 @@ export const resume: Resume = {
   ],
 };
 
-export type TailoredBullets = Partial<Record<Job["id"], string[]>>;
+type TailoredBullets = Partial<Record<Job["id"], string[]>>;
 
 export function tailored({ bullets, skills }: { bullets: TailoredBullets; skills?: Resume["skills"] }): Resume {
   return {
@@ -122,7 +122,7 @@ export function tailored({ bullets, skills }: { bullets: TailoredBullets; skills
   };
 }
 
-export type Stop = {
+type Stop = {
   id: StopId;
   company: string;
   span: string;

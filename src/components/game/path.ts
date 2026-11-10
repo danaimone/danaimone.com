@@ -50,7 +50,7 @@ type Span = [least: number, most: number];
 // subalpine meadows under Rainier. `props` stand on the path's verge, `understory`
 // grows in the bank behind it, and `trees` lists species, each with its variants:
 // a stand is one species.
-export type Surface = {
+export type Ground = {
   name: string;
   until: number;
   tufts: string | null;
@@ -127,7 +127,7 @@ const boardwalk: Texel = (x, row) => {
   return pick(["#9c7044", "#8d633b", "#a67a4c"], hash(plank, 5) * 0.7 + grain * 0.3);
 };
 
-export const SURFACES: Surface[] = [
+export const GROUNDS: Ground[] = [
   { name: "sand", until: ROAD.from, tufts: "#8c8a55", props: [...STEPPE_PLANTS, ROCK], understory: [...SAGEBRUSH, ...BUNCHGRASS], trees: [COTTONWOODS], stand: [1, 2], standGap: [260, 520], texel: sand },
   { name: "asphalt", until: ROAD.to, tufts: null, props: [], understory: [...SNOWBERRY, ...OREGON_GRAPE], trees: [MAPLE, MADRONES, YOUNG_FIRS], stand: [1, 3], standGap: [110, 260], texel: asphalt },
   { name: "sidewalk", until: 2800, tufts: "#466f3b", props: SEATTLE_PLANTS, understory: [...RHODODENDRONS, ...OREGON_GRAPE, ...SNOWBERRY], trees: [MADRONES, MAPLE, CEDARS, FIR_TREES], stand: [1, 3], standGap: [100, 240], texel: sidewalk },
@@ -136,62 +136,61 @@ export const SURFACES: Surface[] = [
   { name: "boardwalk", until: Infinity, tufts: null, props: SUBALPINE_FLOWERS, understory: SUBALPINE_FLOWERS, trees: [HEMLOCKS, YOUNG_FIRS], stand: [2, 3], standGap: [60, 150], texel: boardwalk },
 ];
 
-export const surfaceAt = (x: number) => SURFACES[surfaceIndexAt(x)];
+export const groundAt = (x: number) => GROUNDS[groundIndexAt(x)];
 
-export function surfaceIndexAt(x: number) {
-  return SURFACES.findIndex((surface) => x < surface.until);
+export function groundIndexAt(x: number) {
+  return GROUNDS.findIndex((ground) => x < ground.until);
 }
 
-const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((value) => (value + 0.5) / 16);
+export const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((value) => (value + 0.5) / 16);
 
-function blendedSurface(x: number, row: number) {
-  const index = surfaceIndexAt(x);
-  const next = SURFACES[index + 1];
-  if (!next) return SURFACES[index];
-  const reach = (SURFACES[index].until - x) / BLEND_WIDTH;
-  if (reach >= 1) return SURFACES[index];
-  return 1 - reach > BAYER[(row & 3) * 4 + (x & 3)] ? next : SURFACES[index];
+function blendedGround(x: number, row: number) {
+  const index = groundIndexAt(x);
+  const next = GROUNDS[index + 1];
+  if (!next) return GROUNDS[index];
+  const reach = (GROUNDS[index].until - x) / BLEND_WIDTH;
+  if (reach >= 1) return GROUNDS[index];
+  return 1 - reach > BAYER[(row & 3) * 4 + (x & 3)] ? next : GROUNDS[index];
 }
 
 const between = ([least, most]: Span, random: () => number) => least + random() * (most - least);
 const STAND_SPACING: Span = [0.42, 0.7];
 const UNDERSTORY_GAP: Span = [34, 100];
 
-export type Tree = { x: number; kind: number; flipped: boolean };
+type Tree = { x: number; kind: number; flipped: boolean };
 
-// Trees along a parallax layer `width` wide, where `surfaceAtLayerX` says what
+// Trees along a parallax layer `width` wide, where `groundAtLayerX` says what
 // grows at a layer position. A stand is one species in its variants, set close
 // enough to read as a stand without piling up, and the next stand is a different
 // species when the stretch has more than one. Trees are mirrored at random, and
 // two of the same variant side by side always face opposite ways.
-export function plantStands(random: () => number, from: number, width: number, treeWidth: number, surfaceAtLayerX: (x: number) => Surface) {
+export function plantStands(random: () => number, from: number, width: number, treeWidth: number, groundAtLayerX: (x: number) => Ground) {
   const trees: Tree[] = [];
   let previous: number[] = [];
   let x = from;
   while (x < width) {
-    const surface = surfaceAtLayerX(x);
-    const choices = surface.trees.length > 1 ? surface.trees.filter((species) => species !== previous) : surface.trees;
+    const ground = groundAtLayerX(x);
+    const choices = ground.trees.length > 1 ? ground.trees.filter((species) => species !== previous) : ground.trees;
     const species = choices[Math.floor(random() * choices.length)];
     previous = species;
-    const count = Math.round(between(surface.stand, random));
+    const count = Math.round(between(ground.stand, random));
     let last = null as Tree | null;
-    for (let i = 0; i < count && x < width && surfaceAtLayerX(x) === surface; i++) {
+    for (let i = 0; i < count && x < width && groundAtLayerX(x) === ground; i++) {
       const kind: number = species[Math.floor(random() * species.length)];
       const flipped: boolean = kind === last?.kind ? !last.flipped : random() < 0.5;
       last = { x: Math.round(x), kind, flipped };
       trees.push(last);
       x += treeWidth * between(STAND_SPACING, random);
     }
-    x += between(surface.standGap, random);
+    x += between(ground.standGap, random);
   }
   return trees;
 }
 
-// Plants dotted through the bank behind the path, in layer positions.
-export function plantUnderstory(random: () => number, width: number, surfaceAtLayerX: (x: number) => Surface) {
+export function plantUnderstory(random: () => number, width: number, groundAtLayerX: (x: number) => Ground) {
   const plants: { x: number; kind: number; depth: number; flipped: boolean }[] = [];
   for (let x = between(UNDERSTORY_GAP, random); x < width; x += between(UNDERSTORY_GAP, random)) {
-    const { understory } = surfaceAtLayerX(x);
+    const { understory } = groundAtLayerX(x);
     plants.push({ x: Math.round(x), kind: understory[Math.floor(random() * understory.length)], depth: random(), flipped: random() < 0.5 });
   }
   return plants;
@@ -201,10 +200,10 @@ export function placeProps(random: () => number) {
   const props: { x: number; kind: number }[] = [];
   for (let x = FIRST_PROP_X; x < WORLD_WIDTH; x += 70 + random() * 170) {
     const roll = random();
-    const surface = SURFACES[surfaceIndexAt(x)];
-    const clearOfBlend = x + PROP_SHEET.width < surface.until - BLEND_WIDTH;
-    if (surface.props.length && clearOfBlend) {
-      props.push({ x: Math.round(x), kind: surface.props[Math.floor(roll * surface.props.length)] });
+    const ground = groundAt(x);
+    const clearOfBlend = x + PROP_SHEET.width < ground.until - BLEND_WIDTH;
+    if (ground.props.length && clearOfBlend) {
+      props.push({ x: Math.round(x), kind: ground.props[Math.floor(roll * ground.props.length)] });
     }
   }
   return props;
@@ -217,10 +216,10 @@ export function buildPath() {
   const ctx = canvas.getContext("2d")!;
   for (let x = 0; x < WORLD_WIDTH; x++) {
     for (let row = 0; row < PATH_ROWS; row++) {
-      ctx.fillStyle = blendedSurface(x, row).texel(x, row);
+      ctx.fillStyle = blendedGround(x, row).texel(x, row);
       ctx.fillRect(x, row + 2, 1, 1);
     }
-    const tuft = SURFACES[surfaceIndexAt(x)].tufts;
+    const tuft = groundAt(x).tufts;
     const noise = hash(x, 11);
     if (tuft && noise < 0.2) {
       ctx.fillStyle = tuft;

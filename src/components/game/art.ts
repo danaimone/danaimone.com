@@ -1,16 +1,9 @@
-import { PATH_ROWS } from "./path";
-
-// Scenery for the career walk: sky, mountains, hills, trees, clouds, and the
-// path. Characters and landmarks are pixel-art sprites in /public/game (see
-// scripts/art-prompts and scripts/pixelize.py); everything here is drawn in
-// code at the canvas's logical resolution.
+import { BAYER, PATH_ROWS } from "./path";
 
 type Ctx = CanvasRenderingContext2D;
 
-// ---------------------------------------------------------------- colour
-
 // Accepts "#rrggbb" or the "rgb(r,g,b)" strings mix() returns.
-export function hex(c: string) {
+function hex(c: string) {
   if (c[0] !== "#") return c.match(/\d+/g)!.slice(0, 3).map(Number);
   const n = parseInt(c.slice(1), 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
@@ -25,7 +18,7 @@ export function mix(a: string, b: string, t: number) {
 
 // Time of day along the walk: dawn at the start, the avatar's own violet
 // dusk in the present, night at the cabin.
-type Sky = {
+type SkyKey = {
   at: number;
   top: string;
   mid: string;
@@ -36,7 +29,7 @@ type Sky = {
   lights: number;
 };
 
-const SKIES: Sky[] = [
+const SKIES: SkyKey[] = [
   { at: 0, top: "#2c3a72", mid: "#9a7fbf", low: "#ffb98a", tint: "#6a4f8e", tintAlpha: 0.24, stars: 0.22, lights: 0.4 },
   { at: 0.14, top: "#4677c2", mid: "#8bb2e3", low: "#f4dcc6", tint: "#ff9d6e", tintAlpha: 0.06, stars: 0, lights: 0 },
   { at: 0.42, top: "#3c71c2", mid: "#83ade2", low: "#dfeaf3", tint: "#ffffff", tintAlpha: 0, stars: 0, lights: 0 },
@@ -65,7 +58,6 @@ export function skyAt(p: number) {
 }
 
 export const DITHER_PERIOD = 4;
-const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
 
 // Banded, ordered-dithered sky: the gradient is quantised into steps and the
 // boundaries are dithered, the way a pixel artist would paint it.
@@ -96,8 +88,6 @@ export function paintSky(img: ImageData, sky: ReturnType<typeof skyAt>, horizon:
   }
 }
 
-// ---------------------------------------------------------------- noise
-
 export function rng(seed: number) {
   let s = seed >>> 0;
   return () => {
@@ -109,12 +99,10 @@ export function rng(seed: number) {
   };
 }
 
-export function hash(n: number) {
+function hash(n: number) {
   const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
   return x - Math.floor(x);
 }
-
-// ---------------------------------------------------------------- shapes
 
 function rect(ctx: Ctx, color: string, x: number, y: number, w: number, h: number) {
   ctx.fillStyle = color;
@@ -140,7 +128,7 @@ export function sunHalo(color: string) {
   return halo;
 }
 
-export type SunArt = { halo: HTMLCanvasElement; warmHalo: HTMLCanvasElement; sprite: HTMLImageElement; warm: HTMLCanvasElement };
+type SunArt = { halo: HTMLCanvasElement; warmHalo: HTMLCanvasElement; sprite: HTMLImageElement; warm: HTMLCanvasElement };
 
 // One sprite along the whole arc; only the warm overlay grows with the evening.
 export function drawSun(ctx: Ctx, { halo, warmHalo, sprite, warm }: SunArt, cx: number, cy: number, evening: number) {
@@ -171,7 +159,6 @@ const PUFF_BODY = "#b8bcd8";
 const PUFF_SHADE = "#7c80a8";
 const PUFF_ALPHA = 0.62;
 
-// One row per size: solid lobed puffs in three flat shades.
 export function smokePuffs() {
   const atlas = document.createElement("canvas");
   atlas.width = PUFF_CELL;
@@ -199,9 +186,7 @@ export function drawPuff(ctx: Ctx, puffs: HTMLCanvasElement, x: number, y: numbe
   ctx.drawImage(puffs, 0, row * PUFF_CELL, PUFF_CELL, PUFF_CELL, Math.round(x - PUFF_CELL / 2), Math.round(y - PUFF_CELL / 2), PUFF_CELL, PUFF_CELL);
 }
 
-// ---------------------------------------------------------------- layers
-
-export type TurningTiles = { before: HTMLImageElement; turn: HTMLImageElement; after: HTMLImageElement };
+type TurningTiles = { before: HTMLImageElement; turn: HTMLImageElement; after: HTMLImageElement };
 
 export function tileThroughTurn(ctx: Ctx, { before, turn, after }: TurningTiles, turnX: number, width: number, baseY: number) {
   for (let x = turnX - before.width; x > -before.width; x -= before.width) ctx.drawImage(before, x, baseY - before.height);
@@ -209,15 +194,12 @@ export function tileThroughTurn(ctx: Ctx, { before, turn, after }: TurningTiles,
   for (let x = turnX + turn.width; x < width; x += after.width) ctx.drawImage(after, x, baseY - after.height);
 }
 
-// ---------------------------------------------------------------- ground
-
 export const GROUND_DEPTH = 40;
 // Rows of soil under the path; the timeline sits here.
 export const SOIL_DEPTH = 25;
 
 const SOIL_FLECK = { from: 0.6, to: 0.615, topRow: 19, rows: 14 };
 
-// World columns and rows of the dark flecks in the soil, in x order.
 export function soilFlecks(worldWidth: number) {
   const flecks: { x: number; row: number }[] = [];
   for (let x = 0; x < worldWidth; x++) {
@@ -237,7 +219,6 @@ export function paintGround(ctx: Ctx, path: HTMLCanvasElement, flecks: ReturnTyp
   }
 }
 
-// Skill gems: a cut stone that bobs above the path, drawn at 2x.
 export function drawGem(ctx: Ctx, x: number, y: number, color: string) {
   const p = 2;
   const px = (dx: number, dy: number, w: number, h: number, c = color) => rect(ctx, c, x + dx * p, y + dy * p, w * p, h * p);
