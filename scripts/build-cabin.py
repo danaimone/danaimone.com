@@ -8,6 +8,7 @@ flat key colours and become the screen masks. Every animation layer is cut from 
 """
 import json
 import math
+import random
 import sys
 from collections import deque
 from pathlib import Path
@@ -16,7 +17,7 @@ from PIL import Image
 
 SCREEN_GLASS = (30, 30, 46)
 PALETTE_COLORS = 256
-FIRE_FRAMES = 8
+FIRE_FRAMES = 16
 SLEEP_FRAMES = 8
 BREATH_PIXELS = 2
 RIB_SPAN = (0.3, 0.7)
@@ -25,12 +26,18 @@ STAR_GAP = 4
 LIGHT_GAP = 3
 MIN_LAKE_SPAN = 6
 FLAME_TUCK = 2
-FLAME_INKS = [(0.5, (255, 236, 170)), (0.3, (255, 196, 84)), (0.13, (255, 146, 40)), (0.0, (226, 88, 24))]
+FLAME_INKS = [(44, (255, 240, 180)), (32, (255, 204, 92)), (19, (255, 150, 40)), (8, (232, 92, 24))]
+FIRE_HEAT = 64
+FIRE_STEADY = 0.45
+FIRE_COOLING = (0, 1, 1, 1, 2)
+FIRE_DRIFT = (-1, 0, 0, 1)
+FIRE_SPREAD = 4
+FIRE_WARM_UP = 80
 
 ROOMS = {
     "wide": {
         "source": "wide.png",
-        "fire": {"opening": (537, 153, 603, 232), "grateTop": 226, "logRim": [(544, 217), (550, 211), (560, 206), (570, 201), (578, 199), (582, 203), (585, 210), (590, 215), (592, 221)], "tongues": [(571, 214, 21, 58, 1, 5, 0.0), (554, 216, 14, 42, 2, 4, 1.7), (588, 216, 14, 46, 1, -4, 3.1), (563, 214, 10, 52, 3, 3, 4.4), (580, 214, 10, 38, 2, -3, 5.6)]},
+        "fire": {"opening": (537, 153, 603, 232), "grateTop": 226, "logRim": [(544, 217), (550, 211), (560, 206), (570, 201), (578, 199), (582, 203), (585, 210), (590, 215), (592, 221)], "seed": 51},
         "dog": (455, 262, 570, 330), "snore": (552, 270), "snoreDrift": -12,
         "window": (110, 47, 262, 179), "starLight": 150, "city": (150, 148, 240, 162), "lake": (140, 160, 250, 179),
         "coffee": (462, 182), "candles": [(530, 83), (543, 89)],
@@ -39,7 +46,7 @@ ROOMS = {
     },
     "tall": {
         "source": "tall.png",
-        "fire": {"opening": (269, 381, 332, 474), "grateTop": 458, "logRim": [(273, 446), (278, 441), (293, 434), (307, 429), (312, 431), (315, 436), (320, 440), (323, 446)], "tongues": [(301, 446, 21, 58, 1, 5, 0.0), (284, 448, 14, 42, 2, 4, 1.7), (318, 448, 14, 46, 1, -4, 3.1), (293, 446, 10, 52, 3, 3, 4.4), (310, 446, 10, 38, 2, -3, 5.6)]},
+        "fire": {"opening": (269, 381, 332, 474), "grateTop": 458, "logRim": [(273, 446), (278, 441), (293, 434), (307, 429), (312, 431), (315, 436), (320, 440), (323, 446)], "seed": 52},
         "dog": (180, 512, 312, 592), "snore": (272, 526), "snoreDrift": -10,
         "window": (18, 164, 142, 298), "starLight": 150, "city": (55, 256, 125, 272), "lake": (40, 268, 125, 298),
         "coffee": (200, 423), "candles": [(266, 315), (280, 321)],
@@ -106,39 +113,46 @@ def flame_floor(fire):
     return floor
 
 
-def flame_heat(tongues, x, y, turn):
-    """How deep inside the fire a pixel is, 0 at a tongue's edge and 1 at its root. Each tongue is a teardrop that
-    stretches and leans on its own beat; every beat is a whole number of turns per loop, so the loop closes."""
-    heat = 0.0
-    for cx, base, half_width, height, beat, lean, offset in tongues:
-        tall = height * (0.8 + 0.2 * math.sin(turn * beat + offset))
-        up = max(0, base - y) / tall
-        if up >= 1:
-            continue
-        centre = cx + lean * up * math.sin(turn + offset * 2)
-        reach = half_width * (1 - up) ** 0.7
-        across = abs(x - centre) / reach if reach > 0 else 2
-        if across < 1:
-            heat = max(heat, (1 - up) * (1 - across) ** 0.6)
-    return heat
-
-
-def fire_strip(plate, fire):
-    """The looped flames, drawn only over the firebox's dark brick: they rise from behind the painted logs and never
-    cross the stone."""
+def fire_strip(fire):
+    """A looped pixel fire behind the painted logs. Heat is fed in along the logs' top edge, hottest in the middle, and
+    each cell takes the heat of a cell just below it, shifted a column either way and cooled by a random step. The feed
+    swells and fades along the logs, so the heat rises as separate tongues, and each pixel is inked from the average
+    heat around it, so a tongue has a clean edge. Frames are consecutive steps: the loop's seam is one more flicker."""
     x0, y0, x1, y1 = fire["opening"]
     floor = flame_floor(fire)
     width, height = x1 - x0, y1 - y0
+    rim = fire["logRim"]
+    middle, reach = (rim[0][0] + rim[-1][0]) / 2, (rim[-1][0] - rim[0][0]) / 2 + FIRE_SPREAD
+    rand = random.Random(fire["seed"])
+    heat = [[0] * width for _ in range(height)]
     strip = Image.new("RGBA", (width * FIRE_FRAMES, height))
     out = strip.load()
-    for index in range(FIRE_FRAMES):
-        turn = 2 * math.pi * index / FIRE_FRAMES
-        for x in range(x0, x1):
-            for y in range(y0, floor[x]):
-                heat = flame_heat(fire["tongues"], x, y, turn)
-                color = next((ink for least, ink in FLAME_INKS if heat > least), None)
+    for step in range(FIRE_WARM_UP + FIRE_FRAMES):
+        for x in range(width):
+            off_centre = min(1.0, abs(x + x0 - middle) / reach)
+            lick = 0.5 + 0.5 * math.sin(x * 0.55 + step * 0.8) * math.sin(x * 0.23 - step * 0.45 + 1.3)
+            fuel = FIRE_HEAT * (1 - off_centre ** 2) * (FIRE_STEADY + (1 - FIRE_STEADY) * lick)
+            base = floor[x + x0] - y0
+            for y in range(base, min(height, base + FLAME_TUCK + 1)):
+                heat[y][x] = max(0, round(fuel * rand.uniform(0.7, 1)))
+        for y in range(height - 1):
+            for x in range(width):
+                if y >= floor[x + x0] - y0:
+                    continue
+                source = min(width - 1, max(0, x + rand.choice(FIRE_DRIFT)))
+                heat[y][x] = max(0, heat[y + 1][source] - rand.choice(FIRE_COOLING))
+        frame = step - FIRE_WARM_UP
+        if frame < 0:
+            continue
+        for y in range(height):
+            for x in range(width):
+                if y >= floor[x + x0] - y0:
+                    continue
+                near = [heat[ny][nx] for ny in (y - 1, y, y + 1) for nx in (x - 1, x, x + 1) if 0 <= ny < height and 0 <= nx < width]
+                warmth = (sum(near) + heat[y][x]) / (len(near) + 1)
+                color = next((ink for least, ink in FLAME_INKS if warmth >= least), None)
                 if color:
-                    out[index * width + x - x0, y - y0] = color + (255,)
+                    out[frame * width + x, y] = color + (255,)
     return strip
 
 
@@ -255,7 +269,7 @@ def build(art, out, name, spec):
     indexed = plate.quantize(colors=PALETTE_COLORS, dither=Image.Dither.NONE)
     plate = indexed.convert("RGB")
 
-    fire_strip(plate, spec["fire"]).save(out / f"room-{name}-fire.png", optimize=True)
+    fire_strip(spec["fire"]).save(out / f"room-{name}-fire.png", optimize=True)
     typing_strip(plate, spec).save(out / f"room-{name}-hands.png", optimize=True)
     sleeping_strip(plate, spec).save(out / f"room-{name}-mishka.png", optimize=True)
     mask_image(magenta, main).save(out / f"room-{name}-screen.png", optimize=True)
