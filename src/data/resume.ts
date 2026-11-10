@@ -81,7 +81,7 @@ export const resume: Resume = {
       years: "2022",
       bullets: [
         "Built the dynamic pricing backend features behind a 20% revenue increase across 4,000 SKUs",
-        "Raised bundle sales 90% by reworking the React/Next.js frontend architecture",
+        "Raised bundle sales 90% by standardizing product bundles as a component library across product pages",
       ],
     },
     {
