@@ -2,21 +2,20 @@
 
 Dan's personal site, live at https://danaimone.com. The top of the page is a scroll-driven pixel-art career walk: Dan and his Samoyed, Mishka, walk through Washington from a research lab (PNNL, 2017) past Chewy and Atlassian to Vannevar, with the Seattle skyline in the distance. The sky moves from dawn to night, Mount Rainier rises for the final reveal, and the walk ends inside a cabin with contact details. Below the walk is a résumé in Catppuccin Mocha, built from the same data as the downloadable PDF.
 
-Built with Bun, Astro 7, Svelte 5, TypeScript, and canvas. The page is static HTML. The walk is one island: a framework-free game engine and a small Svelte overlay. UI text is Instrument Sans, with Jersey 15 for headings and buttons, set at multiples of 7.5 px so its pixels land on the screen's; both are self-hosted. Characters, landmarks, scenery, icons, and the title logo are pixel-art sprites in `public/game/`. The sky and the era-by-era path are drawn in code.
+Built with Bun, Astro 7, Svelte 5, TypeScript, and canvas. The page is static HTML. The walk is one island: a framework-free game engine and a small Svelte overlay. UI text is Instrument Sans, with Jersey 15 for headings and buttons, sized in multiples of 7.5 px where it can be, so its pixels land on a 2x screen's; both are self-hosted. Characters, landmarks, scenery, icons, and the title logo are pixel-art sprites in `public/game/`. The sky and the era-by-era path are drawn in code.
 
 ### Art pipeline
 
-Art was generated with GPT Image (via Codex) from the prompts in `scripts/art-prompts/`, using the avatar as the identity reference and the Dan sheet as the style reference for everything else. Raw generations are not committed. Each one is cleaned into true pixel art, and building night lights are extracted. The cabin is built differently: each layout is one scene painted from scratch on a 4 px art grid (`cabin-wide.txt`, then `cabin-hands.txt` for the hands, then `cabin-tall.txt` to repaint the same room for phones). The desk group was then repainted as a walnut sit-stand desk with Dan standing at it (`cabin-desk.txt`, and `cabin-desk-tall.txt` for phones), and only that group was laid back onto each painting. The wide repaint came back with a soft face, so the head from the seated painting, which has hard outlines, was laid over it. `scripts/build-cabin.py` uses each painting as painted, with nothing pasted on (it redraws one thing, the keyboard's grey front strip, as the walnut wrist rest Dan's keyboard has), measures the hearth for the fire the page simulates, and draws Mishka's breathing to fit it. The typing frames are painted too: `cabin-typing.txt` is run on a 16x close-up of the hands, once per finger pose, and only the finger pixels that changed are kept, with `room-layouts.json` as the manifest. The monitors are generated as flat key colors, so the masks come straight from the art. After any art build, run `python3 scripts/pack-art.py public/game`: it stores each image as an indexed PNG when that is pixel-identical and smaller, which roughly halves the art.
+The art was generated, then cut, cleaned and assembled by the scripts here. Raw generations are not committed; the prompts that were used with GPT Image (via Codex) are in `scripts/art-prompts/`. The cabin is built differently from the walk: each layout is one scene painted from scratch on a 4 px art grid (`cabin-wide.txt`, then `cabin-hands.txt` for the hands, then `cabin-tall.txt` to repaint the same room for phones). The desk group was then repainted as a walnut sit-stand desk with Dan standing at it (`cabin-desk.txt`, and `cabin-desk-tall.txt` for phones), and only that group was laid back onto each painting. The wide repaint came back with a soft face, so the head from the seated painting, which has hard outlines, was laid over it. `scripts/build-cabin.py` uses each painting as painted, with nothing pasted on (it redraws one thing, the keyboard's grey front strip, as the walnut wrist rest Dan's keyboard has), measures the hearth for the fire the page simulates, and draws Mishka's breathing to fit it. The typing frames are painted too: `cabin-typing.txt` is run on a 16x close-up of the hands, once per finger pose, and only the finger pixels that changed are kept, with `room-layouts.json` as the manifest. The monitors are generated as flat key colors, so the masks come straight from the art. After any art build, run `python3 scripts/pack-art.py public/game`: it stores each image as an indexed PNG when that is pixel-identical and smaller, which roughly halves the art.
+
+The walk's sprites came from two tools. PixelLab drew the ones that need a consistent character or a repeating tile: Dan, Mishka, the plants, trees, clouds, skylines, Rainier, the hills, and most buildings. `scripts/assemble-sprites.py` and `scripts/assemble-scenery.py` cut and join those into the sheets in `public/game/`. The rest came from GPT Image and were cleaned with `scripts/pixelize.py`, which keys out the background, finds the art's block size, samples one colour per block, and limits the palette. `scripts/asset-lights.py` finds a building's window glass and lights a share of the panes for the night layer.
 
 ```sh
-python3 scripts/pixelize.py raw/dan-sheet.png out/dan --frames 6 --height 84 --colors 28
-python3 scripts/pixelize.py raw/lab.png public/game/lab.png --height 112 --colors 32
-python3 scripts/asset-lights.py public/game/lab.png public/game/lab-lights.png --rule blue --share 0.6 --color b8f2d6 --max 2000 --region 0,0,0.8,1 --no-lamps
+python3 scripts/assemble-sprites.py frames_dir mishka-base.png public/game
+python3 scripts/assemble-scenery.py pixellab_dir public/game
+python3 scripts/pixelize.py raw/sign.png public/game/sign.png --height 50 --colors 32
+python3 scripts/pack-art.py public/game
 ```
-
-Scenery layers: cascades 92, foothills 84, meadow 38, seattle 104 (water tapered by hand), title 112 with `--strict-key`, icons 34 with `--strict-key`, 
-
-Per-asset settings used: Mishka `--frames 6 --height 40 --colors 16`; Chewy office 231 (`--colors 40`), tower 224, labsnow 132, cabin 124, sign 50 (all `--colors 32`), rainier 240 (`--colors 64 --strict-key`). Lights: warehouse `--rule blue --share 0.8 --min 8 --max 300`; tower `--rule glass --share 0.38 --mullions --max 300`; labsnow `--rule teal --share 1 --color 7fd8ff --min 12 --max 3000`; cabin `--rule dark --share 1 --color ffcf6a --min 6 --region 0.3,0.5,1,0.85`.
 
 ## Development
 
@@ -69,16 +68,19 @@ Pushing to `main` does not deploy.
 - `src/components/game/assets.ts`: loads the art by name. If any image fails, the walk becomes a static hero and the résumé still works.
 - `src/components/game/room-scene.ts`: the cabin's live scene: the fire (simulated in `fire.ts`), hand frames, candles, steam, Mishka, and window lights.
 - `src/components/game/room-screens.ts`: the two monitors, the Rex terminal and Neovim showing `simulation.ts`. They are drawn on their own canvases at the display's resolution, in Departure Mono (SIL Open Font License, `src/fonts/`), sized to the font's 11 px grid where it fits. A monitor too small for readable type shows a minimap of the code instead.
-- `src/components/game/terminal.ts`: the toy terminal on the monitor. It prints canned text and runs nothing.
+- `src/components/game/terminal.ts`: the toy terminal on the monitor, styled after Dan's own shell. Its replies are canned; a few commands act on the page (`resume`, `open resume.pdf`, `stoke`, `doom`).
 - `src/components/game/engine.ts`: the conductor. It feeds the simulation scroll and keys, turns its effects into page events, and decides the order of each frame. It draws nothing itself.
 - `src/components/game/surface.ts`: the contract every canvas of the walk implements (`resize`, `paint`, `cut`), and the layout they share. `sky.ts`, `parallax.ts`, `plane.ts`, and `actors.ts` each own one canvas, or one set that moves together: its pixels, size, and transform. To add a canvas, write one surface and add it to the list in `engine.ts`.
 - `src/components/game/wipe.ts` and `room-view.ts`: the iris from the cabin door onto the room, and where the room sits and how much of it a frame repaints. `wipe.plan()` says whether a frame is covered by the room, only needs the hole cut wider, or must repaint the walk.
 - `src/components/game/finger.ts`, `keys.ts`, `page-activity.ts`, `particles.ts`, `toast-layer.ts`, `doom-launcher.ts`: touch, keyboard, what the page is doing around the walk, sparks and smoke, toast positions, and loading Doom on demand.
 - `scripts/walk-frames.mjs`: captures the walk frame by frame under a fake clock and seeded randomness, at four screen sizes, and compares the result with an earlier capture. Run it before and after any change that should not move a pixel.
 - `src/components/game/CareerWalk.svelte`: the overlay: intro, cards, toolkit, toasts, timeline.
-- `src/components/game/art.ts`: sky palettes and dithering, tiled scenery, path, gems.
+- `src/components/game/art.ts`: sky palettes and dithering, the sun, smoke, tiled scenery, soil, gems.
+- `src/components/game/path.ts`: the ground under the walk, stretch by stretch: its texture, what grows beside it, and where the trees stand.
+- `src/components/game/doom.ts`: Doom on the cabin's monitor, loaded only when asked for (see `public/doom/` for its licences and build script).
+- `src/components/game/steady-clock.ts`, `probe.ts`: frame and touch times with the browser's rounding removed, and the `?probe` overlay that measures a swipe on a real phone.
 - `public/game/`: sprites, scenery layers, building `-lights` layers, company logos, and icons.
-- `scripts/pixelize.py`, `scripts/asset-lights.py`, `scripts/build-cabin.py`, `scripts/art-prompts/`: the art pipeline.
+- `scripts/assemble-sprites.py`, `scripts/assemble-scenery.py`, `scripts/pixelize.py`, `scripts/asset-lights.py`, `scripts/build-cabin.py`, `scripts/pack-art.py`, `scripts/art-prompts/`: the art pipeline.
 - `src/pages/index.astro`: page layout, metadata, the résumé sheet, About, and Contact.
 - `src/styles/global.css`: tokens, walk overlays, pixel buttons, and the résumé sheet.
 - `src/scripts/pixel-wipe.ts`: the pixel dissolve on in-page links.

@@ -15,7 +15,8 @@
 - **Teleport**: the beam effect for timeline jumps, which hides a snap.
 - **Pixel dissolve**: the transition for links to page sections.
 - **Tailored version**: a résumé variant that overrides bullets and skills by job id.
+- **Ground**: one stretch of the path with its own texture and plants, such as steppe, asphalt, or boardwalk.
 - **Surface**: one canvas of the walk, or a set of canvases that move together. It owns its pixels, size, and transform.
 - **Wipe**: the circular hole that grows from the cabin door and shows the room under the walk.
 - **Room**: the cabin interior. There is a wide layout and a tall layout for narrow screens.
-- **Terminal**: the toy Rex screen on the room's monitor. Visitors can type on it; it only prints canned replies.
+- **Terminal**: the toy shell on the room's monitor. Visitors can type on it. Its replies are canned, and a few commands act on the page.
