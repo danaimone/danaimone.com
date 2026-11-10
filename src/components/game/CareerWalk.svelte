@@ -51,8 +51,8 @@
         progress: (next) => (progress = next),
         toast(text, x, tone) {
           const id = ++nextToast;
-          const cardFloor = Math.max(...Array.from(view.querySelectorAll(".walk-card"), (card) => card.getBoundingClientRect().bottom));
-          view.style.setProperty("--card-floor", `${cardFloor}px`);
+          const jobCard = view.querySelector(".walk-card.is-shown:not(.walk-contact)");
+          view.style.setProperty("--card-floor", `${jobCard?.getBoundingClientRect().bottom ?? 0}px`);
           toasts = [...toasts.slice(-3), { id, text, x, tone }];
           setTimeout(() => (toasts = toasts.filter((t) => t.id !== id)), TOAST_MS);
         },
