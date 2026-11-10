@@ -54,6 +54,7 @@ export type WalkInput = {
   fraction: number;
   walkDirection: WalkDirection;
   followsScroll?: boolean;
+  pinned?: boolean;
   viewWidth: number;
   cardSpan: number;
 };
@@ -234,7 +235,7 @@ export function createSimulation({ reduced, random = Math.random }: { reduced: b
   }
 
   function step(input: WalkInput) {
-    const { fraction, walkDirection, followsScroll = false } = input;
+    const { fraction, walkDirection, followsScroll = false, pinned = true } = input;
     const effects: WalkEffect[] = [];
     let scrolled = fraction;
     const scrollTo = (next: number) => {
@@ -249,6 +250,7 @@ export function createSimulation({ reduced, random = Math.random }: { reduced: b
     if (walkDirection !== 0 && !warp) scrollTo(clamp(scrolled + walkDirection * KEY_STEP, 0, 1));
 
     warpLevel = 0;
+    if (warp && !warp.moved && !pinned) warp = null;
     if (warp) {
       warp.tick += 1;
       const progress = warp.tick / TELEPORT_TICKS;

@@ -233,6 +233,17 @@ describe("teleport", () => {
     expect(walk.simulation.view().dan.x).toBeCloseTo(300);
   });
 
+  test("a visitor who leaves the walk during the beam is not pulled back", () => {
+    const walk = walker();
+    walk.settle();
+    walk.simulation.teleport({ kind: "world", x: 2420 });
+    for (let i = 0; i < 5; i++) walk.tick();
+    walk.scrollTo(1);
+    const scrolls = Array.from({ length: 60 }, () => walk.tick({ pinned: false })).flat().filter((effect) => effect.kind === "scroll");
+    expect(scrolls).toHaveLength(0);
+    expect(walk.simulation.view().warpLevel).toBe(0);
+  });
+
   test("arrow keys are ignored during the beam", () => {
     const walk = walker();
     walk.settle();

@@ -123,7 +123,7 @@ export function startWalk({ stage, view, canvas, layers, plane, actors, room }: 
     function simulate(now: number) {
       const { ground, width, cardSpan } = viewport;
       const { fraction, pinned, top, travel } = measureTrack();
-      const effects = simulation.step({ fraction, walkDirection: keys.direction(pinned), followsScroll: finger.touched(), viewWidth: width, cardSpan });
+      const effects = simulation.step({ fraction, walkDirection: keys.direction(pinned), followsScroll: finger.touched(), pinned, viewWidth: width, cardSpan });
       for (const effect of effects) {
         switch (effect.kind) {
           case "scroll":
