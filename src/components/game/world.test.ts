@@ -89,7 +89,7 @@ describe("cabin rooms", () => {
     test(`${name} layers match the manifest`, () => {
       expect(pngSize(files[name])).toEqual({ width: room.width, height: room.height });
       expect(room.hearth.floor).toHaveLength(room.fireBox.width);
-      expect(pngSize(`room-${name}-hands`)).toEqual({ width: room.handsBox.width * room.handFrames, height: room.handsBox.height });
+      expect(pngSize(`room-${name}-hands`)).toEqual({ width: room.handsBox.width * room.typingHands * 2, height: room.handsBox.height });
       expect(pngSize(`room-${name}-mishka`).width).toBe(room.mishkaBox.width * room.mishkaFrames);
       expect(pngSize(`room-${name}-screen`)).toEqual({ width: room.main.width, height: room.main.height });
       expect(pngSize(`room-${name}-side`)).toEqual({ width: room.side.width, height: room.side.height });

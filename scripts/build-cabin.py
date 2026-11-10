@@ -17,6 +17,7 @@ from PIL import Image
 SCREEN_GLASS = (30, 30, 46)
 PALETTE_COLORS = 256
 SLEEP_FRAMES = 8
+TAP = (-1, 1)
 BREATH_PIXELS = 2
 RIB_SPAN = (0.3, 0.7)
 RIB_DEPTH = 18
@@ -34,7 +35,7 @@ ROOMS = {
         "window": (110, 47, 262, 179), "starLight": 150, "city": (150, 148, 240, 162), "lake": (140, 160, 250, 179),
         "coffee": (462, 182), "candles": [(530, 83), (543, 89)],
         "blink": (354, 138, 2, 2),
-        "hands": (384, 172, 414, 192), "presses": [(396, 176, 404, 186), (402, 174, 412, 184)],
+        "hands": (384, 172, 414, 192), "fingers": [(403, 174, 411, 182), (402, 181, 409, 190)],
     },
     "tall": {
         "source": "tall.png",
@@ -43,7 +44,7 @@ ROOMS = {
         "window": (18, 164, 142, 298), "starLight": 150, "city": (55, 256, 125, 272), "lake": (40, 268, 125, 298),
         "coffee": (200, 423), "candles": [(266, 315), (280, 321)],
         "blink": (81, 367, 2, 2),
-        "hands": (120, 412, 150, 436), "presses": [(128, 416, 136, 428), (134, 414, 144, 426)],
+        "hands": (120, 412, 150, 436), "fingers": [(134, 415, 143, 423), (133, 422, 142, 432)],
     },
 }
 
@@ -118,16 +119,18 @@ def hearth(fire):
 
 
 def typing_strip(plate, spec):
-    """One frame per pressed finger group: the fingers in its box drop one art pixel onto the keys."""
+    """Two frames per hand, the far hand first: its fingers lifted one pixel off the keys, then pressed one pixel in."""
     x0, y0, x1, y1 = spec["hands"]
     width, height = x1 - x0, y1 - y0
     px = plate.load()
-    strip = Image.new("RGBA", (width * len(spec["presses"]), height))
+    strip = Image.new("RGBA", (width * len(spec["fingers"]) * len(TAP), height))
     out = strip.load()
-    for index, (px0, py0, px1, py1) in enumerate(spec["presses"]):
-        for y in range(py0, py1):
-            for x in range(px0, px1):
-                out[index * width + x - x0, y - y0] = px[x, max(py0, y - 1)] + (255,)
+    for hand, (px0, py0, px1, py1) in enumerate(spec["fingers"]):
+        for phase, drop in enumerate(TAP):
+            frame = hand * len(TAP) + phase
+            for y in range(py0, py1):
+                for x in range(px0, px1):
+                    out[frame * width + x - x0, y - y0] = px[x, min(py1 - 1, max(py0, y - drop))] + (255,)
     return strip
 
 
@@ -244,7 +247,7 @@ def build(art, out, name, spec):
         "width": plate.width, "height": plate.height, "main": main, "side": side,
         "mainCorners": corners(main), "sideCorners": corners(side),
         "fireBox": box(spec["fire"]["opening"]), "hearth": hearth(spec["fire"]),
-        "handsBox": box(spec["hands"]), "handFrames": len(spec["presses"]),
+        "handsBox": box(spec["hands"]), "typingHands": len(spec["fingers"]),
         "mishkaBox": box(spec["dog"]), "mishkaFrames": SLEEP_FRAMES, "stars": stars, "city": city, "lake": lake_spans(plate, spec["lake"]),
         "coffee": point(spec["coffee"]), "snore": point(spec["snore"]), "snoreDrift": spec["snoreDrift"], "candles": [point(c) for c in spec["candles"]],
         "blink": {"x": bx, "y": by, "width": bw, "height": bh},

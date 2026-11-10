@@ -134,7 +134,7 @@
       "width": 30,
       "height": 20
     },
-    "handFrames": 2,
+    "typingHands": 2,
     "mishkaBox": {
       "x": 455,
       "y": 262,
@@ -888,7 +888,7 @@
       "width": 30,
       "height": 24
     },
-    "handFrames": 2,
+    "typingHands": 2,
     "mishkaBox": {
       "x": 180,
       "y": 512,

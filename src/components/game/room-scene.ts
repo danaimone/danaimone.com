@@ -18,7 +18,7 @@ export type RoomLayout = {
   fireBox: Box;
   hearth: Omit<Hearth, "width" | "height">;
   handsBox: Box;
-  handFrames: number;
+  typingHands: number;
   mishkaBox: Box;
   stars: number[][];
   lake: number[][];
@@ -61,7 +61,8 @@ const DOUBLE_BLINK_EVERY_SECONDS = 5.6;
 const BLINK_SECONDS = 0.14;
 const EYELID = "#e8b888";
 const LASHES = "#4a2c20";
-const HANDS_LINGER_SECONDS = 0.18;
+const FINGER_LIFT_SECONDS = 0.05;
+const FINGER_PRESS_SECONDS = 0.13;
 const STEAM_HEIGHT = 18;
 const SCREEN_GRID = 3;
 const SCREEN_DETAIL = 2;
@@ -432,8 +433,10 @@ export function createRoomScene(art: RoomArt, room: RoomLayout, terminal: Termin
         lastKeyAt = t;
       }
       if (animate) drawBlink(ctx, room.blink, t);
-      if (lastKeyAt >= 0 && t - lastKeyAt < HANDS_LINGER_SECONDS) {
-        drawStripFrame(ctx, art.hands, room.handsBox, keystrokes % room.handFrames);
+      const sinceKey = t - lastKeyAt;
+      if (lastKeyAt >= 0 && sinceKey < FINGER_LIFT_SECONDS + FINGER_PRESS_SECONDS) {
+        const hand = (Math.imul(keystrokes, 0x9e3779b1) >>> 16) % room.typingHands;
+        drawStripFrame(ctx, art.hands, room.handsBox, hand * 2 + (sinceKey < FINGER_LIFT_SECONDS ? 0 : 1));
       }
       const cursorOn = !animate || Math.floor(t * 2) % 2 === 0;
       const now = new Date();
