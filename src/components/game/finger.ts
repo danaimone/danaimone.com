@@ -68,6 +68,7 @@ export function driveWithFinger(
   let drive: Drive | null = null;
   let stoppedGlide = false;
   let touched = false;
+  let driven: number | null = null;
 
   const sampledAt = (event: TouchEvent) => {
     const now = performance.now();
@@ -80,9 +81,13 @@ export function driveWithFinger(
   }
 
   function frame(now: number) {
-    if (!drive || state === "touched") return;
+    if (!drive || state === "touched") {
+      if (!drive) driven = null;
+      return;
+    }
     const at = now - FINGER_DELAY_MS;
-    window.scrollTo(0, drive.startScroll + travelAt(drive, at) * drive.ratio);
+    driven = drive.startScroll + travelAt(drive, at) * drive.ratio;
+    window.scrollTo(0, driven);
     const { lift } = drive;
     if (lift && at >= lift.at + (lift.glide?.ms ?? 0)) drive = null;
   }
@@ -149,6 +154,7 @@ export function driveWithFinger(
   return {
     frame,
     touched: () => touched,
+    scroll: () => driven,
     stop() {
       drive = null;
       surface.removeEventListener("touchstart", onStart);

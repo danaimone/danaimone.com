@@ -14,6 +14,8 @@
   let stage: HTMLElement;
   let view: HTMLElement;
   let canvas: HTMLCanvasElement;
+  let plane: HTMLCanvasElement;
+  let actors: HTMLCanvasElement;
   let room: HTMLCanvasElement;
   let walk: ReturnType<typeof startWalk> | undefined;
 
@@ -39,7 +41,7 @@
 
   onMount(() => {
     walk = startWalk(
-      { stage, view, canvas, room },
+      { stage, view, canvas, plane, actors, room },
       {
         zone: (next) => (zone = next),
         inside: (next) => (inside = next),
@@ -79,6 +81,8 @@
       aria-label="A pixel-art walk through Dan’s career: Dan and his Samoyed, Mishka, walk from a research lab past a warehouse and an office tower to the present, then into a cabin under Mount Rainier."
       onclick={() => walk?.jump()}
     ></canvas>
+    <canvas bind:this={plane} class="walk-canvas walk-plane" aria-hidden="true"></canvas>
+    <canvas bind:this={actors} class="walk-canvas walk-actors" aria-hidden="true"></canvas>
 
     <div class="walk-intro" class:is-shown={zone === "intro"}>
       <h1><img src={gameUrl("title")} alt="Dan Aimone" /></h1>

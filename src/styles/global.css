@@ -278,6 +278,15 @@ a:hover {
   cursor: pointer;
 }
 
+.walk-plane,
+.walk-actors {
+  pointer-events: none;
+}
+
+.walk-plane {
+  will-change: transform;
+}
+
 .walk-intro,
 .walk-card,
 .walk-skip,
