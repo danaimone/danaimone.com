@@ -94,19 +94,22 @@ export function driveWithFinger(
   };
 
   // The page rounds the scroll it was given. Until something else moves the page,
-  // the position the finger asked for is the true one: taking the rounded value
+  // the position the walk asked for (a drag, a teleport, an arrow key) is the true one: taking the rounded value
   // when the finger lifts, or when it lands again, would step the walk backwards.
   function exactScroll() {
     if (driven && window.scrollY !== driven.reported) driven = null;
     return driven?.exact ?? null;
   }
 
+  function scrollTo(exact: number) {
+    window.scrollTo(0, exact);
+    driven = { exact, reported: window.scrollY };
+  }
+
   function frame(now: number) {
     if (!drive || state === "touched") return;
     const at = now - FINGER_DELAY_MS;
-    const exact = drive.startScroll + travelAt(drive, at) * drive.ratio;
-    window.scrollTo(0, exact);
-    driven = { exact, reported: window.scrollY };
+    scrollTo(drive.startScroll + travelAt(drive, at) * drive.ratio);
     const { lift } = drive;
     if (lift && at >= lift.at + (lift.glide?.ms ?? 0)) drive = null;
   }
@@ -174,6 +177,7 @@ export function driveWithFinger(
     frame,
     touched: () => touched,
     scroll: exactScroll,
+    scrollTo,
     touchAge: (now: number) => (state === "driving" && drive ? now - drive.samples.at(-1)!.at : null),
     gliding: () => drive?.lift != null,
     stop() {

@@ -384,7 +384,7 @@ export function startWalk({ stage, view, canvas, layers: layerCanvases, plane, a
       for (const effect of effects) {
         switch (effect.kind) {
           case "scroll":
-            window.scrollTo(0, top + effect.fraction * travel);
+            finger.scrollTo(top + effect.fraction * travel);
             break;
           case "zone":
             on.zone(effect.zone);
