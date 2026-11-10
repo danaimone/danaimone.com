@@ -439,7 +439,7 @@ kbd {
   max-height: calc(100% - 13rem);
   overflow: auto;
   padding: 1.25rem 1.5rem 1.375rem;
-  background: var(--glass);
+  background: rgb(17 17 27 / 0.9);
   box-shadow: inset 0 0 0 1px var(--glass-edge);
   transform: translateY(10px);
 }
@@ -1250,7 +1250,7 @@ kbd {
   }
 }
 
-@media (max-width: 44rem) and (max-height: 54rem) {
+@media (max-width: 44rem) and (max-height: 40rem) {
   .walk-role ul,
   .walk-role .walk-role-years {
     display: none;
