@@ -61,8 +61,9 @@ const DOUBLE_BLINK_EVERY_SECONDS = 5.6;
 const BLINK_SECONDS = 0.14;
 const EYELID = "#e8b888";
 const LASHES = "#4a2c20";
-const FINGER_LIFT_SECONDS = 0.06;
-const FINGER_PRESS_SECONDS = 0.07;
+const FINGER_LIFT_SECONDS = 0.09;
+const KEYSTROKE_KINDS = 8;
+const NEAR_HAND_LIFTS = 3;
 const STEAM_HEIGHT = 18;
 const SCREEN_GRID = 3;
 const SCREEN_DETAIL = 2;
@@ -433,10 +434,11 @@ export function createRoomScene(art: RoomArt, room: RoomLayout, terminal: Termin
         lastKeyAt = t;
       }
       if (animate) drawBlink(ctx, room.blink, t);
-      const sinceKey = t - lastKeyAt;
-      if (lastKeyAt >= 0 && sinceKey < FINGER_LIFT_SECONDS + FINGER_PRESS_SECONDS) {
-        const hand = (Math.imul(keystrokes, 0x9e3779b1) >>> 16) % room.typingHands;
-        drawStripFrame(ctx, art.hands, room.handsBox, hand * 2 + (sinceKey < FINGER_LIFT_SECONDS ? 0 : 1));
+      // Most keystrokes move nothing you can see. The near hand's lift is small,
+      // the far hand's is the big one, so it is the rarest.
+      const kind = (Math.imul(keystrokes, 0x9e3779b1) >>> 16) % KEYSTROKE_KINDS;
+      if (lastKeyAt >= 0 && t - lastKeyAt < FINGER_LIFT_SECONDS && kind <= NEAR_HAND_LIFTS) {
+        drawStripFrame(ctx, art.hands, room.handsBox, kind === 0 ? 0 : 1);
       }
       const cursorOn = !animate || Math.floor(t * 2) % 2 === 0;
       const now = new Date();

@@ -17,7 +17,6 @@ from PIL import Image
 SCREEN_GLASS = (30, 30, 46)
 PALETTE_COLORS = 256
 SLEEP_FRAMES = 8
-TAP_FRAMES = 2
 BREATH_PIXELS = 2
 RIB_SPAN = (0.3, 0.7)
 RIB_DEPTH = 18
@@ -35,7 +34,7 @@ ROOMS = {
         "window": (110, 47, 262, 179), "starLight": 150, "city": (150, 148, 240, 162), "lake": (140, 160, 250, 179),
         "coffee": (462, 182), "candles": [(530, 83), (543, 89)],
         "blink": (354, 138, 2, 2),
-        "hands": (368, 166, 416, 196), "fingers": [(403, 174, 411, 182), (402, 181, 409, 190)],
+        "hands": (368, 166, 416, 196),
         "lifts": {"origin": (320, 137), "frames": ["lift-wide-far.png", "lift-wide-near.png"]},
     },
     "tall": {
@@ -45,7 +44,7 @@ ROOMS = {
         "window": (18, 164, 142, 298), "starLight": 150, "city": (55, 256, 125, 272), "lake": (40, 268, 125, 298),
         "coffee": (200, 423), "candles": [(266, 315), (280, 321)],
         "blink": (81, 367, 2, 2),
-        "hands": (104, 406, 158, 438), "fingers": [(134, 415, 143, 423), (133, 422, 142, 432)],
+        "hands": (104, 406, 158, 438),
         "lifts": {"origin": (55, 379), "frames": ["lift-tall-far.png", "lift-tall-near.png"]},
     },
 }
@@ -120,23 +119,19 @@ def hearth(fire):
     }
 
 
-def typing_strip(art, plate, spec):
-    """Two frames per hand, the far hand first. The first is painted: that hand with its fingers raised off the keys, as
-    a patch holding only the pixels that differ from the plate. The second presses its fingers one pixel into the keys."""
+def typing_strip(art, spec):
+    """One painted frame per hand, the far hand first: that hand with its fingers raised off the keys. Each is a patch
+    holding only the hand's pixels that differ from the plate, so the keyboard beside it does not flicker."""
     x0, y0, x1, y1 = spec["hands"]
     width, height = x1 - x0, y1 - y0
-    px = plate.load()
-    strip = Image.new("RGBA", (width * len(spec["fingers"]) * TAP_FRAMES, height))
-    out = strip.load()
+    frames = spec["lifts"]["frames"]
+    strip = Image.new("RGBA", (width * len(frames), height))
     ox, oy = spec["lifts"]["origin"]
-    for hand, (px0, py0, px1, py1) in enumerate(spec["fingers"]):
-        lifted = Image.open(art / "cabin2" / spec["lifts"]["frames"][hand]).convert("RGBA")
+    for hand, frame in enumerate(frames):
+        lifted = Image.open(art / "cabin2" / frame).convert("RGBA")
         left, top, right, bottom = lifted.getbbox()
         assert x0 <= ox + left and ox + right <= x1 and y0 <= oy + top and oy + bottom <= y1, "the lifted hand leaves the hands box"
-        strip.alpha_composite(lifted, (hand * TAP_FRAMES * width + ox - x0, oy - y0))
-        for y in range(py0, py1):
-            for x in range(px0, px1):
-                out[(hand * TAP_FRAMES + 1) * width + x - x0, y - y0] = px[x, max(py0, y - 1)] + (255,)
+        strip.alpha_composite(lifted, (hand * width + ox - x0, oy - y0))
     return strip
 
 
@@ -239,7 +234,7 @@ def build(art, out, name, spec):
     indexed = plate.quantize(colors=PALETTE_COLORS, dither=Image.Dither.NONE)
     plate = indexed.convert("RGB")
 
-    typing_strip(art, plate, spec).save(out / f"room-{name}-hands.png", optimize=True)
+    typing_strip(art, spec).save(out / f"room-{name}-hands.png", optimize=True)
     sleeping_strip(plate, spec).save(out / f"room-{name}-mishka.png", optimize=True)
     mask_image(magenta, main).save(out / f"room-{name}-screen.png", optimize=True)
     mask_image(cyan, side).save(out / f"room-{name}-side.png", optimize=True)
@@ -253,7 +248,7 @@ def build(art, out, name, spec):
         "width": plate.width, "height": plate.height, "main": main, "side": side,
         "mainCorners": corners(main), "sideCorners": corners(side),
         "fireBox": box(spec["fire"]["opening"]), "hearth": hearth(spec["fire"]),
-        "handsBox": box(spec["hands"]), "typingHands": len(spec["fingers"]),
+        "handsBox": box(spec["hands"]), "typingHands": len(spec["lifts"]["frames"]),
         "mishkaBox": box(spec["dog"]), "mishkaFrames": SLEEP_FRAMES, "stars": stars, "city": city, "lake": lake_spans(plate, spec["lake"]),
         "coffee": point(spec["coffee"]), "snore": point(spec["snore"]), "snoreDrift": spec["snoreDrift"], "candles": [point(c) for c in spec["candles"]],
         "blink": {"x": bx, "y": by, "width": bw, "height": bh},
