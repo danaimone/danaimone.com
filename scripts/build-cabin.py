@@ -37,7 +37,7 @@ ROOMS = {
         "dog": (455, 262, 570, 330), "snore": (552, 270), "snoreDrift": -12,
         "window": (110, 47, 262, 179), "starLight": 150, "city": (150, 148, 240, 162), "lake": (140, 160, 250, 179),
         "coffee": (461, 146), "candles": [(530, 83), (543, 89)],
-        "blink": (353, 91, 3, 2),
+        "blink": (356, 95, 2, 2),
         "hands": (384, 138, 410, 162), "wristRest": (385, 160, 431), "caseEnd": (432, 150, 158),
         "taps": {"origin": (316, 105), "frames": ["tap-wide-f1.png", "tap-wide-n1.png", "tap-wide-f2.png", "tap-wide-n2.png", "tap-wide-f3.png"]},
     },
