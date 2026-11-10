@@ -18,6 +18,7 @@
   let plane: HTMLCanvasElement;
   let actors: HTMLCanvasElement;
   let room: HTMLCanvasElement;
+  let skip: HTMLAnchorElement;
   let mainScreen: HTMLCanvasElement;
   let sideScreen: HTMLCanvasElement;
   let walk: ReturnType<typeof startWalk> | undefined;
@@ -49,6 +50,10 @@
         zone: (next) => (zone = next),
         inside: (next) => (inside = next),
         unavailable: () => (unavailable = true),
+        open(place) {
+          if (place === "pdf") window.open("/resume.pdf", "_blank", "noopener");
+          else skip.click();
+        },
         collected: (labels) => (collected = labels),
         progress: (next) => (progress = next),
         toast(text, x, tone) {
@@ -111,7 +116,7 @@
       </div>
     </div>
 
-    <a class="walk-skip" class:is-shown={zone !== "intro" && !inside} href="#resume">Skip to résumé</a>
+    <a bind:this={skip} class="walk-skip" class:is-shown={zone !== "intro" && !inside} href="#resume">Skip to résumé</a>
 
     <div class="walk-toolkit" class:is-shown={zone !== "intro"} aria-live="polite">
       <span class="walk-toolkit-count">Toolkit {collected.length}/{GEMS.length}</span>

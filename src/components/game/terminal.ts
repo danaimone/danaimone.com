@@ -1,11 +1,12 @@
 import { EMAIL } from "../../data/resume";
 
 export const TERMINAL_COLUMNS = 20;
-export const TERMINAL_ROWS = 7;
-
+export const TERMINAL_LINES = 8;
 export const PROMPT = "→ ";
+
 const MAX_INPUT = 40;
-const MAX_HISTORY = 40;
+const MAX_SCROLLBACK = 60;
+const MAX_RECALLED = 20;
 // A person does not type on a metronome: the gap before each demo key cycles
 // through these, in ticks.
 const DEMO_KEY_TICKS = [6, 9, 5, 7, 12, 6, 8, 5, 10];
@@ -14,67 +15,119 @@ const DEMO_RESUMES_AFTER_TICKS = 900;
 const DEMO_COMMANDS = ["whoami", "neofetch", "mishka", "top"];
 
 export const RESPONSES: Record<string, string[]> = {
-  help: ["whoami ls hire top", "neofetch mishka pwd", "the rest is hidden"],
-  whoami: ["dan aimone", "software engineer", "seattle, wa"],
-  pwd: ["~/cabin", "under rainier"],
+  help: ["whoami ls hire top", "neofetch mishka pwd", "resume clear date", "The rest is hidden."],
+  whoami: ["Dan Aimone", "Software Engineer", "Seattle, WA"],
+  pwd: ["~/cabin", "Under Rainier."],
   ls: ["resume.pdf rainier/", "mishka/ guitars/"],
   "ls -a": [".mishka-treats", ".fire-is-on", "resume.pdf"],
-  "cat resume.pdf": ["scroll down.", "or type hire"],
-  "cat .mishka-treats": ["empty.", "she knows."],
+  "cat resume.pdf": ["It is a PDF. Try:", "open resume.pdf"],
+  "cat .mishka-treats": ["Empty.", "She knows."],
+  resume: ["Heading down."],
+  "open resume.pdf": ["Opening the PDF."],
   hire: [EMAIL],
-  "sudo hire dan": ["granted.", EMAIL],
-  neofetch: ["os: log cabin", "wm: firewood", "shell: warm", "dog: samoyed"],
+  "sudo hire dan": ["Granted.", EMAIL],
+  neofetch: ["os: log cabin", "wm: firewood", "shell: warm", "dog: Samoyed"],
   top: ["mishka  100% nap", "fire     12% cpu", "dan      coffee"],
-  uptime: ["up since 2017", "load: 1 samoyed"],
-  mishka: ["zzz", "she is asleep"],
-  "pet mishka": ["tail: wag wag", "still asleep"],
-  walk: ["one ear moved.", "she heard that."],
-  treat: ["she is awake.", "you did this."],
-  coffee: ["brewing...", "mug is on the right.", "obviously."],
-  vim: ["already open.", "other monitor."],
-  nvim: ["already open.", "other monitor."],
-  ":q": ["nice try."],
-  ":wq": ["saved. stay."],
-  exit: ["nah. stay.", "the fire is on."],
-  "git blame": ["it was mishka"],
-  "git status": ["nothing to do", "dog tree clean"],
-  "git push": ["everything up", "to date"],
-  "ping rainier": ["14,411 ft", "still out there"],
-  weather: ["pnw: yes", "chance of rain"],
-  "play guitar": ["martin hd-28", "in tune. mostly."],
-  "play piano": ["nord stage 3", "c major. always."],
-  rex: ["session running"],
-  doom: ["loading doom..."],
-  sudo: ["nice try"],
-  "sudo make me a sandwich": ["okay."],
-  hello: ["hi! type help"],
-  hi: ["hi! type help"],
-  42: ["yes."],
+  uptime: ["up since 2017", "load: 1 Samoyed"],
+  mishka: ["zzz", "She is asleep."],
+  "pet mishka": ["tail: wag wag", "Still asleep."],
+  walk: ["One ear moved.", "She heard that."],
+  treat: ["She is awake.", "You did this."],
+  coffee: ["Brewing...", "Mug is on the right.", "Obviously."],
+  vim: ["Already open.", "Other monitor."],
+  nvim: ["Already open.", "Other monitor."],
+  ":q": ["Nice try."],
+  ":wq": ["Saved. Stay."],
+  exit: ["Nah. Stay.", "The fire is on."],
+  "cd ..": ["You just got here."],
+  "git blame": ["It was Mishka."],
+  "git status": ["nothing to commit,", "dog tree clean"],
+  "git push": ["Everything", "up-to-date"],
+  "ping rainier": ["14,411 ft", "Still out there."],
+  weather: ["PNW: yes", "Chance of rain."],
+  "play guitar": ["Martin HD-28", "In tune. Mostly."],
+  "play piano": ["Nord Stage 3", "C major. Always."],
+  rex: ["Session running."],
+  doom: ["Loading Doom..."],
+  sudo: ["Nice try."],
+  "sudo make me a sandwich": ["Okay."],
+  hello: ["Hi! Type help."],
+  hi: ["Hi! Type help."],
+  42: ["Yes."],
 };
 
-function wrap(text: string) {
+export type Line =
+  | { kind: "prompt"; clock: string; failed: boolean }
+  | { kind: "command"; text: string; known: boolean; first: boolean }
+  | { kind: "output"; text: string; hint?: boolean };
+
+const chunks = (text: string) => text.match(new RegExp(`.{1,${TERMINAL_COLUMNS}}`, "g")) ?? [""];
+
+// Breaks at spaces where it can, and inside a word only when the word alone is too long.
+function wrapWords(text: string) {
   const rows: string[] = [];
-  for (let i = 0; i < text.length; i += TERMINAL_COLUMNS) rows.push(text.slice(i, i + TERMINAL_COLUMNS));
-  return rows.length ? rows : [""];
+  for (const word of text.split(" ").flatMap(chunks)) {
+    const last = rows.at(-1);
+    if (last !== undefined && last.length + 1 + word.length <= TERMINAL_COLUMNS) rows[rows.length - 1] = `${last} ${word}`;
+    else rows.push(word);
+  }
+  return rows;
 }
 
-export function createTerminal(onCommand: (command: string) => void = () => {}) {
-  let history: string[] = ["type help"];
+const clockAt = (date: Date) => `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+
+function reply(command: string, now: Date): string[] | null {
+  if (command === "date") return wrapWords(now.toDateString());
+  if (command.startsWith("echo ")) return wrapWords(command.slice(5));
+  return RESPONSES[command] ?? null;
+}
+
+const isKnown = (command: string) => command === "clear" || command === "date" || command.startsWith("echo ") || command in RESPONSES;
+
+// The first row of a command leaves room for the prompt's arrow.
+function commandRows(input: string, known: boolean): Line[] {
+  const first = input.slice(0, TERMINAL_COLUMNS - PROMPT.length);
+  const rest = input.slice(first.length);
+  return [first, ...(rest ? chunks(rest) : [])].map((text, row) => ({ kind: "command", text, known, first: row === 0 }));
+}
+
+// A toy of Dan's own shell: a status line above each prompt, the arrow red after
+// a command that failed, and the command itself green once it is one that exists.
+export function createTerminal(onCommand: (command: string) => void = () => {}, now: () => Date = () => new Date()) {
+  let scrollback: Line[] = [{ kind: "output", text: "Type help.", hint: true }];
+  let prompt: Line = { kind: "prompt", clock: clockAt(now()), failed: false };
   let input = "";
+  let recalled: string[] = [];
+  let recalling = -1;
   let keystrokes = 0;
   let idleTicks = DEMO_RESUMES_AFTER_TICKS;
   let demoCommand = 0;
   let demoLetter = 0;
   let demoWait = 0;
 
-  function run() {
-    const command = input.trim().toLowerCase();
-    history.push(...wrap(PROMPT + input));
+  const typed = () => input.trim().toLowerCase();
+
+  function run(remember: boolean) {
+    const command = typed();
+    const output = reply(command, now());
+    const failed = command !== "" && command !== "clear" && output === null;
+    scrollback.push(prompt, ...commandRows(input, isKnown(command)));
+    if (command === "clear") scrollback = [];
+    else if (output) scrollback.push(...output.map((text): Line => ({ kind: "output", text })));
+    else if (failed) scrollback.push(...wrapWords(`zsh: command not found: ${command}`).map((text): Line => ({ kind: "output", text })));
+    scrollback = scrollback.slice(-MAX_SCROLLBACK);
+    if (remember && command) recalled = [...recalled.filter((past) => past !== input.trim()), input.trim()].slice(-MAX_RECALLED);
+    recalling = -1;
     input = "";
-    if (command === "clear") history = [];
-    else if (command) history.push(...(RESPONSES[command] ?? ["unknown command", "try help"]));
-    history = history.slice(-MAX_HISTORY);
+    prompt = { kind: "prompt", clock: clockAt(now()), failed };
     onCommand(command);
+  }
+
+  function recall(step: number) {
+    if (!recalled.length) return;
+    const from = recalling === -1 ? recalled.length : recalling;
+    recalling = Math.min(recalled.length, Math.max(0, from + step));
+    input = recalled[recalling] ?? "";
   }
 
   function pressForDemo() {
@@ -86,7 +139,7 @@ export function createTerminal(onCommand: (command: string) => void = () => {}) 
       demoWait = DEMO_KEY_TICKS[keystrokes % DEMO_KEY_TICKS.length];
       return;
     }
-    run();
+    run(false);
     demoLetter = 0;
     demoCommand = (demoCommand + 1) % DEMO_COMMANDS.length;
     demoWait = TICKS_AFTER_DEMO_COMMAND;
@@ -94,21 +147,23 @@ export function createTerminal(onCommand: (command: string) => void = () => {}) 
 
   return {
     press(key: string) {
-      const typed = key.length === 1 && key >= " " && key <= "~";
-      if (!typed && key !== "Backspace" && key !== "Enter") return false;
+      const letter = key.length === 1 && key >= " " && key <= "~";
+      if (!letter && key !== "Backspace" && key !== "Enter" && key !== "ArrowUp" && key !== "ArrowDown") return false;
       if (idleTicks >= DEMO_RESUMES_AFTER_TICKS) {
         input = "";
         demoLetter = 0;
       }
       idleTicks = 0;
       keystrokes += 1;
-      if (key === "Enter") run();
+      if (key === "Enter") run(true);
+      else if (key === "ArrowUp") recall(-1);
+      else if (key === "ArrowDown") recall(1);
       else if (key === "Backspace") input = input.slice(0, -1);
       else if (input.length < MAX_INPUT) input += key;
       return true;
     },
-    print(line: string) {
-      history.push(line);
+    print(text: string) {
+      scrollback.push({ kind: "output", text });
     },
     tick() {
       idleTicks += 1;
@@ -117,8 +172,8 @@ export function createTerminal(onCommand: (command: string) => void = () => {}) 
       else pressForDemo();
     },
     screen() {
-      const rows = [...history, ...wrap(PROMPT + input)].slice(-TERMINAL_ROWS);
-      return { rows, keystrokes };
+      const lines = [...scrollback, prompt, ...commandRows(input, isKnown(typed()))].slice(-TERMINAL_LINES);
+      return { lines, keystrokes };
     },
   };
 }

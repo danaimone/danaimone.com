@@ -9,7 +9,7 @@ export function createDoomLauncher(host: HTMLElement, print: (line: string) => v
   function ended(end: DoomEnd) {
     doom = null;
     requested = false;
-    print(end === "quit" ? "back at the cabin." : "doom did not load");
+    print(end === "quit" ? "Back at the cabin." : "Doom did not load.");
   }
 
   return {

@@ -1,7 +1,7 @@
 import type { RoomArt } from "./assets";
 import { drawSteam, type GameScreen, type RoomLayout } from "./room-scene";
 import simulationSource from "./simulation.ts?raw";
-import { PROMPT, TERMINAL_COLUMNS, TERMINAL_ROWS, type Terminal } from "./terminal";
+import { PROMPT, TERMINAL_COLUMNS, TERMINAL_LINES, type Line, type Terminal } from "./terminal";
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -14,7 +14,7 @@ const ADVANCE = 7 / FONT_GRID;
 const LINE = 12 / FONT_GRID;
 const BASELINE = 9 / FONT_GRID;
 const SNAP_IF_WITHIN = 0.8;
-const TERMINAL_LINES = TERMINAL_ROWS + 1.5;
+const TERMINAL_FIT_LINES = TERMINAL_LINES + 0.5;
 const EDITOR_COLUMNS = 19;
 const EDITOR_GUTTER = 4;
 const MINIMAP_BELOW_PX = 9;
@@ -34,6 +34,7 @@ const MOCHA = {
   peach: "#fab387",
   yellow: "#f9e2af",
   pink: "#f5c2e7",
+  red: "#f38ba8",
 };
 
 const KEYWORDS = /^(const|let|function|return|if|else|for|of|type|export|import|from|new|switch|case|default)\b/;
@@ -53,43 +54,87 @@ function setType(ctx: Ctx, size: number) {
   return { advance: size * ADVANCE, line: Math.round(size * LINE), baseline: Math.round(size * BASELINE) };
 }
 
-function paintTerminal(ctx: Ctx, width: number, height: number, rows: string[], cursorOn: boolean, clock: string) {
-  const size = typeSize(Math.min(width / ((TERMINAL_COLUMNS + 1.5) * ADVANCE), height / (TERMINAL_LINES * LINE)));
-  const { advance, line, baseline } = setType(ctx, size);
+// Dan's own prompt: his name, the folder and the time as three joined plates, the
+// first and last rounded off, with an arrow between each pair.
+function paintStatusLine(ctx: Ctx, x: number, y: number, clock: string, { advance, line, baseline }: ReturnType<typeof setType>) {
+  const pad = Math.round(advance / 2);
+  const point = Math.round(line / 2);
+  const round = Math.max(2, Math.round(line / 4));
+  const plate = (left: number, width: number, colour: string, shape: "first" | "middle" | "last") => {
+    const right = left + width;
+    ctx.fillStyle = colour;
+    ctx.beginPath();
+    if (shape === "first") ctx.roundRect(left, y, width, line, [round, 0, 0, round]);
+    else ctx.rect(left, y, width, line);
+    if (shape === "last") ctx.roundRect(right - 1, y, round * 2, line, [0, round, round, 0]);
+    else {
+      ctx.moveTo(right, y);
+      ctx.lineTo(right + point, y + line / 2);
+      ctx.lineTo(right, y + line);
+    }
+    ctx.fill();
+    return right;
+  };
+  const label = (text: string, left: number, colour: string) => {
+    ctx.fillStyle = colour;
+    ctx.fillText(text, left, y + baseline);
+  };
+  const widths = { user: Math.round("dan".length * advance) + pad * 2, path: Math.round("~/cabin".length * advance) + pad * 2 + point, time: Math.round((clock.length + 1.5) * advance) + pad + point };
+  const pathLeft = x + widths.user;
+  const timeLeft = pathLeft + widths.path;
+  plate(timeLeft, widths.time, MOCHA.pink, "last");
+  plate(pathLeft, widths.path, MOCHA.peach, "middle");
+  plate(x, widths.user, MOCHA.surface, "first");
+  label("dan", x + pad, MOCHA.text);
+  label("~/cabin", pathLeft + point + pad, MOCHA.base);
+
+  const face = Math.round(advance * 0.55);
+  const centreX = timeLeft + point + pad + face;
+  const centreY = y + Math.round(line / 2);
+  const hand = Math.max(1, Math.round(advance / 7));
+  ctx.strokeStyle = MOCHA.base;
+  ctx.lineWidth = hand;
+  ctx.beginPath();
+  ctx.arc(centreX, centreY, face, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = MOCHA.base;
+  ctx.fillRect(centreX - hand / 2, centreY - face * 0.6, hand, face * 0.6);
+  ctx.fillRect(centreX, centreY - hand / 2, face * 0.5, hand);
+  label(clock, Math.round(centreX + face + advance * 0.6), MOCHA.base);
+}
+
+function paintTerminal(ctx: Ctx, width: number, height: number, lines: Line[], cursorOn: boolean) {
+  const size = typeSize(Math.min(width / ((TERMINAL_COLUMNS + 1.5) * ADVANCE), height / (TERMINAL_FIT_LINES * LINE)));
+  const type = setType(ctx, size);
+  const { advance, line, baseline } = type;
   const margin = Math.round(advance * 0.75);
-  const top = Math.round(line * 0.3);
+  const top = Math.round(line * 0.25);
   ctx.fillStyle = MOCHA.base;
   ctx.fillRect(0, 0, width, height);
-  const history = rows.slice(0, -1);
-  const input = rows.at(-1) ?? PROMPT;
-  history.forEach((row, index) => {
-    ctx.fillStyle = row.startsWith(PROMPT) ? MOCHA.green : MOCHA.text;
-    ctx.fillText(row, margin, top + index * line + baseline);
+  let failed = false;
+  lines.forEach((row, index) => {
+    const y = top + index * line;
+    if (row.kind === "prompt") {
+      failed = row.failed;
+      paintStatusLine(ctx, margin, y, row.clock, type);
+    } else if (row.kind === "output") {
+      ctx.fillStyle = row.hint ? MOCHA.overlay2 : MOCHA.text;
+      ctx.fillText(row.text, margin, y + baseline);
+    } else {
+      if (row.first) {
+        ctx.fillStyle = failed ? MOCHA.red : MOCHA.green;
+        ctx.fillText(PROMPT, margin, y + baseline);
+      }
+      ctx.fillStyle = row.known ? MOCHA.green : MOCHA.red;
+      ctx.fillText(row.text, margin + (row.first ? PROMPT.length * advance : 0), y + baseline);
+    }
   });
-
-  const barY = top + history.length * line;
-  const pad = Math.round(advance / 2);
-  const segment = (text: string, background: string, left: number, right: number) => {
-    ctx.fillStyle = background;
-    ctx.fillRect(left, barY, right - left, line);
-    ctx.fillStyle = MOCHA.base;
-    ctx.fillText(text, left + pad, barY + baseline);
-  };
-  const user = Math.round("dan".length * advance) + pad * 2;
-  const path = user + Math.round("~/cabin".length * advance) + pad * 2;
-  const clockLeft = width - Math.round(clock.length * advance) - pad * 2;
-  segment("dan", MOCHA.overlay2, 0, user);
-  segment("~/cabin", MOCHA.peach, user, path);
-  ctx.fillStyle = MOCHA.surface;
-  ctx.fillRect(path, barY, clockLeft - path, line);
-  segment(clock, MOCHA.pink, clockLeft, width);
-
-  const inputY = barY + line + Math.round(line * 0.2);
-  ctx.fillStyle = MOCHA.green;
-  ctx.fillText(PROMPT, margin, inputY + baseline);
-  ctx.fillStyle = MOCHA.text;
-  ctx.fillText(input.slice(PROMPT.length), margin + PROMPT.length * advance, inputY + baseline);
-  if (cursorOn) ctx.fillRect(Math.round(margin + input.length * advance), inputY, Math.round(advance), line);
+  const typing = lines.at(-1);
+  if (cursorOn && typing?.kind === "command") {
+    const column = typing.text.length + (typing.first ? PROMPT.length : 0);
+    ctx.fillStyle = MOCHA.text;
+    ctx.fillRect(Math.round(margin + column * advance), top + (lines.length - 1) * line, Math.round(advance), line);
+  }
 }
 
 function colourOf(text: string, word: string | undefined, next: string | undefined) {
@@ -184,9 +229,7 @@ export function createRoomScreens(canvases: ScreenCanvases, art: RoomArt, room: 
     draw(t: number, animate: boolean) {
       const screen = terminal.screen();
       const cursorOn = !animate || Math.floor(t * 2) % 2 === 0;
-      const now = new Date();
-      const clock = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-      const content = `${cursorOn}|${clock}|${screen.rows.join("\n")}`;
+      const content = `${cursorOn}|${JSON.stringify(screen.lines)}`;
       const game = gameScreen();
       if (game) {
         if (game.frame !== paintedGameFrame) {
@@ -198,7 +241,7 @@ export function createRoomScreens(canvases: ScreenCanvases, art: RoomArt, room: 
         }
       } else if (content !== paintedMain) {
         paintedMain = content;
-        paintTerminal(main, main.canvas.width, main.canvas.height, screen.rows, cursorOn, clock);
+        paintTerminal(main, main.canvas.width, main.canvas.height, screen.lines, cursorOn);
         keepInsideGlass(main, art.screen);
       }
 
