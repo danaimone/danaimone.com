@@ -22,6 +22,8 @@ BREATH_PIXELS = 2
 RIB_SPAN = (0.3, 0.7)
 RIB_DEPTH = 18
 STAR_GAP = 4
+STAR_PIXELS = 3
+STAR_CLEARANCE = 8
 LIGHT_GAP = 3
 MIN_LAKE_SPAN = 6
 FLAME_TUCK = 4
@@ -174,6 +176,19 @@ def night_around(px, x, y):
     return all(b > r + 12 for r, g, b in ring)
 
 
+def speck(bright, x, y):
+    """A star is a bright speck alone in the sky. The mountain's snow and the moon are bright too, but they are big,
+    and a loose fleck of snow sits close beside them."""
+    seen, queue = {(x, y)}, deque([(x, y)])
+    while queue and len(seen) <= STAR_PIXELS:
+        cx, cy = queue.popleft()
+        for n in ((cx + dx, cy + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1)):
+            if n not in seen and bright(*n):
+                seen.add(n)
+                queue.append(n)
+    return len(seen) <= STAR_PIXELS
+
+
 def spaced(points, gap):
     kept = []
     for x, y in points:
@@ -187,12 +202,11 @@ def sparkles(plate, spec):
     light = spec["starLight"]
     px = plate.load()
     sky_end = int(y0 + (y1 - y0) * 0.45)
-    stars = [
-        (x, y)
-        for y in range(y0 + 3, sky_end)
-        for x in range(x0 + 3, x1 - 3)
-        if min(px[x, y][:2]) > light and px[x, y][2] > light - 25 and night_around(px, x, y)
-    ]
+    bright = lambda x, y: min(px[x, y][:2]) > light and px[x, y][2] > light - 25
+    lit = [(x, y) for y in range(y0 + 3, y1 - 3) for x in range(x0 + 3, x1 - 3) if bright(x, y)]
+    bodies = [point for point in lit if not speck(bright, *point)]
+    clear = lambda x, y: all(max(abs(x - bx), abs(y - by)) > STAR_CLEARANCE for bx, by in bodies)
+    stars = [(x, y) for x, y in lit if y < sky_end and night_around(px, x, y) and speck(bright, x, y) and clear(x, y)]
     cx0, cy0, cx1, cy1 = spec["city"]
     city = [
         (x, y)
