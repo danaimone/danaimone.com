@@ -5,6 +5,8 @@ import { EMAIL, contact, elsewhere, experience, resume } from "../data/resume";
 import "@fontsource-variable/instrument-sans/wdth.css";
 import "@fontsource-variable/pixelify-sans/index.css";
 import "../styles/global.css";
+import instrumentSans from "@fontsource-variable/instrument-sans/files/instrument-sans-latin-wdth-normal.woff2?url";
+import pixelifySans from "@fontsource-variable/pixelify-sans/files/pixelify-sans-latin-wght-normal.woff2?url";
 
 const badges: [name: string, label: string, href: string, external: boolean][] = [
   ["email", "Email", `mailto:${EMAIL}`, false],
@@ -12,6 +14,20 @@ const badges: [name: string, label: string, href: string, external: boolean][] =
   ["github", "GitHub", contact.github.url, true],
   ["pdf", "PDF", "/resume.pdf", false],
 ];
+
+const person = {
+  "@context": "https://schema.org",
+  "@type": "Person",
+  name: "Dan Aimone",
+  url: contact.site,
+  email: `mailto:${EMAIL}`,
+  image: `${contact.site}/images/avatar.png`,
+  jobTitle: resume.jobs[0].title,
+  worksFor: { "@type": "Organization", name: resume.jobs[0].company },
+  alumniOf: { "@type": "CollegeOrUniversity", name: resume.education.school },
+  address: { "@type": "PostalAddress", addressLocality: "Seattle", addressRegion: "WA" },
+  sameAs: elsewhere.map(([, href]) => href),
+};
 
 const title = "Dan Aimone | Software Engineer";
 const description =
@@ -36,9 +52,12 @@ const description =
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Dan Aimone's pixel-art avatar and his Samoyed walking under Mount Rainier at golden hour." />
     <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preload" as="font" type="font/woff2" href={instrumentSans} crossorigin />
+    <link rel="preload" as="font" type="font/woff2" href={pixelifySans} crossorigin />
     <link rel="canonical" href="https://danaimone.com/" />
     <link rel="icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" href="/favicon-192.png" />
+    <script type="application/ld+json" is:inline set:html={JSON.stringify(person)} />
     <noscript><style>.walk{height:100svh}.walk-timeline,.walk-hint{display:none}</style></noscript>
   </head>
   <body>
@@ -136,9 +155,10 @@ const description =
                   Vannevar.
                 </p>
                 <p>
-                  I can help you build AI products, or anything else that needs
-                  to work well. I live in Seattle with my Samoyed, Mishka. I run
-                  a homelab, play guitar and piano, lift, read, and take photos.
+                  I like owning a feature from the design doc to the production
+                  deploy, and being the one who tracks down why something broke.
+                  I live in Seattle with my Samoyed, Mishka. I run a homelab,
+                  play guitar and piano, lift, read, and take photos.
                 </p>
               </div>
             </div>
