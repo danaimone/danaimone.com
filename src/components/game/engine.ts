@@ -131,6 +131,8 @@ export function startWalk({ stage, view, canvas, layers: layerCanvases, plane, a
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const simulation = createSimulation({ reduced });
   let doom: Doom | null = null;
+  let probe: ReturnType<typeof import("./probe").startProbe> | null = null;
+  if (new URLSearchParams(window.location.search).has("probe")) import("./probe").then(({ startProbe }) => (probe = startProbe(view)));
   let doomRequested = false;
 
   function launchDoom() {
@@ -680,6 +682,7 @@ export function startWalk({ stage, view, canvas, layers: layerCanvases, plane, a
         pageRestyled = true;
       }
       publishCamera(camera);
+      probe?.frame(now, camera * scale * window.devicePixelRatio, finger.touchAge(now), finger.gliding());
       // The first paint re-projects both screens, so it gets a quiet frame of its
       // own before the reveal and the wipe, which are heavy enough by themselves.
       const roomWarm = finale >= ROOM_WARM_FINALE;
