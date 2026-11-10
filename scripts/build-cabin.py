@@ -12,7 +12,7 @@ import sys
 from collections import deque
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageColor
 
 SCREEN_GLASS = (30, 30, 46)
 PALETTE_COLORS = 256
@@ -27,6 +27,8 @@ LIGHT_GAP = 3
 MIN_LAKE_SPAN = 6
 FLAME_TUCK = 4
 FIRE_SPREAD = 4
+WRIST_REST = ["#2a120a", "#a8663a", "#844622", "#5e2e14", "#4a1a08"]
+CASE_END = ["#844622", "#5e2e14"]
 
 ROOMS = {
     "wide": {
@@ -36,7 +38,7 @@ ROOMS = {
         "window": (110, 47, 262, 179), "starLight": 150, "city": (150, 148, 240, 162), "lake": (140, 160, 250, 179),
         "coffee": (461, 146), "candles": [(530, 83), (543, 89)],
         "blink": (353, 91, 3, 2),
-        "hands": (384, 138, 410, 162),
+        "hands": (384, 138, 410, 162), "wristRest": (385, 160, 431), "caseEnd": (432, 150, 158),
         "taps": {"origin": (316, 105), "frames": ["tap-wide-f1.png", "tap-wide-n1.png", "tap-wide-f2.png", "tap-wide-n2.png", "tap-wide-f3.png"]},
     },
     "tall": {
@@ -46,7 +48,7 @@ ROOMS = {
         "window": (18, 164, 142, 298), "starLight": 150, "city": (55, 256, 125, 272), "lake": (40, 268, 125, 298),
         "coffee": (200, 409), "candles": [(266, 315), (280, 321)],
         "blink": (93, 341, 2, 2),
-        "hands": (114, 400, 146, 424),
+        "hands": (114, 400, 146, 424), "wristRest": (125, 421, 168), "caseEnd": (168, 412, 420),
         "taps": {"origin": (50, 367), "frames": ["tap-tall-f1.png", "tap-tall-n1.png", "tap-tall-f2.png", "tap-tall-n2.png", "tap-tall-f3.png"]},
     },
 }
@@ -119,6 +121,30 @@ def hearth(fire):
         "middle": (rim[0][0] + rim[-1][0]) / 2 - x0,
         "reach": (rim[-1][0] - rim[0][0]) / 2 + FIRE_SPREAD,
     }
+
+
+def walnut_keyboard(indexed, spec):
+    """Dan's keyboard has a walnut case and wrist rest. The painter drew a black case with a grey strip in front,
+    so the strip is redrawn as a walnut slab (a gap below the keys, a lit top, two rows of wood and the shadow it
+    casts on the desk) and the end of the case that faces us is recoloured to match. It is drawn in the plate's
+    own colours, after they are chosen, so the rest of the painting keeps every pixel."""
+    colours = indexed.getpalette()
+    swatches = [tuple(colours[i:i + 3]) for i in range(0, len(colours), 3)]
+
+    def nearest(ink):
+        wanted = ImageColor.getrgb(ink)
+        return min(range(len(swatches)), key=lambda i: sum((a - b) ** 2 for a, b in zip(swatches[i], wanted)))
+
+    px = indexed.load()
+    x, top, bottom = spec["caseEnd"]
+    for column, ink in enumerate(CASE_END):
+        for y in range(top, bottom):
+            px[x + column, y] = nearest(ink)
+    x0, y0, x1 = spec["wristRest"]
+    for row, ink in enumerate(WRIST_REST):
+        rounded = row in (1, 3)
+        for x in range(x0 + rounded, x1 - rounded):
+            px[x, y0 + row] = nearest(ink)
 
 
 def typing_strip(art, spec):
@@ -246,6 +272,7 @@ def build(art, out, name, spec):
     for point in magenta | cyan:
         px[point] = SCREEN_GLASS
     indexed = plate.quantize(colors=PALETTE_COLORS, dither=Image.Dither.NONE)
+    walnut_keyboard(indexed, spec)
     plate = indexed.convert("RGB")
 
     typing_strip(art, spec).save(out / f"room-{name}-hands.png", optimize=True)
