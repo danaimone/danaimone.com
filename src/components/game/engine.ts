@@ -1,6 +1,6 @@
 import type { Doom, DoomEnd } from "./doom";
 import { driveWithFinger } from "./finger";
-import { DITHER_PERIOD, GROUND_DEPTH, SOIL_DEPTH, columnsOf, drawGem, drawPuff, drawSun, mix, paintGround, paintSky, rng, skyAt, smokePuffs, soilFlecks, sunHalo, tileThroughTurn } from "./art";
+import { DITHER_PERIOD, GROUND_DEPTH, SOIL_DEPTH, drawGem, drawPuff, drawSun, mix, paintGround, paintSky, rng, skyAt, smokePuffs, soilFlecks, sunHalo, tileThroughTurn } from "./art";
 import { buildPath, placeProps, surfaceAt } from "./path";
 import { CLOUD_KINDS, DAN_SHEET, MISHKA_SHEET, PROP_SHEET, TREE_SHEET, loadArt, type Art } from "./assets";
 import layouts from "./room-layouts.json";
@@ -88,15 +88,20 @@ export type WalkEvents = {
   unavailable(): void;
 };
 
-// The walk is three stacked canvases at art resolution. `canvas` holds the sky and
-// the parallax layers. `plane` holds everything fixed to the ground, one art pixel
-// wider than the view: it is drawn at a whole art pixel and slid the rest of the
-// way by the compositor, so the ground moves in device pixels at no drawing cost.
-// `actors` holds Dan and Mishka, who stay put on screen while the ground slides.
+// The walk is a stack of canvases at art resolution. `canvas` holds the sky. Each
+// of `layers` holds one parallax layer, and `plane` holds everything fixed to the
+// ground. Those are wider than the view: each is drawn at a whole art pixel and
+// slid the rest of the way by the compositor, so the world moves in device pixels.
+// A layer never changes, so it is painted a stretch at a time and only slides in
+// between. `actors` holds Dan and Mishka, who stay put on screen.
+export const PARALLAX_LAYERS = 5;
+const LAYER_STRETCH = 32;
+
 export type WalkElements = {
   stage: HTMLElement;
   view: HTMLElement;
   canvas: HTMLCanvasElement;
+  layers: HTMLCanvasElement[];
   plane: HTMLCanvasElement;
   actors: HTMLCanvasElement;
   room: HTMLCanvasElement;
@@ -119,7 +124,7 @@ function slice(image: HTMLImageElement, width: number, height: number) {
   return { right: frames(false), left: frames(true) };
 }
 
-export function startWalk({ stage, view, canvas, plane, actors, room: roomCanvas }: WalkElements, on: WalkEvents) {
+export function startWalk({ stage, view, canvas, layers: layerCanvases, plane, actors, room: roomCanvas }: WalkElements, on: WalkEvents) {
   const ctx = canvas.getContext("2d")!;
   const pctx = plane.getContext("2d")!;
   const actx = actors.getContext("2d")!;
@@ -181,15 +186,11 @@ export function startWalk({ stage, view, canvas, plane, actors, room: roomCanvas
     let skyTileCtx = skyTile.getContext("2d")!;
     let skyImg: ImageData | null = null;
     let skyKey = "";
-    let layers: ({ canvas: HTMLCanvasElement; factor: number; top: number; rows: number } & ReturnType<typeof columnsOf>)[] = [];
-    const world = document.createElement("canvas");
-    let wctx = world.getContext("2d")!;
+    let layers: { strip: HTMLCanvasElement; surface: HTMLCanvasElement; ctx: CanvasRenderingContext2D; factor: number; top: number; rows: number; left: number; slid: number; shade: string }[] = [];
     let stars: { x: number; y: number; b: number; s: number }[] = [];
     let clouds: { x: number; y: number; kind: number; facing: "left" | "right"; speed: number }[] = [];
     let props: { x: number; kind: number }[] = [];
     let laidOutSize = "";
-    let worldTop = 0;
-    let lastPaintTop = 0;
     let slid = -1;
 
     function layout() {
@@ -219,9 +220,6 @@ export function startWalk({ stage, view, canvas, plane, actors, room: roomCanvas
         surface.style.height = `${vh * scale}px`;
       }
       slid = -1;
-      world.width = vw;
-      world.height = vh;
-      wctx = world.getContext("2d")!;
       skyCanvas.width = vw;
       skyCanvas.height = vh;
       skyCtx = skyCanvas.getContext("2d")!;
@@ -230,15 +228,22 @@ export function startWalk({ stage, view, canvas, plane, actors, room: roomCanvas
       skyImg = skyTileCtx.createImageData(DITHER_PERIOD, vh);
       skyKey = "";
       const travel = WORLD_WIDTH - vw;
+      let nextLayer = 0;
       const layer = (factor: number, height: number, paint: (c: CanvasRenderingContext2D, width: number) => void) => {
-        const c = document.createElement("canvas");
-        c.width = Math.ceil(travel * factor + vw) + 4;
-        c.height = height;
-        const context = c.getContext("2d")!;
+        const strip = document.createElement("canvas");
+        strip.width = Math.ceil(travel * factor + vw) + LAYER_STRETCH;
+        strip.height = height;
+        const context = strip.getContext("2d")!;
         const top = ground + LAYER_BASE - height;
         context.translate(0, -top);
-        paint(context, c.width);
-        return { canvas: c, factor, top, rows: height, ...columnsOf(c) };
+        paint(context, strip.width);
+        const surface = layerCanvases[nextLayer++];
+        surface.width = vw + LAYER_STRETCH;
+        surface.height = height;
+        surface.style.width = `${surface.width * scale}px`;
+        surface.style.height = `${height * scale}px`;
+        surface.style.bottom = `${(vh - top - height) * scale}px`;
+        return { strip, surface, ctx: surface.getContext("2d")!, factor, top, rows: height, left: NaN, slid: -1, shade: "" };
       };
       const layerXAt = (worldX: number, parallax: number) => Math.round((worldX - vw / 2) * parallax + vw / 2);
       const paintGroves = (c: CanvasRenderingContext2D, width: number, parallax: number, r: () => number, scale: number) => {
@@ -297,7 +302,6 @@ export function startWalk({ stage, view, canvas, plane, actors, room: roomCanvas
         layer(NEAR_TREE_PARALLAX, TREE_SHEET.height, (c, width) => paintGroves(c, width, NEAR_TREE_PARALLAX, rng(21), 1)),
         layer(MEADOW_PARALLAX, art.meadow.after.height, (c, width) => tileThroughTurn(c, art.meadow, layerXAt(MEADOW_TURN_WORLD_X, MEADOW_PARALLAX), width, ground + LAYER_BASE)),
       ];
-      worldTop = Math.max(0, Math.min(...layers.map(({ top }) => top)));
       props = placeProps(rng(9));
       const r = rng(3);
       clouds = [];
@@ -423,8 +427,6 @@ export function startWalk({ stage, view, canvas, plane, actors, room: roomCanvas
       return Math.round(cx - 200);
     }
 
-    const layerRows = [0, 0, 0, 0, 0];
-    const layerEnds = [0, 0, 0, 0, 0];
 
     function tintClouds(sky: ReturnType<typeof skyAt>) {
       const { width, height } = art.clouds;
@@ -501,14 +503,21 @@ export function startWalk({ stage, view, canvas, plane, actors, room: roomCanvas
 
     // The room sits under the walk canvases, which open this hole onto it. A
     // clip-path on the room instead rebuilds a full-screen mask every frame.
-    function openIris(iris: number, camX: number, planeX: number) {
-      for (const [surface, left] of [[ctx, camX], [pctx, planeX], [actx, camX]] as const) {
-        const { x, y } = irisCentre(left);
+    function openIris(iris: number, camera: number) {
+      const hole = irisCentre(camera);
+      const cut = (surface: CanvasRenderingContext2D, slid: number, top: number) => {
         surface.globalCompositeOperation = "destination-out";
         surface.beginPath();
-        surface.arc(x, y, irisRadius(iris) / scale, 0, Math.PI * 2);
+        surface.arc(hole.x + slid, hole.y - top, irisRadius(iris) / scale, 0, Math.PI * 2);
         surface.fill();
         surface.globalCompositeOperation = "source-over";
+      };
+      cut(ctx, 0, 0);
+      cut(actx, 0, 0);
+      cut(pctx, camera - Math.floor(camera), 0);
+      for (const layer of layers) {
+        cut(layer.ctx, camera * layer.factor - layer.left, layer.top);
+        layer.shade = "cut";
       }
     }
 
@@ -620,34 +629,36 @@ export function startWalk({ stage, view, canvas, plane, actors, room: roomCanvas
       }
     }
 
-    // Blits each layer's rows between its highest paint in view and the highest
-    // row the solid layers in front of it leave showing. Returns the top row painted.
-    function paintLayers(camX: number) {
-      let top = vh;
-      let hiddenFrom = vh;
-      for (let i = layers.length - 1; i >= 0; i--) {
-        const layer = layers[i];
-        const left = Math.round(camX * layer.factor);
-        let first = layer.rows;
-        let solid = 0;
-        for (let column = left; column < left + vw; column++) {
-          first = Math.min(first, layer.painted[column]);
-          solid = Math.max(solid, layer.solid[column]);
+    // A layer is repainted only when it has slid a whole stretch or the light has
+    // changed; the compositor moves it the rest of the way.
+    function paintLayers(camera: number, tint: string, tintAlpha: number) {
+      const dpr = window.devicePixelRatio;
+      const shade = tintAlpha > 0.005 ? `${tint} ${Math.round(tintAlpha * 200)}` : "";
+      for (const layer of layers) {
+        const offset = camera * layer.factor;
+        const left = Math.floor(offset / LAYER_STRETCH) * LAYER_STRETCH;
+        if (left !== layer.left || shade !== layer.shade) {
+          layer.left = left;
+          layer.shade = shade;
+          const c = layer.ctx;
+          const { width } = layer.surface;
+          c.clearRect(0, 0, width, layer.rows);
+          c.drawImage(layer.strip, left, 0, width, layer.rows, 0, 0, width, layer.rows);
+          if (shade) {
+            c.globalCompositeOperation = "source-atop";
+            c.globalAlpha = tintAlpha;
+            c.fillStyle = tint;
+            c.fillRect(0, 0, width, layer.rows);
+            c.globalAlpha = 1;
+            c.globalCompositeOperation = "source-over";
+          }
         }
-        layerRows[i] = first;
-        layerEnds[i] = Math.min(layer.rows, hiddenFrom - layer.top);
-        hiddenFrom = Math.min(hiddenFrom, layer.top + solid);
-        top = Math.min(top, layer.top + first);
+        const slide = Math.round((offset - left) * scale * dpr);
+        if (slide !== layer.slid) {
+          layer.slid = slide;
+          layer.surface.style.transform = `translate3d(${-slide / dpr}px, 0, 0)`;
+        }
       }
-      top = Math.max(worldTop, top);
-      const cleared = Math.min(top, lastPaintTop);
-      wctx.clearRect(0, cleared, vw, vh - cleared);
-      lastPaintTop = top;
-      layers.forEach((layer, i) => {
-        const rows = layerEnds[i] - layerRows[i];
-        if (rows > 0) wctx.drawImage(layer.canvas, Math.round(camX * layer.factor), layerRows[i], vw, rows, 0, layer.top + layerRows[i], vw, rows);
-      });
-      return top;
     }
 
     function draw(now: number, blend: number) {
@@ -681,7 +692,7 @@ export function startWalk({ stage, view, canvas, plane, actors, room: roomCanvas
       const covered = irisCoversView(iris, camX);
       if (covered !== wasCovered) {
         wasCovered = covered;
-        for (const surface of [canvas, plane, actors]) surface.style.visibility = covered ? "hidden" : "";
+        for (const surface of [canvas, ...layerCanvases, plane, actors]) surface.style.visibility = covered ? "hidden" : "";
         pageRestyled = true;
       }
       if (covered) {
@@ -694,7 +705,7 @@ export function startWalk({ stage, view, canvas, plane, actors, room: roomCanvas
       paintedIris = iris;
       paintedCamX = camX;
       if (wipeGrowing && (pageRestyled || ++wipeFrames % WIPE_WALK_REPAINT_EVERY)) {
-        openIris(iris, camX, planeX);
+        openIris(iris, camera);
         paintRoom(iris, t);
         return;
       }
@@ -762,8 +773,7 @@ export function startWalk({ stage, view, canvas, plane, actors, room: roomCanvas
 
       // The world: parallax layers, ground, and landmarks, tinted with the time
       // of day so it all sits in the same light.
-      const paintTop = paintLayers(camX);
-      const worldRows = vh - paintTop;
+      paintLayers(camera, sky.tint, sky.tintAlpha);
 
       if (reveal > 0) {
         const eased = reveal * reveal * (3 - 2 * reveal);
@@ -780,15 +790,6 @@ export function startWalk({ stage, view, canvas, plane, actors, room: roomCanvas
         ctx.drawImage(moonlit, mountainX, mountainY);
         ctx.globalAlpha = 1;
       }
-      if (sky.tintAlpha > 0.005) {
-        wctx.globalCompositeOperation = "source-atop";
-        wctx.globalAlpha = sky.tintAlpha;
-        wctx.fillStyle = sky.tint;
-        wctx.fillRect(0, paintTop, vw, worldRows);
-        wctx.globalAlpha = 1;
-        wctx.globalCompositeOperation = "source-over";
-      }
-      ctx.drawImage(world, 0, paintTop, vw, worldRows, 0, paintTop, vw, worldRows);
 
       // The ground plane: everything here is fixed to the world and slides as one.
       const planeW = vw + 1;
@@ -919,7 +920,7 @@ export function startWalk({ stage, view, canvas, plane, actors, room: roomCanvas
       }
       actx.globalAlpha = 1;
 
-      if (iris > 0) openIris(iris, camX, planeX);
+      if (iris > 0) openIris(iris, camera);
       paintRoom(iris, t);
     }
 

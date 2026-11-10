@@ -278,11 +278,13 @@ a:hover {
   cursor: pointer;
 }
 
+.walk-layer,
 .walk-plane,
 .walk-actors {
   pointer-events: none;
 }
 
+.walk-layer,
 .walk-plane {
   will-change: transform;
 }

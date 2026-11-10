@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { EMAIL, elsewhere, experience } from "../../data/resume";
   import { gameUrl } from "./art-url";
-  import { startWalk } from "./engine";
+  import { PARALLAX_LAYERS, startWalk } from "./engine";
   import type { Zone } from "./simulation";
   import { BACK_TO_START, GEMS, STOPS, TIMELINE } from "./world";
 
@@ -14,6 +14,7 @@
   let stage: HTMLElement;
   let view: HTMLElement;
   let canvas: HTMLCanvasElement;
+  let layers: HTMLCanvasElement[] = [];
   let plane: HTMLCanvasElement;
   let actors: HTMLCanvasElement;
   let room: HTMLCanvasElement;
@@ -41,7 +42,7 @@
 
   onMount(() => {
     walk = startWalk(
-      { stage, view, canvas, plane, actors, room },
+      { stage, view, canvas, layers, plane, actors, room },
       {
         zone: (next) => (zone = next),
         inside: (next) => (inside = next),
@@ -81,6 +82,9 @@
       aria-label="A pixel-art walk through Dan’s career: Dan and his Samoyed, Mishka, walk from a research lab past a warehouse and an office tower to the present, then into a cabin under Mount Rainier."
       onclick={() => walk?.jump()}
     ></canvas>
+    {#each { length: PARALLAX_LAYERS }, i (i)}
+      <canvas bind:this={layers[i]} class="walk-canvas walk-layer" aria-hidden="true"></canvas>
+    {/each}
     <canvas bind:this={plane} class="walk-canvas walk-plane" aria-hidden="true"></canvas>
     <canvas bind:this={actors} class="walk-canvas walk-actors" aria-hidden="true"></canvas>
 

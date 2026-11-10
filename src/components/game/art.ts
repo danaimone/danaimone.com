@@ -209,30 +209,6 @@ export function tileThroughTurn(ctx: Ctx, { before, turn, after }: TurningTiles,
   for (let x = turnX + turn.width; x < width; x += after.width) ctx.drawImage(after, x, baseY - after.height);
 }
 
-// Per column: the first row with any paint, and the row from which everything
-// down is opaque. They let a frame skip the empty and the hidden rows of a layer.
-export function columnsOf(source: HTMLImageElement | HTMLCanvasElement) {
-  const { width, height } = source;
-  const copy = document.createElement("canvas");
-  copy.width = width;
-  copy.height = height;
-  const c = copy.getContext("2d", { willReadFrequently: true })!;
-  c.drawImage(source, 0, 0);
-  const { data } = c.getImageData(0, 0, width, height);
-  const painted = new Int16Array(width).fill(height);
-  const solid = new Int16Array(width).fill(height);
-  for (let x = 0; x < width; x++) {
-    let opaqueToBottom = true;
-    for (let y = height - 1; y >= 0; y--) {
-      const alpha = data[(y * width + x) * 4 + 3];
-      if (alpha > 0) painted[x] = y;
-      opaqueToBottom &&= alpha === 255;
-      if (opaqueToBottom) solid[x] = y;
-    }
-  }
-  return { painted, solid };
-}
-
 // ---------------------------------------------------------------- ground
 
 export const GROUND_DEPTH = 40;
