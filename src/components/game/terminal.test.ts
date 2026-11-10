@@ -67,6 +67,17 @@ describe("cabin terminal", () => {
     expect(typing(terminal)).toMatchObject({ text: "" });
   });
 
+  test("git log lists the career, newest first, and history lists what was typed", () => {
+    const terminal = createTerminal();
+    type(terminal, "git log");
+    const log = shown(terminal).filter((row) => row.startsWith("* "));
+    expect(log[0]).toContain("Vannevar");
+    expect(log.at(-1)).toContain("PNNL");
+    type(terminal, "clear");
+    type(terminal, "history");
+    expect(shown(terminal)).toContain("git log");
+  });
+
   test("ignores keys that are not typing", () => {
     const terminal = createTerminal();
     expect(terminal.press("ArrowLeft")).toBe(false);
@@ -93,7 +104,7 @@ describe("cabin terminal", () => {
   });
 
   test("every reply fits the screen", () => {
-    for (const command of [...Object.keys(RESPONSES), "nope", "echo one two three four five six seven", "date", "a-very-long-command-that-does-not-exist"]) {
+    for (const command of [...Object.keys(RESPONSES), "nope", "history", "echo one two three four five six seven", "date", "a-very-long-command-that-does-not-exist"]) {
       const terminal = createTerminal();
       type(terminal, command);
       for (const line of terminal.screen().lines) {

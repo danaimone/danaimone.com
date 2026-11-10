@@ -1,4 +1,5 @@
 import { EMAIL } from "../../data/resume";
+import { STOPS } from "./world";
 
 export const TERMINAL_COLUMNS = 20;
 export const TERMINAL_LINES = 8;
@@ -7,6 +8,7 @@ export const PROMPT = "→ ";
 const MAX_INPUT = 40;
 const MAX_SCROLLBACK = 60;
 const MAX_RECALLED = 20;
+const HISTORY_SHOWN = 4;
 // A person does not type on a metronome: the gap before each demo key cycles
 // through these, in ticks.
 const DEMO_KEY_TICKS = [6, 9, 5, 7, 12, 6, 8, 5, 10];
@@ -15,7 +17,7 @@ const DEMO_RESUMES_AFTER_TICKS = 900;
 const DEMO_COMMANDS = ["whoami", "neofetch", "mishka", "top"];
 
 export const RESPONSES: Record<string, string[]> = {
-  help: ["whoami ls hire top", "neofetch mishka pwd", "resume clear date", "The rest is hidden."],
+  help: ["whoami ls hire top", "neofetch mishka pwd", "resume stoke git log", "The rest is hidden."],
   whoami: ["Dan Aimone", "Software Engineer", "Seattle, WA"],
   pwd: ["~/cabin", "Under Rainier."],
   ls: ["resume.pdf rainier/", "mishka/ guitars/"],
@@ -41,6 +43,9 @@ export const RESPONSES: Record<string, string[]> = {
   exit: ["Nah. Stay.", "The fire is on."],
   "cd ..": ["You just got here."],
   "git blame": ["It was Mishka."],
+  "git log": [...STOPS].reverse().map((stop) => `* ${stop.firstYear} ${stop.label}`),
+  "man dan": ["DAN(1)", "Builds agentic AI", "products end to end.", "See also: hire"],
+  stoke: ["The fire jumps."],
   "git status": ["nothing to commit,", "dog tree clean"],
   "git push": ["Everything", "up-to-date"],
   "ping rainier": ["14,411 ft", "Still out there."],
@@ -82,7 +87,8 @@ function reply(command: string, now: Date): string[] | null {
   return RESPONSES[command] ?? null;
 }
 
-const isKnown = (command: string) => command === "clear" || command === "date" || command.startsWith("echo ") || command in RESPONSES;
+const BUILT_IN = ["clear", "date", "history"];
+const isKnown = (command: string) => BUILT_IN.includes(command) || command.startsWith("echo ") || command in RESPONSES;
 
 // The first row of a command leaves room for the prompt's arrow.
 function commandRows(input: string, known: boolean): Line[] {
@@ -109,7 +115,7 @@ export function createTerminal(onCommand: (command: string) => void = () => {}, 
 
   function run(remember: boolean) {
     const command = typed();
-    const output = reply(command, now());
+    const output = command === "history" ? recalled.slice(-HISTORY_SHOWN).flatMap(wrapWords) : reply(command, now());
     const failed = command !== "" && command !== "clear" && output === null;
     scrollback.push(prompt, ...commandRows(input, isKnown(command)));
     if (command === "clear") scrollback = [];

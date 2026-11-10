@@ -57,11 +57,13 @@ export function startWalk({ stage, view, canvas, layers, plane, actors, room, sc
   const doom = createDoomLauncher(view, (line) => terminal.print(line));
   const terminal = createTerminal((command) => {
     if (command === "doom") doom.launch();
+    if (command === "stoke") stokeFire();
     if (command === "resume") on.open("resume");
     if (command === "open resume.pdf") on.open("pdf");
   });
   let cancelled = false;
   let cleanup = () => {};
+  let stokeFire = () => {};
 
   loadArt().then(
     (art) => {
@@ -91,6 +93,7 @@ export function startWalk({ stage, view, canvas, layers, plane, actors, room, sc
       holeBounds: wipe.paintedBounds,
       unavailable: on.unavailable,
     });
+    stokeFire = roomView.stokeFire;
     const toasts = createToastLayer(view);
     let viewport = measureViewport(view);
     let inside = false;

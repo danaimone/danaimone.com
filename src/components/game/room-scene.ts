@@ -230,6 +230,7 @@ export function createRoomScene(art: RoomArt, room: RoomLayout, terminal: Termin
   }
 
   return {
+    stoke: fire.stoke,
     draw(ctx: Ctx, t: number, animate: boolean, opening: boolean) {
       const tick = Math.floor(t * (opening ? OPENING_ROOM_FPS : ROOM_FPS));
       if (tick === paintedTick && ctx.canvas.width === paintedWidth) return;

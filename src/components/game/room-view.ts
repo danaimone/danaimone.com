@@ -189,5 +189,8 @@ export function createRoomView({ canvas, screens, view, terminal, gameScreen, re
       if (canvas.hidden !== ahead) hide(ahead);
     },
     paint,
+    stokeFire() {
+      scenes[roomName()]?.room.stoke();
+    },
   };
 }

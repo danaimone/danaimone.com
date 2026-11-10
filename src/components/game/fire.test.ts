@@ -22,6 +22,23 @@ describe("the cabin fire", () => {
       for (const cell of cells) expect(Math.floor(cell / size.width)).toBeLessThan(hearth.floor[cell % size.width]);
     });
 
+    test(`${name}: a stoked fire burns bigger for a while, then settles`, () => {
+      const flameOf = (stoke: boolean, steps: number) => {
+        const fire = createFire({ ...hearth, ...size }, rng(1));
+        if (stoke) fire.stoke();
+        let rows = 0;
+        for (let step = 0; step < steps; step++) {
+          fire.step();
+          const pixels = new Uint8ClampedArray(size.width * size.height * 4);
+          fire.paint(pixels);
+          rows += lit(pixels).length;
+        }
+        return rows / steps;
+      };
+      expect(flameOf(true, 30)).toBeGreaterThan(flameOf(false, 30) * 1.15);
+      expect(Math.abs(flameOf(true, 400) - flameOf(false, 400))).toBeLessThan(flameOf(false, 400) * 0.1);
+    });
+
     test(`${name}: two visits do not see the same fire`, () => {
       const [first, second] = [rng(1), rng(2)].map((random) => {
         const pixels = new Uint8ClampedArray(size.width * size.height * 4);
