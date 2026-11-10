@@ -2,7 +2,7 @@
 
 Dan's personal site, live at https://danaimone.com. The top of the page is a scroll-driven pixel-art career walk: Dan and his Samoyed, Mishka, walk through Washington from a research lab (PNNL, 2017) past Chewy and Atlassian to Vannevar, with the Seattle skyline in the distance. The sky moves from dawn to night, Mount Rainier rises for the final reveal, and the walk ends inside a cabin with contact details. Below the walk is a résumé in Catppuccin Mocha, built from the same data as the downloadable PDF.
 
-Built with Bun, Astro 7, Svelte 5, TypeScript, and canvas. The page is static HTML. The walk is one island: a framework-free game engine and a small Svelte overlay. UI text is Instrument Sans, with Pixelify Sans for headings and buttons; both are self-hosted. Characters, landmarks, scenery, icons, and the title logo are pixel-art sprites in `public/game/`. The sky and the era-by-era path are drawn in code.
+Built with Bun, Astro 7, Svelte 5, TypeScript, and canvas. The page is static HTML. The walk is one island: a framework-free game engine and a small Svelte overlay. UI text is Instrument Sans, with Jersey 15 for headings and buttons, set at multiples of 7.5 px so its pixels land on the screen's; both are self-hosted. Characters, landmarks, scenery, icons, and the title logo are pixel-art sprites in `public/game/`. The sky and the era-by-era path are drawn in code.
 
 ### Art pipeline
 

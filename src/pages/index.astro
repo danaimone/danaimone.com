@@ -3,10 +3,10 @@ import { gameUrl } from "../components/game/art-url";
 import CareerWalk from "../components/game/CareerWalk.svelte";
 import { EMAIL, contact, elsewhere, experience, resume } from "../data/resume";
 import "@fontsource-variable/instrument-sans/wdth.css";
-import "@fontsource-variable/pixelify-sans/index.css";
+import "@fontsource/jersey-15/latin-400.css";
 import "../styles/global.css";
 import instrumentSans from "@fontsource-variable/instrument-sans/files/instrument-sans-latin-wdth-normal.woff2?url";
-import pixelifySans from "@fontsource-variable/pixelify-sans/files/pixelify-sans-latin-wght-normal.woff2?url";
+import jersey from "@fontsource/jersey-15/files/jersey-15-latin-400-normal.woff2?url";
 
 const badges: [name: string, label: string, href: string, external: boolean][] = [
   ["email", "Email", `mailto:${EMAIL}`, false],
@@ -53,7 +53,7 @@ const description =
     <meta property="og:image:alt" content="Dan Aimone's pixel-art avatar and his Samoyed walking under Mount Rainier at golden hour." />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="preload" as="font" type="font/woff2" href={instrumentSans} crossorigin />
-    <link rel="preload" as="font" type="font/woff2" href={pixelifySans} crossorigin />
+    <link rel="preload" as="font" type="font/woff2" href={jersey} crossorigin />
     <link rel="canonical" href="https://danaimone.com/" />
     <link rel="icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" href="/favicon-192.png" />
