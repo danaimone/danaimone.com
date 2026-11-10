@@ -1,85 +1,24 @@
-import type { Doom, DoomEnd } from "./doom";
+import { createActors } from "./actors";
+import { skyAt } from "./art";
+import { loadArt, type Art } from "./assets";
+import { createDoomLauncher } from "./doom-launcher";
 import { driveWithFinger } from "./finger";
-import { DITHER_PERIOD, GROUND_DEPTH, SOIL_DEPTH, drawGem, drawPuff, drawSun, mix, paintGround, paintSky, rng, skyAt, smokePuffs, soilFlecks, sunHalo, tileThroughTurn } from "./art";
-import { buildPath, placeProps, plantStands, plantUnderstory, surfaceAt } from "./path";
-import { CLOUD_KINDS, DAN_SHEET, MISHKA_SHEET, PROP_SHEET, TREE_SHEET, loadArt, loadRoom, type Art } from "./assets";
-import layouts from "./room-layouts.json";
-import { ROOM_SCALE, createRoomScene } from "./room-scene";
+import { listenForKeys } from "./keys";
+import { createPageActivity } from "./page-activity";
+import { createParallax } from "./parallax";
+import { createParticles } from "./particles";
+import { createPlane } from "./plane";
+import { createRoomView } from "./room-view";
+import { CONTACT_FINALE, cameraAt, createSimulation, createStepClock, type Zone } from "./simulation";
+import { createSky } from "./sky";
 import { createSteadyClock } from "./steady-clock";
-import { CONTACT_FINALE, cameraAt, createSimulation, createStepClock, type WalkDirection, type Zone } from "./simulation";
+import { measureViewport, sizeKey, type WalkSurface } from "./surface";
 import { createTerminal } from "./terminal";
+import { createToastLayer } from "./toast-layer";
 import { FRACTION_PER_WORLD_PX, clamp, progressAt, type Destination } from "./track";
-import { BEACON, CHIMNEY, DOOR, GEMS, LANDMARKS, WORLD_WIDTH, spriteTop } from "./world";
+import { createWipe, irisAt } from "./wipe";
 
-const SEATTLE_LAYER_X = 830;
-const ROOMS = {
-  wide: {
-    ...layouts.wide,
-    focusX: 0.5,
-    focusY: 0.6,
-    anchorY: 0.6,
-    subjectSpan: 0.9,
-  },
-  tall: {
-    ...layouts.tall,
-    keep: [30, 335] as const,
-    focusY: 0.58,
-    anchorY: 0.55,
-    subjectSpan: 0.85,
-  },
-};
-const WIDE_ROOM_MIN_ASPECT = 1.1;
-
-// The tall room keeps Dan's back through the firebox in view: centred when the
-// span fits, otherwise the firebox end wins and the chair back is what gets cut.
-function roomLeft(room: (typeof ROOMS)[keyof typeof ROOMS], pixel: number, viewW: number) {
-  if (!("keep" in room)) return viewW / 2 - room.focusX * room.width * pixel;
-  const [from, to] = room.keep;
-  if ((to - from) * pixel > viewW) return viewW - to * pixel;
-  return viewW / 2 - ((from + to) / 2) * pixel;
-}
-const ROOM_SCALE_SNAP = 0.05;
-const REVEAL = { from: 3380, to: 3930, summitAt: 0.56, baseBelowGround: 6, buriedTop: 70, drift: 34 };
-const FIRST_NEAR_TREE = 340;
-const TREE_BUILDING_MARGIN = 50;
-const UNDERSTORY_DEPTH = 14;
-const SKYLINE_PARALLAX = 0.26;
-const SKYLINE_X = { rattlesnake: 0, olympics: 500, issaquah: 1040, beyond: 1570 };
-const SKYLINE_RISE = 8;
-const RANGE_RISE = -26;
-const SUN_ARC_OVERRUN = 0.14;
-const MOON_DISC = { x: 12, y: 20, radius: 20.5 };
-const SCROLLING_ROOM_HZ = 9;
-const SCREEN_STEADY = { startEvery: 1.6, blinkEvery: 0.5, span: 0.44 };
-const SCROLL_SETTLE_MS = 500;
-const ROOM_CLEAR_SETTLE_SECONDS = 0.1;
-const IRIS_HOLE_MARGIN = 1.3;
-const WIPE_WALK_REPAINT_EVERY = 2;
-const CANDLE_REACH = 26;
-const STEAM_BOX = { left: 10, top: 20, width: 20, height: 22 };
-const SNORE_BOX = { left: 8, top: 40, width: 16, height: 48 };
-const FAR_TREE_PARALLAX = 0.55;
-const FAR_TREE_SCALE = 0.62;
-const FAR_TREE_HAZE = 0.34;
-const NEAR_TREE_PARALLAX = 0.7;
-const HILLS_PARALLAX = 0.4;
-const HILLS_TURN_WORLD_X = 1100;
-const MEADOW_PARALLAX = 0.86;
-const MEADOW_TURN_WORLD_X = 1180;
-const SEATTLE_RISE = 34;
-const GREAT_WHEEL = { offset: 236, reach: 16 };
-const SKYLINE_ROWS = 170;
-const LAYER_BASE = 2;
-const HAZE = "#8fb3c9";
-const REVEAL_FADE = 0.4;
-const MIN_TIMELINE_PX = 60;
-const IRIS_FROM_FINALE = 0.34;
-const ROOM_REVEAL_LEAD = 0.04;
-const ROOM_WARM_FINALE = 0.24;
-const FOOT_DROP = 3;
-const PROP_ROOT_ROW = 2;
-const BARK_MARK = { fromSide: 38, top: -14, width: 3, height: 7, gap: 2, color: "#fab387", ink: "#11111b" };
-const TELEPORT_COLORS = ["#fde3cf", "#fab387", "#cba6f7", "#ffffff"];
+export { PARALLAX_LAYERS } from "./parallax";
 
 export type WalkEvents = {
   zone(zone: Zone): void;
@@ -94,11 +33,8 @@ export type WalkEvents = {
 // of `layers` holds one parallax layer, and `plane` holds everything fixed to the
 // ground. Those are wider than the view: each is drawn at a whole art pixel and
 // slid the rest of the way by the compositor, so the world moves in device pixels.
-// A layer never changes, so it is painted a stretch at a time and only slides in
-// between. `actors` holds Dan and Mishka, who stay put on screen.
-export const PARALLAX_LAYERS = 5;
-const LAYER_STRETCH = 32;
-
+// `actors` holds Dan and Mishka, who stay put on screen. `room` is the cabin
+// interior, under all of them, which the wipe opens a hole onto.
 export type WalkElements = {
   stage: HTMLElement;
   view: HTMLElement;
@@ -109,67 +45,14 @@ export type WalkElements = {
   room: HTMLCanvasElement;
 };
 
-type Size = { width: number; height: number };
-
-function drawSprite(c: CanvasRenderingContext2D, sheet: HTMLImageElement, kind: number, cell: Size, x: number, y: number, drawn: Size, flipped: boolean) {
-  if (!flipped) {
-    c.drawImage(sheet, kind * cell.width, 0, cell.width, cell.height, x, y, drawn.width, drawn.height);
-    return;
-  }
-  c.save();
-  c.translate(x + drawn.width, y);
-  c.scale(-1, 1);
-  c.drawImage(sheet, kind * cell.width, 0, cell.width, cell.height, 0, 0, drawn.width, drawn.height);
-  c.restore();
-}
-
-function slice(image: HTMLImageElement, width: number, height: number) {
-  const frames = (flip: boolean) =>
-    Array.from({ length: Math.round(image.width / width) }, (_, i) => {
-      const frame = document.createElement("canvas");
-      frame.width = width;
-      frame.height = height;
-      const c = frame.getContext("2d")!;
-      if (flip) {
-        c.translate(width, 0);
-        c.scale(-1, 1);
-      }
-      c.drawImage(image, i * width, 0, width, height, 0, 0, width, height);
-      return frame;
-    });
-  return { right: frames(false), left: frames(true) };
-}
-
-export function startWalk({ stage, view, canvas, layers: layerCanvases, plane, actors, room: roomCanvas }: WalkElements, on: WalkEvents) {
-  const ctx = canvas.getContext("2d")!;
-  const pctx = plane.getContext("2d")!;
-  const actx = actors.getContext("2d")!;
+export function startWalk({ stage, view, canvas, layers, plane, actors, room }: WalkElements, on: WalkEvents) {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const simulation = createSimulation({ reduced });
-  let doom: Doom | null = null;
   let probe: ReturnType<typeof import("./probe").startProbe> | null = null;
   if (new URLSearchParams(window.location.search).has("probe")) import("./probe").then(({ startProbe }) => (probe = startProbe(view)));
-  let doomRequested = false;
-
-  function launchDoom() {
-    if (doomRequested) return;
-    doomRequested = true;
-    import("./doom").then(
-      ({ startDoom }) => {
-        if (doomRequested) doom = startDoom(view, doomEnded);
-      },
-      () => doomEnded("failed"),
-    );
-  }
-
-  function doomEnded(end: DoomEnd) {
-    doom = null;
-    doomRequested = false;
-    terminal.print(end === "quit" ? "back at the cabin." : "doom did not load");
-  }
-
+  const doom = createDoomLauncher(view, (line) => terminal.print(line));
   const terminal = createTerminal((command) => {
-    if (command === "doom") launchDoom();
+    if (command === "doom") doom.launch();
   });
   let cancelled = false;
   let cleanup = () => {};
@@ -182,171 +65,43 @@ export function startWalk({ stage, view, canvas, layers: layerCanvases, plane, a
   );
 
   function start(art: Art) {
-    const { rainier } = art;
-    const dan = slice(art.dan, DAN_SHEET.width, DAN_SHEET.height);
-    const dog = slice(art.mishka, MISHKA_SHEET.width, MISHKA_SHEET.height);
-    const cloudWidth = art.clouds.width / CLOUD_KINDS;
-    const tintedClouds = document.createElement("canvas");
-    tintedClouds.width = art.clouds.width;
-    tintedClouds.height = art.clouds.height * 2;
-    const tintedCloudsCtx = tintedClouds.getContext("2d")!;
-    // Layout, rebuilt on resize. The canvas is scaled by a whole number of
-    // device pixels, so art pixels stay square and sharp on any screen.
-    let scale = 3;
-    let vw = 480;
-    let vh = 300;
-    let ground = 260;
-    let cardSpan = 0;
-    const skyCanvas = document.createElement("canvas");
-    let skyCtx = skyCanvas.getContext("2d")!;
-    const skyTile = document.createElement("canvas");
-    skyTile.width = DITHER_PERIOD;
-    let skyTileCtx = skyTile.getContext("2d")!;
-    let skyImg: ImageData | null = null;
-    let skyKey = "";
-    let layers: { strip: HTMLCanvasElement; surface: HTMLCanvasElement; ctx: CanvasRenderingContext2D; factor: number; top: number; rows: number; left: number; slid: number; shade: string }[] = [];
-    let stars: { x: number; y: number; b: number; s: number }[] = [];
-    let clouds: { x: number; y: number; kind: number; facing: "left" | "right"; speed: number }[] = [];
-    let props: { x: number; kind: number }[] = [];
-    let laidOutSize = "";
-    let slid = -1;
+    const page = createPageActivity();
+    const particles = createParticles(reduced);
+    const surfaces: WalkSurface[] = [
+      createSky({ canvas, stage, art, reduced }),
+      createParallax(layers, art),
+      createPlane({ canvas: plane, art, reduced }),
+      createActors({ canvas: actors, art, particles }),
+    ];
+    const wipe = createWipe({ view, page, surfaces });
+    const roomView = createRoomView({
+      canvas: room,
+      view,
+      terminal,
+      gameScreen: () => doom.running()?.screen(),
+      reduced,
+      page,
+      holeBounds: wipe.paintedBounds,
+      unavailable: on.unavailable,
+    });
+    const toasts = createToastLayer(view);
+    let viewport = measureViewport(view);
+    let inside = false;
+    let request = 0;
+    let visible = true;
 
-    function layout() {
-      const w = view.clientWidth;
-      const h = view.clientHeight;
-      const dpr = window.devicePixelRatio || 1;
-      const size = `${w} ${h} ${dpr}`;
-      if (size === laidOutSize) return;
-      laidOutSize = size;
-      const device = Math.max(2, Math.min(Math.floor((h * dpr) / 300), Math.floor((w * dpr) / 250)));
-      scale = device / dpr;
-      vw = Math.ceil(w / scale);
-      vh = Math.ceil(h / scale);
-      const soil = Math.max(SOIL_DEPTH, Math.ceil(MIN_TIMELINE_PX / scale));
-      ground = vh - GROUND_DEPTH - (soil - SOIL_DEPTH);
-      view.style.setProperty("--soil", `${soil}`);
-      const card = view.querySelector<HTMLElement>(".walk-card");
-      if (card) {
-        const gutter = Math.min(card.offsetLeft, w - card.offsetLeft - card.offsetWidth);
-        const fullWidth = card.offsetWidth + gutter * 2 >= w - 1;
-        cardSpan = fullWidth ? 0 : (card.offsetWidth + gutter) / scale;
-      }
-      for (const surface of [canvas, plane, actors]) {
-        surface.width = surface === plane ? vw + 1 : vw;
-        surface.height = vh;
-        surface.style.width = `${surface.width * scale}px`;
-        surface.style.height = `${vh * scale}px`;
-      }
-      slid = -1;
-      skyCanvas.width = vw;
-      skyCanvas.height = vh;
-      skyCtx = skyCanvas.getContext("2d")!;
-      skyTile.height = vh;
-      skyTileCtx = skyTile.getContext("2d")!;
-      skyImg = skyTileCtx.createImageData(DITHER_PERIOD, vh);
-      skyKey = "";
-      const travel = WORLD_WIDTH - vw;
-      let nextLayer = 0;
-      const layer = (factor: number, height: number, paint: (c: CanvasRenderingContext2D, width: number) => void) => {
-        const strip = document.createElement("canvas");
-        strip.width = Math.ceil(travel * factor + vw) + LAYER_STRETCH;
-        strip.height = height;
-        const context = strip.getContext("2d")!;
-        const top = ground + LAYER_BASE - height;
-        context.translate(0, -top);
-        paint(context, strip.width);
-        const surface = layerCanvases[nextLayer++];
-        surface.width = vw + LAYER_STRETCH;
-        surface.height = height;
-        surface.style.width = `${surface.width * scale}px`;
-        surface.style.height = `${height * scale}px`;
-        surface.style.bottom = `${(vh - top - height) * scale}px`;
-        return { strip, surface, ctx: surface.getContext("2d")!, factor, top, rows: height, left: NaN, slid: -1, shade: "" };
-      };
-      const layerXAt = (worldX: number, parallax: number) => Math.round((worldX - vw / 2) * parallax + vw / 2);
-      const paintGroves = (c: CanvasRenderingContext2D, width: number, parallax: number, r: () => number, scale: number) => {
-        const drawn = { width: Math.round(TREE_SHEET.width * scale), height: Math.round(TREE_SHEET.height * scale) };
-        const centredWorldX = (layerX: number) => (layerX - vw / 2) / parallax + vw / 2;
-        const clearOfBuildings = (worldX: number) =>
-          LANDMARKS.every((landmark) => worldX < landmark.x - TREE_BUILDING_MARGIN || worldX > landmark.x + landmark.width + TREE_BUILDING_MARGIN);
-        const wheelX = SEATTLE_LAYER_X + GREAT_WHEEL.offset;
-        const wheelOnScreenFrom = Math.max(0, (wheelX - vw) / HILLS_PARALLAX);
-        const wheelOnScreenTo = Math.min(travel, wheelX / HILLS_PARALLAX);
-        const clearOfWheel = (layerX: number) =>
-          layerX + drawn.width + GREAT_WHEEL.reach < wheelX + (parallax - HILLS_PARALLAX) * wheelOnScreenFrom ||
-          layerX - GREAT_WHEEL.reach > wheelX + (parallax - HILLS_PARALLAX) * wheelOnScreenTo;
-        for (const tree of plantStands(r, FIRST_NEAR_TREE, width, drawn.width, (x) => surfaceAt(centredWorldX(x)))) {
-          if (!clearOfBuildings(centredWorldX(tree.x)) || !clearOfWheel(tree.x)) continue;
-          drawSprite(c, art.trees, tree.kind, TREE_SHEET, tree.x, ground + LAYER_BASE - drawn.height, drawn, tree.flipped);
-        }
-      };
-      const paintUnderstory = (c: CanvasRenderingContext2D, width: number) => {
-        const worldX = (layerX: number) => (layerX - vw / 2) / MEADOW_PARALLAX + vw / 2;
-        for (const plant of plantUnderstory(rng(57), width, (x) => surfaceAt(worldX(x)))) {
-          const top = ground + LAYER_BASE - PROP_SHEET.height - Math.round(plant.depth * UNDERSTORY_DEPTH);
-          drawSprite(c, art.props, plant.kind, PROP_SHEET, plant.x, top, PROP_SHEET, plant.flipped);
-        }
-      };
-      layers = [
-        layer(SKYLINE_PARALLAX, SKYLINE_ROWS, (c) => {
-          const [rattlesnake, olympics, issaquah] = art.skylines;
-          const place = (skyline: HTMLImageElement, x: number, rise: number) => c.drawImage(skyline, x, ground - rise - skyline.height);
-          c.save();
-          c.translate(SKYLINE_X.beyond * 2 + issaquah.width, 0);
-          c.scale(-1, 1);
-          place(issaquah, SKYLINE_X.beyond, RANGE_RISE);
-          c.restore();
-          place(olympics, SKYLINE_X.olympics, RANGE_RISE);
-          place(issaquah, SKYLINE_X.issaquah, RANGE_RISE);
-          place(rattlesnake, SKYLINE_X.rattlesnake, SKYLINE_RISE);
-        }),
-        layer(HILLS_PARALLAX, art.seattle.height + SEATTLE_RISE + LAYER_BASE, (c, width) => {
-          tileThroughTurn(c, art.foothills, layerXAt(HILLS_TURN_WORLD_X, HILLS_PARALLAX), width, ground + LAYER_BASE);
-          c.drawImage(art.seattle, SEATTLE_LAYER_X, ground - SEATTLE_RISE - art.seattle.height);
-        }),
-        layer(FAR_TREE_PARALLAX, TREE_SHEET.height, (c, width) => {
-          c.imageSmoothingEnabled = false;
-          paintGroves(c, width, FAR_TREE_PARALLAX, rng(34), FAR_TREE_SCALE);
-          c.globalCompositeOperation = "source-atop";
-          c.globalAlpha = FAR_TREE_HAZE;
-          c.fillStyle = HAZE;
-          c.fillRect(0, 0, width, vh);
-          c.globalAlpha = 1;
-          c.globalCompositeOperation = "source-over";
-        }),
-        layer(NEAR_TREE_PARALLAX, TREE_SHEET.height, (c, width) => paintGroves(c, width, NEAR_TREE_PARALLAX, rng(21), 1)),
-        layer(MEADOW_PARALLAX, PROP_SHEET.height + UNDERSTORY_DEPTH, (c, width) => {
-          tileThroughTurn(c, art.meadow, layerXAt(MEADOW_TURN_WORLD_X, MEADOW_PARALLAX), width, ground + LAYER_BASE);
-          paintUnderstory(c, width);
-        }),
-      ];
-      props = placeProps(rng(9));
-      const r = rng(3);
-      clouds = [];
-      for (let cx = 0; cx < vw + 400; cx += 150 + r() * 170) {
-        clouds.push({
-          x: cx,
-          y: Math.round(ground * (0.04 + r() * 0.34)),
-          kind: Math.floor(r() * CLOUD_KINDS),
-          facing: r() < 0.5 ? "right" : "left",
-          speed: 0.6 + r() * 0.8,
-        });
-      }
-      stars = Array.from({ length: Math.round((vw * ground) / 700) }, () => ({
-        x: Math.floor(r() * vw),
-        y: Math.floor(r() * ground * 0.62),
-        b: 0.4 + r() * 0.6,
-        s: r() * 6,
-      }));
-      view.style.setProperty("--scale", `${scale}`);
+    function applyViewport() {
+      for (const surface of surfaces) surface.resize(viewport);
+      wipe.resize(viewport);
+      view.style.setProperty("--scale", `${viewport.scale}`);
       view.classList.add("is-laid-out");
     }
 
-    let smokeAt = 0;
-    let frame = 0;
-    let visible = true;
-    const heldKeys = new Set<string>();
-    const particles: { x: number; y: number; vx: number; vy: number; life: number; color: string; smoke?: boolean }[] = [];
+    function layout() {
+      if (sizeKey(view) === viewport.key) return;
+      viewport = measureViewport(view);
+      applyViewport();
+    }
 
     // The page reports its scroll in whole pixels. While a finger drives it, the
     // finger's own position is exact, and the walk follows that.
@@ -363,24 +118,12 @@ export function startWalk({ stage, view, canvas, layers: layerCanvases, plane, a
       };
     }
 
-    function burst(wx: number, wy: number, colors: string[], count: number, power: number) {
-      if (reduced) return;
-      for (let i = 0; i < count; i++) {
-        const a = (i / count) * Math.PI * 2 + Math.random() * 0.4;
-        const v = power * (0.5 + Math.random() * 0.7);
-        particles.push({ x: wx, y: wy, vx: Math.cos(a) * v, vy: Math.sin(a) * v - power * 0.6, life: 1, color: colors[i % colors.length] });
-      }
-    }
-
-    function walkDirection(pinned: boolean): WalkDirection {
-      if (!pinned) return 0;
-      if (heldKeys.has("ArrowRight") === heldKeys.has("ArrowLeft")) return 0;
-      return heldKeys.has("ArrowRight") ? 1 : -1;
-    }
+    const atDesk = () => simulation.view().finale >= CONTACT_FINALE;
 
     function simulate(now: number) {
+      const { ground, width, cardSpan } = viewport;
       const { fraction, pinned, top, travel } = measureTrack();
-      const effects = simulation.step({ fraction, walkDirection: walkDirection(pinned), followsScroll: finger.touched(), viewWidth: vw, cardSpan });
+      const effects = simulation.step({ fraction, walkDirection: keys.direction(pinned), followsScroll: finger.touched(), viewWidth: width, cardSpan });
       for (const effect of effects) {
         switch (effect.kind) {
           case "scroll":
@@ -388,7 +131,7 @@ export function startWalk({ stage, view, canvas, layers: layerCanvases, plane, a
             break;
           case "zone":
             on.zone(effect.zone);
-            pageRestyled = true;
+            page.markRestyled();
             break;
           case "collected":
             on.collected(effect.labels);
@@ -397,11 +140,11 @@ export function startWalk({ stage, view, canvas, layers: layerCanvases, plane, a
             on.progress(effect.progress);
             break;
           case "gem":
-            burst(effect.gem.x, ground - 30, [effect.gem.color, "#ffffff"], 16, 2.2);
+            particles.burst(effect.gem.x, ground - 30, [effect.gem.color, "#ffffff"], 16, 2.2);
             on.toast(effect.gem.label, effect.gem.x, "gem");
             break;
           case "promoted":
-            burst(effect.x, ground - 60, ["#ffac42", "#ffe1a0", "#ffffff", "#e96b54"], 40, 3.2);
+            particles.burst(effect.x, ground - 60, ["#ffac42", "#ffe1a0", "#ffffff", "#e96b54"], 40, 3.2);
             on.toast("Promoted to Engineer II", effect.x, "level");
             break;
           default: {
@@ -410,630 +153,85 @@ export function startWalk({ stage, view, canvas, layers: layerCanvases, plane, a
           }
         }
       }
-
-      const walkers = simulation.view();
-      if (walkers.finale >= CONTACT_FINALE && !reduced && !scrolling && !doomRequested) terminal.tick();
-      if (walkers.warpLevel > 0) {
-        for (const wx of [walkers.dan.x, walkers.mishka.x]) {
-          particles.push({ x: wx - 8 + Math.random() * 16, y: ground - Math.random() * 70, vx: 0, vy: -1.6 - Math.random() * 2, life: 0.7, color: TELEPORT_COLORS[Math.floor(Math.random() * TELEPORT_COLORS.length)] });
-        }
-      }
-
-      // Particles: sparks fall, chimney smoke drifts.
-      if (!reduced && now > smokeAt) {
-        smokeAt = now + 110 + Math.random() * 110;
-        particles.push({ x: CHIMNEY.x + Math.random() * 4, y: ground + CHIMNEY.y, vx: 0.02 + Math.random() * 0.08, vy: -(0.14 + Math.random() * 0.12), life: 1, color: "", smoke: true });
-      }
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const q = particles[i];
-        q.x += q.vx;
-        q.y += q.vy;
-        if (q.smoke) {
-          q.life -= 0.0032;
-          q.vx += 0.0009;
-        } else {
-          q.vy += 0.12;
-          q.life -= 0.02;
-        }
-        if (q.life <= 0) particles.splice(i, 1);
-      }
-    }
-
-    function cloudLeft(cloud: (typeof clouds)[number], camera: number, drift: number) {
-      const span = vw + 400;
-      let cx = (cloud.x - camera * 0.08 + drift * cloud.speed) % span;
-      if (cx < 0) cx += span;
-      return Math.round(cx - 200);
-    }
-
-
-    function tintClouds(sky: ReturnType<typeof skyAt>) {
-      const { width, height } = art.clouds;
-      const c = tintedCloudsCtx;
-      c.globalCompositeOperation = "source-over";
-      c.clearRect(0, 0, width, height * 2);
-      c.drawImage(art.clouds, 0, 0);
-      c.setTransform(-1, 0, 0, 1, width, 0);
-      c.drawImage(art.clouds, 0, height);
-      c.setTransform(1, 0, 0, 1, 0, 0);
-      c.globalCompositeOperation = "source-atop";
-      c.globalAlpha = Math.min(0.8, sky.tintAlpha * 2.2);
-      c.fillStyle = mix(sky.low, sky.tint, 0.5);
-      c.fillRect(0, 0, width, height * 2);
-      c.globalAlpha = 1;
-    }
-
-    function tinted(img: HTMLImageElement, color: string, alpha: number) {
-      const layer = document.createElement("canvas");
-      layer.width = img.width;
-      layer.height = img.height;
-      const c = layer.getContext("2d")!;
-      c.drawImage(img, 0, 0);
-      c.globalCompositeOperation = "source-atop";
-      c.globalAlpha = alpha;
-      c.fillStyle = color;
-      c.fillRect(0, 0, img.width, img.height);
-      return layer;
-    }
-    const alpenglow = tinted(rainier, "#ff8a78", 0.5);
-    const moonlit = tinted(rainier, "#1f2350", 0.62);
-    const sunArt = {
-      halo: sunHalo("#fff3b8"),
-      warmHalo: sunHalo("#ff9d5c"),
-      sprite: art.sun,
-      warm: tinted(art.sun, "#ff6a2c", 0.45),
-    };
-    const path = buildPath();
-    const flecks = soilFlecks(WORLD_WIDTH);
-    const puffs = smokePuffs();
-
-    type RoomName = keyof typeof ROOMS;
-    const scenes: Partial<Record<RoomName, ReturnType<typeof createRoomScene>>> = {};
-    const roomsAsked = new Set<RoomName>();
-    let roomKey = "";
-    function fetchRoom(name: RoomName) {
-      if (roomsAsked.has(name)) return;
-      roomsAsked.add(name);
-      loadRoom(name).then(
-        (roomArt) => {
-          scenes[name] = createRoomScene(roomArt, ROOMS[name], terminal, () => doom?.screen());
-          roomKey = "";
-        },
-        () => on.unavailable(),
-      );
-    }
-    let wasInside = false;
-    let wasCovered = false;
-    let wasWarm = false;
-    let paintedIris = 0;
-    let paintedCamX = 0;
-    let wipeFrames = 0;
-    let roomClearedAt = -Infinity;
-    let pageRestyled = false;
-    let scrolling = false;
-    let scrolledFrom = 0;
-    let scrolledAt = -Infinity;
-    let lastScrollY = window.scrollY;
-    const rctx = roomCanvas.getContext("2d", { alpha: false })!;
-
-    const roomName = () => (view.clientWidth / view.clientHeight >= WIDE_ROOM_MIN_ASPECT ? "wide" : "tall");
-    fetchRoom(roomName());
-
-    function irisRadius(iris: number) {
-      return iris * iris * (3 - 2 * iris) * Math.hypot(view.clientWidth, view.clientHeight) * 1.15;
-    }
-
-    const irisCentre = (camX: number) => ({ x: DOOR.x + DOOR.width / 2 - camX, y: ground + DOOR.y + DOOR.height / 2 });
-
-    function irisCoversView(iris: number, camX: number) {
-      if (iris === 0) return false;
-      const { x, y } = irisCentre(camX);
-      return Math.hypot(Math.max(x, vw - x), Math.max(y, vh - y)) < irisRadius(iris) / scale;
-    }
-
-    // The room sits under the walk canvases, which open this hole onto it. A
-    // clip-path on the room instead rebuilds a full-screen mask every frame.
-    function openIris(iris: number, camera: number) {
-      const hole = irisCentre(camera);
-      const cut = (surface: CanvasRenderingContext2D, slid: number, top: number) => {
-        surface.globalCompositeOperation = "destination-out";
-        surface.beginPath();
-        surface.arc(hole.x + slid, hole.y - top, irisRadius(iris) / scale, 0, Math.PI * 2);
-        surface.fill();
-        surface.globalCompositeOperation = "source-over";
-      };
-      cut(ctx, 0, 0);
-      cut(actx, 0, 0);
-      cut(pctx, camera - Math.floor(camera), 0);
-      for (const layer of layers) {
-        cut(layer.ctx, camera * layer.factor - layer.left, layer.top);
-        layer.shade = "cut";
-      }
-    }
-
-    // Re-projecting a screen costs more than the rest of a paint. Mid-scroll the
-    // room's clock loops inside one cursor blink and one editor line, so the
-    // screens hold still while the fire and Mishka keep moving.
-    function steadyScreenTime(t: number) {
-      const { startEvery, blinkEvery, span } = SCREEN_STEADY;
-      const start = Math.ceil(Math.floor(scrolledFrom / startEvery) * startEvery / blinkEvery) * blinkEvery;
-      return start + (Math.floor(t * SCROLLING_ROOM_HZ) / SCROLLING_ROOM_HZ) % span;
-    }
-
-    function movingBoxes(room: (typeof ROOMS)[keyof typeof ROOMS]) {
-      const { coffee, snore, snoreDrift } = room;
-      return [
-        room.fireBox,
-        room.main,
-        room.side,
-        room.mishkaBox,
-        room.handsBox,
-        room.blink,
-        { x: coffee.x - STEAM_BOX.left, y: coffee.y - STEAM_BOX.top, width: STEAM_BOX.width, height: STEAM_BOX.height },
-        { x: snore.x + Math.min(snoreDrift, 0) - SNORE_BOX.left, y: snore.y - SNORE_BOX.top, width: Math.abs(snoreDrift) + SNORE_BOX.width, height: SNORE_BOX.height },
-        ...room.candles.map(({ x, y }) => ({ x: x - CANDLE_REACH, y: y - CANDLE_REACH, width: CANDLE_REACH * 2, height: CANDLE_REACH * 2 })),
-      ];
-    }
-
-    function paintRoom(iris: number, t: number) {
-      if (iris === 0) return;
-      const viewW = view.clientWidth;
-      const viewH = view.clientHeight;
-      const dpr = window.devicePixelRatio || 1;
-      const name = roomName();
-      const scene = scenes[name];
-      if (!scene) return fetchRoom(name);
-      const room = ROOMS[name];
-      const cover = Math.max(viewW / room.width, viewH / room.height);
-      const crisp = Math.ceil(cover * dpr - ROOM_SCALE_SNAP) / dpr;
-      const pixel = room.width * crisp * room.subjectSpan <= viewW ? Math.max(crisp, cover) : cover;
-      const w = room.width * pixel;
-      const h = room.height * pixel;
-      const left = Math.round(clamp(roomLeft(room, pixel, viewW), viewW - w, 0));
-      const top = Math.round(clamp(viewH * room.anchorY - room.focusY * h, viewH - h, 0));
-      const key = `${name} ${w} ${h} ${left} ${top}`;
-      if (key !== roomKey) {
-        roomKey = key;
-        roomCanvas.width = room.width * ROOM_SCALE;
-        roomCanvas.height = room.height * ROOM_SCALE;
-        roomCanvas.style.width = `${w}px`;
-        roomCanvas.style.height = `${h}px`;
-        roomCanvas.style.left = `${left}px`;
-        roomCanvas.style.top = `${top}px`;
-        roomClearedAt = t;
-      }
-
-      // The plate is already on the canvas, so a scroll only repaints what moves:
-      // a full repaint costs a long task, and nobody reads the room mid-swipe. A
-      // frame that restyled the page waits a frame, so the two never share a task.
-      const quick = scrolling && t - roomClearedAt > ROOM_CLEAR_SETTLE_SECONDS;
-      if (quick && pageRestyled) {
-        pageRestyled = false;
-        return;
-      }
-      rctx.save();
-      if (quick && iris < 1) {
-        const { x, y } = irisCentre(paintedCamX);
-        const reach = (irisRadius(iris) * IRIS_HOLE_MARGIN) / scale;
-        const toRoom = (cssX: number, cssY: number) => ({ x: ((cssX * scale - left) / pixel) * ROOM_SCALE, y: ((cssY * scale - top) / pixel) * ROOM_SCALE });
-        const corner = toRoom(x - reach, y - reach);
-        const across = toRoom(x + reach, y + reach);
-        rctx.beginPath();
-        rctx.rect(corner.x, corner.y, across.x - corner.x, across.y - corner.y);
-        rctx.clip();
-      }
-      rctx.beginPath();
-      if (quick) {
-        for (const box of movingBoxes(room)) rctx.rect(box.x * ROOM_SCALE, box.y * ROOM_SCALE, box.width * ROOM_SCALE, box.height * ROOM_SCALE);
-      } else {
-        rctx.rect((-left / pixel) * ROOM_SCALE, (-top / pixel) * ROOM_SCALE, (viewW / pixel) * ROOM_SCALE, (viewH / pixel) * ROOM_SCALE);
-      }
-      rctx.clip();
-      scene.draw(rctx, quick ? steadyScreenTime(t) : t, !reduced, iris < 1);
-      rctx.restore();
-    }
-
-    function drawContactShadow(x: number, y: number, halfWidth: number, lift: number, presence: number) {
-      const shrink = clamp(1 - lift / 60, 0.4, 1);
-      const half = Math.round(halfWidth * shrink);
-      actx.fillStyle = "#1a1014";
-      actx.globalAlpha = 0.34 * presence;
-      actx.fillRect(Math.round(x) - half, y - 1, half * 2, 2);
-      actx.fillRect(Math.round(x) - half + 3, y + 1, half * 2 - 6, 1);
-      actx.globalAlpha = 1;
-    }
-
-    // Toasts track world positions, so their layer takes the camera as a plain
-    // transform. The camera is also published as --cam for tooling, but not while
-    // a toast is scrolling past: it inherits, and would restyle the toast each frame.
-    const toastLayer = view.querySelector<HTMLElement>(".walk-toasts")!;
-    let transformedCamera: number | null = null;
-    let publishedCamera: number | null = null;
-    function publishCamera(camX: number) {
-      const hasToasts = toastLayer.childElementCount > 0;
-      if (hasToasts && camX !== transformedCamera) {
-        transformedCamera = camX;
-        toastLayer.style.transform = `translateX(${-camX * scale}px)`;
-      }
-      if (camX !== publishedCamera && !(hasToasts && scrolling)) {
-        publishedCamera = camX;
-        toastLayer.style.setProperty("--cam", `${camX}`);
-      }
-    }
-
-    // A layer is repainted only when it has slid a whole stretch or the light has
-    // changed; the compositor moves it the rest of the way.
-    function paintLayers(camera: number, tint: string, tintAlpha: number) {
-      const dpr = window.devicePixelRatio;
-      const shade = tintAlpha > 0.005 ? `${tint} ${Math.round(tintAlpha * 200)}` : "";
-      for (const layer of layers) {
-        const offset = camera * layer.factor;
-        const left = Math.floor(offset / LAYER_STRETCH) * LAYER_STRETCH;
-        if (left !== layer.left || shade !== layer.shade) {
-          layer.left = left;
-          layer.shade = shade;
-          const c = layer.ctx;
-          const { width } = layer.surface;
-          c.clearRect(0, 0, width, layer.rows);
-          c.drawImage(layer.strip, left, 0, width, layer.rows, 0, 0, width, layer.rows);
-          if (shade) {
-            c.globalCompositeOperation = "source-atop";
-            c.globalAlpha = tintAlpha;
-            c.fillStyle = tint;
-            c.fillRect(0, 0, width, layer.rows);
-            c.globalAlpha = 1;
-            c.globalCompositeOperation = "source-over";
-          }
-        }
-        const slide = Math.round((offset - left) * scale * dpr);
-        if (slide !== layer.slid) {
-          layer.slid = slide;
-          layer.surface.style.transform = `translate3d(${-slide / dpr}px, 0, 0)`;
-        }
-      }
+      const walk = simulation.view();
+      if (walk.finale >= CONTACT_FINALE && !reduced && !page.scrolling() && !doom.requested()) terminal.tick();
+      if (walk.warpLevel > 0) particles.beamSparks([walk.dan.x, walk.mishka.x], ground);
+      particles.step(now, ground);
     }
 
     function draw(now: number, blend: number) {
       const t = now / 1000;
-      if (window.scrollY !== lastScrollY) {
-        lastScrollY = window.scrollY;
-        if (!scrolling) scrolledFrom = t;
-        scrolledAt = now;
-      }
-      scrolling = now - scrolledAt < SCROLL_SETTLE_MS;
-      const { dan: walker, mishka, collected, finale, warpLevel } = simulation.view(blend, measureTrack().fraction);
-      const camera = cameraAt(walker.x, vw);
+      page.observe(now);
+      const walk = simulation.view(blend, measureTrack().fraction);
+      const camera = cameraAt(walk.dan.x, viewport.width);
       const camX = Math.round(camera);
-      const planeX = Math.floor(camera);
-      const iris = clamp((finale - IRIS_FROM_FINALE) / 0.5, 0, 1);
-      if (iris > 0 !== wasInside) {
-        wasInside = iris > 0;
-        on.inside(wasInside);
-        pageRestyled = true;
+      const iris = irisAt(walk.finale);
+      if (iris > 0 !== inside) {
+        inside = iris > 0;
+        on.inside(inside);
+        page.markRestyled();
       }
-      publishCamera(camera);
-      probe?.frame(now, camera * scale * window.devicePixelRatio, finger.touchAge(now), finger.gliding());
-      // The first paint re-projects both screens, so it gets a quiet frame of its
-      // own before the reveal and the wipe, which are heavy enough by themselves.
-      const roomWarm = finale >= ROOM_WARM_FINALE;
-      if (roomWarm !== wasWarm) {
-        wasWarm = roomWarm;
-        if (roomWarm) paintRoom(1, t);
-      }
-      const roomAhead = finale <= IRIS_FROM_FINALE - ROOM_REVEAL_LEAD;
-      if (roomCanvas.hidden !== roomAhead) roomCanvas.hidden = roomAhead;
-      const covered = irisCoversView(iris, camX);
-      if (covered !== wasCovered) {
-        wasCovered = covered;
-        for (const surface of [canvas, ...layerCanvases, plane, actors]) surface.style.visibility = covered ? "hidden" : "";
-        pageRestyled = true;
-      }
-      if (covered) {
-        paintRoom(iris, t);
-        return;
-      }
-      // While the wipe grows the walk behind it hardly moves, so on most frames
-      // it only needs the hole cut wider. Shrinking has to repaint what it uncovers.
-      const wipeGrowing = iris > 0 && iris >= paintedIris && camX === paintedCamX;
-      paintedIris = iris;
-      paintedCamX = camX;
-      if (wipeGrowing && (pageRestyled || ++wipeFrames % WIPE_WALK_REPAINT_EVERY)) {
-        openIris(iris, camera);
-        paintRoom(iris, t);
-        return;
-      }
-      const slide = Math.round((camera - planeX) * scale * window.devicePixelRatio);
-      if (slide !== slid) {
-        slid = slide;
-        plane.style.transform = `translate3d(${-slide / window.devicePixelRatio}px, 0, 0)`;
-      }
-      const tod = progressAt(walker.x);
-      const sky = skyAt(tod);
-
-      // Sky, cached per step of the day.
-      const key = `${Math.round(tod * 300)}`;
-      if (key !== skyKey && skyImg) {
-        paintSky(skyImg, sky, ground - 10);
-        skyTileCtx.putImageData(skyImg, 0, 0);
-        skyCtx.fillStyle = skyCtx.createPattern(skyTile, "repeat")!;
-        skyCtx.fillRect(0, 0, vw, vh);
-        tintClouds(sky);
-        stage.style.backgroundColor = mix("#3d2f27", sky.tint, sky.tintAlpha);
-        skyKey = key;
-      }
-      ctx.drawImage(skyCanvas, 0, 0, vw, ground, 0, 0, vw, ground);
-
-      const moonRise = clamp((tod - 0.9) / 0.1, 0, 1);
-      const moonLeft = Math.round(vw * 0.18) - art.moon.width / 2;
-      const moonTop = Math.round(ground * (0.42 - moonRise * 0.22)) - art.moon.height / 2;
-      if (sky.stars > 0.02) {
-        ctx.fillStyle = "#fff7e6";
-        for (const s of stars) {
-          const tw = reduced ? 1 : 0.6 + 0.4 * Math.sin(t * 1.7 + s.s);
-          const behindMoon = moonRise > 0 && Math.hypot(s.x - moonLeft - MOON_DISC.x, s.y - moonTop - MOON_DISC.y) < MOON_DISC.radius;
-          ctx.globalAlpha = clamp(sky.stars * s.b * tw * (behindMoon ? 1 - moonRise : 1), 0, 1);
-          ctx.fillRect(s.x, s.y, 1, 1);
-        }
-        ctx.globalAlpha = 1;
-      }
-      const reveal = clamp((walker.x - REVEAL.from) / (REVEAL.to - REVEAL.from), 0, 1);
-      const drift = reduced ? 0 : t * 2;
-      const cloudAlpha = clamp((tod - 0.06) / 0.06, 0, 1) * (1 - clamp(reveal / REVEAL_FADE, 0, 1));
-      if (moonRise > 0) {
-        ctx.globalAlpha = moonRise;
-        ctx.drawImage(art.moon, moonLeft, moonTop);
-        ctx.globalAlpha = 1;
-      }
-
-      // The sun's arc runs on past the horizon, so the world hides it at both ends.
-      const sunT = (tod - 0.02) / 0.76;
-      if (sunT > -SUN_ARC_OVERRUN && sunT < 1 + SUN_ARC_OVERRUN) {
-        const sx = Math.round(vw * (0.12 + sunT * 0.8));
-        const sy = Math.round(ground - 14 - Math.sin(sunT * Math.PI) * (ground * 0.72));
-        drawSun(ctx, sunArt, sx, sy, clamp((sunT - 0.6) / 0.4, 0, 1));
-      }
-
-      ctx.globalAlpha = cloudAlpha;
-      if (cloudAlpha > 0) {
-        const { height } = art.clouds;
-        for (const c of clouds) {
-          const column = c.facing === "right" ? c.kind : CLOUD_KINDS - 1 - c.kind;
-          const row = c.facing === "right" ? 0 : height;
-          ctx.drawImage(tintedClouds, column * cloudWidth, row, cloudWidth, height, cloudLeft(c, camera, drift), c.y, cloudWidth, height);
-        }
-      }
-      ctx.globalAlpha = 1;
-
-      // The world: parallax layers, ground, and landmarks, tinted with the time
-      // of day so it all sits in the same light.
-      paintLayers(camera, sky.tint, sky.tintAlpha);
-
-      if (reveal > 0) {
-        const eased = reveal * reveal * (3 - 2 * reveal);
-        const restTop = ground + REVEAL.baseBelowGround - rainier.height;
-        const buried = ground - REVEAL.buriedTop;
-        const mountainX = Math.round(vw * REVEAL.summitAt - rainier.width / 2 - eased * REVEAL.drift);
-        const mountainY = Math.round(buried + (restTop - buried) * eased);
-        const emerged = clamp(reveal / REVEAL_FADE, 0, 1);
-        ctx.globalAlpha = emerged;
-        ctx.drawImage(rainier, mountainX, mountainY);
-        ctx.globalAlpha = clamp((reveal - REVEAL_FADE) / REVEAL_FADE, 0, 1) * Math.sin(Math.PI * Math.min(reveal * 1.15, 1)) * 0.75;
-        ctx.drawImage(alpenglow, mountainX, mountainY);
-        ctx.globalAlpha = clamp((reveal - 0.55) / 0.45, 0, 1) * 0.6;
-        ctx.drawImage(moonlit, mountainX, mountainY);
-        ctx.globalAlpha = 1;
-      }
-
-      // The ground plane: everything here is fixed to the world and slides as one.
-      const planeW = vw + 1;
-      pctx.clearRect(0, 0, planeW, vh);
-      paintGround(pctx, path, flecks, planeX, planeW, ground, vh);
-      for (const prop of props) {
-        const sx = prop.x - planeX;
-        if (sx > -PROP_SHEET.width && sx < planeW) {
-          pctx.drawImage(art.props, prop.kind * PROP_SHEET.width, 0, PROP_SHEET.width, PROP_SHEET.height, sx, ground + PROP_ROOT_ROW - PROP_SHEET.height, PROP_SHEET.width, PROP_SHEET.height);
-        }
-      }
-      for (const { landmark, sprite } of art.landmarks) {
-        const sx = landmark.x - planeX;
-        if (sx > -landmark.width && sx < planeW) pctx.drawImage(sprite, sx, ground + spriteTop(landmark));
-      }
-      if (sky.tintAlpha > 0.005) {
-        pctx.globalCompositeOperation = "source-atop";
-        pctx.globalAlpha = sky.tintAlpha;
-        pctx.fillStyle = sky.tint;
-        pctx.fillRect(0, 0, planeW, vh);
-        pctx.globalAlpha = 1;
-        pctx.globalCompositeOperation = "source-over";
-      }
-
-      // Light sources sit on top of the tint.
-      for (const { landmark, lights } of art.landmarks) {
-        if (!lights || !landmark.lights) continue;
-        const sx = landmark.x - planeX;
-        const alpha = Math.max(sky.lights, landmark.lights.daylight);
-        if (alpha < 0.02 || sx < -landmark.width || sx > planeW) continue;
-        pctx.globalAlpha = alpha;
-        pctx.drawImage(lights, sx, ground + spriteTop(landmark));
-      }
-      pctx.globalAlpha = 1;
-      pctx.imageSmoothingEnabled = false;
-      for (const { landmark, logo } of art.landmarks) {
-        if (!logo || !landmark.sign) continue;
-        const { size } = landmark.sign;
-        const sx = landmark.x - planeX + landmark.sign.x;
-        const sy = ground + spriteTop(landmark) + landmark.sign.y;
-        if (sx < -40 || sx > planeW) continue;
-        pctx.drawImage(logo, sx, sy, size, size);
-      }
-      if (Math.sin(t * 3) > 0.2) {
-        pctx.fillStyle = "#ff5a4f";
-        pctx.fillRect(BEACON.x - planeX - 1, ground + BEACON.y, 3, 2);
-      }
-
-      const doorOpen = clamp(finale / 0.12, 0, 1);
-      if (doorOpen > 0) {
-        const doorX = DOOR.x - planeX;
-        const doorY = ground + DOOR.y;
-        pctx.globalAlpha = doorOpen;
-        pctx.fillStyle = "#ffbe5c";
-        pctx.fillRect(doorX, doorY, DOOR.width, DOOR.height);
-        pctx.fillStyle = "#ffe9b0";
-        pctx.fillRect(doorX + 3, doorY + 2, DOOR.width - 6, DOOR.height - 2);
-        pctx.globalAlpha = 1;
-      }
-
-      // Skills not yet collected.
-      for (const gem of GEMS) {
-        if (collected.has(gem.label)) continue;
-        const sx = gem.x - planeX;
-        if (sx < -10 || sx > planeW + 10) continue;
-        const bob = reduced ? 0 : Math.round(Math.sin(t * 3 + gem.x) * 2);
-        drawGem(pctx, sx, ground - 28 + bob, gem.color);
-      }
-
-      actx.clearRect(0, 0, vw, vh);
-      if (warpLevel > 0) {
-        for (const wx of [walker.x, mishka.x]) {
-          const beamX = Math.round(wx - camX);
-          actx.globalAlpha = warpLevel * 0.35;
-          actx.fillStyle = "#cba6f7";
-          actx.fillRect(beamX - 16, 0, 32, ground + 2);
-          actx.globalAlpha = warpLevel * 0.8;
-          actx.fillStyle = "#fde3cf";
-          actx.fillRect(beamX - 6, 0, 12, ground + 2);
-        }
-        actx.globalAlpha = 1;
-      }
-
-      // The wipe grows out of the door and erases both walkers, opaque until then.
-      const presence = 1 - warpLevel;
-      const mishkaLeft = Math.round(mishka.x - camera - MISHKA_SHEET.width / 2);
-      const mishkaTop = Math.round(ground + FOOT_DROP + spriteTop(MISHKA_SHEET) - mishka.lift) + mishka.depthRows;
-      const danLeft = Math.round(walker.x - camera - DAN_SHEET.width / 2);
-      const danTop = Math.round(ground + FOOT_DROP + spriteTop(DAN_SHEET) - walker.lift);
-      const drawMishka = () => {
-        drawContactShadow(mishka.x - camera, ground + FOOT_DROP + 2 + mishka.depthRows, 19, mishka.lift, presence);
-        actx.globalAlpha = presence;
-        actx.drawImage(dog[mishka.facing][mishka.frame], mishkaLeft, mishkaTop);
-        if (mishka.barking) {
-          const headX = mishkaLeft + (mishka.facing === "right" ? BARK_MARK.fromSide : MISHKA_SHEET.width - BARK_MARK.fromSide - BARK_MARK.width);
-          const { top, width, height, gap, color, ink } = BARK_MARK;
-          const stroke = (fill: string, grow: number) => {
-            actx.fillStyle = fill;
-            actx.fillRect(headX - grow, mishkaTop + top - grow, width + grow * 2, height + grow * 2);
-            actx.fillRect(headX - grow, mishkaTop + top + height + gap - grow, width + grow * 2, width + grow * 2);
-          };
-          stroke(ink, 1);
-          stroke(color, 0);
-        }
-      };
-      const drawDan = () => {
-        drawContactShadow(walker.x - camera, ground + FOOT_DROP + 2, 15, walker.lift, presence);
-        actx.globalAlpha = presence;
-        actx.drawImage(dan[walker.facing][walker.frame], danLeft, danTop);
-      };
-      if (mishka.inFront) {
-        drawDan();
-        drawMishka();
-      } else {
-        drawMishka();
-        drawDan();
-      }
-      actx.globalAlpha = 1;
-
-      for (const q of particles) {
-        if (q.smoke) {
-          drawPuff(actx, puffs, q.x - camX, q.y, 1 - q.life);
-          continue;
-        }
-        actx.globalAlpha = clamp(q.life * 1.4, 0, 1);
-        actx.fillStyle = q.color;
-        actx.fillRect(Math.round(q.x - camX), Math.round(q.y), 2, 2);
-      }
-      actx.globalAlpha = 1;
-
-      if (iris > 0) openIris(iris, camera);
-      paintRoom(iris, t);
+      toasts.follow(camera, viewport.scale, page.scrolling());
+      probe?.frame(now, camera * viewport.scale * window.devicePixelRatio, finger.touchAge(now), finger.gliding());
+      roomView.follow(walk.finale, t);
+      const plan = wipe.plan(iris, camX);
+      if (plan === "widen") wipe.open(iris, camera);
+      if (plan !== "full") return roomView.paint(iris, t);
+      const tod = progressAt(walk.dan.x);
+      const frame = { t, camera, camX, tod, sky: skyAt(tod), walk };
+      for (const surface of surfaces) surface.paint(frame);
+      if (iris > 0) wipe.open(iris, camera);
+      roomView.paint(iris, t);
     }
 
     let lastFrame = performance.now();
     const stepClock = createStepClock();
-
     const frameClock = createSteadyClock();
 
     function loop(reported: number) {
       const now = frameClock(reported);
-      frame = 0;
+      request = 0;
       finger.frame(now);
       const { steps, blend } = stepClock(now - lastFrame);
       lastFrame = now;
-      const doomFullscreen = doom?.fullscreen() ?? false;
-      if (!doomFullscreen) for (let step = 0; step < steps; step++) simulate(now);
-      if (doom) {
-        if (doomFullscreen || (measureTrack().pinned && simulation.view().finale >= CONTACT_FINALE)) doom.pump(now);
-        else doom.end("quit");
+      const fullscreen = doom.running()?.fullscreen() ?? false;
+      if (!fullscreen) for (let step = 0; step < steps; step++) simulate(now);
+      const game = doom.running();
+      if (game) {
+        if (fullscreen || (measureTrack().pinned && atDesk())) game.pump(now);
+        else game.end("quit");
       }
       draw(now, blend);
-      if (visible) frame = requestAnimationFrame(loop);
+      if (visible) request = requestAnimationFrame(loop);
     }
 
-    function onKey(event: KeyboardEvent) {
-      if (doom) {
-        doom.keyDown(event);
-        return;
-      }
-      const inControl = event.target instanceof Element && event.target.closest("a, button, input, textarea");
-      if (simulation.view().finale >= CONTACT_FINALE && measureTrack().pinned && !inControl && !event.metaKey && !event.ctrlKey && !event.altKey && terminal.press(event.key)) {
-        event.preventDefault();
-        return;
-      }
-      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-        if (!measureTrack().pinned) return;
-        event.preventDefault();
-        heldKeys.add(event.key);
-        return;
-      }
-      if (event.key !== " " && event.key !== "ArrowUp" && event.key !== "w") return;
-      if (inControl || !measureTrack().pinned) return;
-      event.preventDefault();
-      simulation.jump();
-    }
-
-    const onKeyUp = (event: KeyboardEvent) => {
-      doom?.keyUp(event);
-      heldKeys.delete(event.key);
-    };
-    const releaseKeys = () => heldKeys.clear();
-
+    const keys = listenForKeys({
+      doom: doom.running,
+      atDesk,
+      pinned: () => measureTrack().pinned,
+      type: (key) => terminal.press(key),
+      jump: () => simulation.jump(),
+    });
     const finger = driveWithFinger(view, {
-      pinned: () => !doom && measureTrack().pinned,
+      pinned: () => !doom.running() && measureTrack().pinned,
       glides: !reduced,
-      dragRatio: () => (measureTrack().travel * FRACTION_PER_WORLD_PX) / scale,
+      dragRatio: () => (measureTrack().travel * FRACTION_PER_WORLD_PX) / viewport.scale,
     });
-    const ro = new ResizeObserver(() => layout());
-    ro.observe(view);
-    layout();
-    paintRoom(1, performance.now() / 1000);
-    rctx.getImageData(0, 0, 1, 1);
-    roomCanvas.hidden = true;
-    const io = new IntersectionObserver(([entry]) => {
+    const resized = new ResizeObserver(layout);
+    resized.observe(view);
+    applyViewport();
+    const onScreen = new IntersectionObserver(([entry]) => {
       visible = entry.isIntersecting;
-      if (visible && !frame) frame = requestAnimationFrame(loop);
+      if (visible && !request) request = requestAnimationFrame(loop);
     });
-    io.observe(stage);
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("keyup", onKeyUp);
-    window.addEventListener("blur", releaseKeys);
-    frame = requestAnimationFrame(loop);
+    onScreen.observe(stage);
+    request = requestAnimationFrame(loop);
     return () => {
       finger.stop();
-      ro.disconnect();
-      io.disconnect();
-      cancelAnimationFrame(frame);
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("keyup", onKeyUp);
-      window.removeEventListener("blur", releaseKeys);
+      keys.stop();
+      resized.disconnect();
+      onScreen.disconnect();
+      cancelAnimationFrame(request);
     };
   }
 
@@ -1044,8 +242,7 @@ export function startWalk({ stage, view, canvas, layers: layerCanvases, plane, a
     },
     stop() {
       cancelled = true;
-      doomRequested = false;
-      doom?.end("quit");
+      doom.stop();
       cleanup();
     },
   };
