@@ -6,7 +6,7 @@ Built with Bun, Astro 7, Svelte 5, TypeScript, and canvas. The page is static HT
 
 ### Art pipeline
 
-Art was generated with GPT Image (via Codex) from the prompts in `scripts/art-prompts/`, using the avatar as the identity reference and the Dan sheet as the style reference for everything else. Raw generations are not committed. Each one is cleaned into true pixel art, and building night lights are extracted. The cabin is built differently: `scripts/build-room.py` takes one generated scene per layout (`master-wide13.png`, `master-tall13.png` in the art folder), samples it onto the art grid and palette, places the head and bench tools as sprites, and cuts the fire, hands, Mishka, and screen layers to fit that plate, with `room-layouts.json` as the manifest. Nothing on the plate comes from a second generation. The monitors are generated as flat key colors, so the masks come straight from the art.
+Art was generated with GPT Image (via Codex) from the prompts in `scripts/art-prompts/`, using the avatar as the identity reference and the Dan sheet as the style reference for everything else. Raw generations are not committed. Each one is cleaned into true pixel art, and building night lights are extracted. The cabin is built differently: each layout is one scene painted from scratch on a 4 px art grid (`cabin-wide.txt`, then `cabin-hands.txt` for the hands, then `cabin-tall.txt` to repaint the same room for phones). `scripts/build-cabin.py` uses each painting as painted, with nothing pasted on, and draws the fire, the typing fingers and Mishka's breathing to fit it, with `room-layouts.json` as the manifest. The monitors are generated as flat key colors, so the masks come straight from the art.
 
 ```sh
 python3 scripts/pixelize.py raw/dan-sheet.png out/dan --frames 6 --height 84 --colors 28
@@ -73,7 +73,7 @@ Pushing to `main` does not deploy.
 - `src/components/game/CareerWalk.svelte`: the overlay: intro, cards, toolkit, toasts, timeline.
 - `src/components/game/art.ts`: sky palettes and dithering, tiled scenery, path, gems.
 - `public/game/`: sprites, scenery layers, building `-lights` layers, company logos, and icons.
-- `scripts/pixelize.py`, `scripts/asset-lights.py`, `scripts/build-room.py`, `scripts/art-prompts/`: the art pipeline.
+- `scripts/pixelize.py`, `scripts/asset-lights.py`, `scripts/build-cabin.py`, `scripts/art-prompts/`: the art pipeline.
 - `src/pages/index.astro`: page layout, metadata, the résumé sheet, About, and Contact.
 - `src/styles/global.css`: tokens, walk overlays, pixel buttons, and the résumé sheet.
 - `src/scripts/pixel-wipe.ts`: the pixel dissolve on in-page links.

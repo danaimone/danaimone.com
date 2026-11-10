@@ -437,9 +437,12 @@ kbd {
 }
 
 .walk-contact {
+  top: auto;
   right: auto;
+  bottom: var(--gutter);
   left: var(--gutter);
   width: auto;
+  max-height: none;
   max-width: calc(100% - 2 * var(--gutter));
   padding: 0.625rem 1rem 0.75rem;
 }
@@ -1153,9 +1156,8 @@ kbd {
     display: none;
   }
 
-  .walk-contact {
+  .walk-card.walk-contact {
     top: auto;
-    bottom: var(--gutter);
     max-height: none;
     padding: 0.625rem 0.875rem 0.75rem;
   }

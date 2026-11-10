@@ -32,7 +32,7 @@ export type RoomLayout = {
 
 export type GameScreen = { picture: HTMLCanvasElement; frame: number };
 
-export const ROOM_SCALE = 2;
+export const ROOM_SCALE = 3;
 
 const NIGHT_SKY = "#101a4a";
 const RIPPLE_HIGH = "#6f93dc";
@@ -394,7 +394,7 @@ export function createRoomScene(art: RoomArt, room: RoomLayout, terminal: Termin
       const fireFrame = Math.floor(t * FIRE_FPS) % room.fireFrames;
       drawStripFrame(ctx, art.fire, room.fireBox, animate ? fireFrame : 0);
       const flicker = animate ? 0.02 * Math.sin(t * 5) * Math.sin(t * 2.3) : 0;
-      softLight(ctx, room.fireBox.x + room.fireBox.width / 2, room.fireBox.y + room.fireBox.height * 0.65, 226, 0.1 + flicker);
+      softLight(ctx, room.fireBox.x + room.fireBox.width / 2, room.fireBox.y + room.fireBox.height * 0.65, 170, 0.1 + flicker);
 
       if (animate) {
         drawLake(ctx, room.lake, t);

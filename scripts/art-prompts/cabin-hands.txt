@@ -1,0 +1,11 @@
+Use your built-in image generation tool (imagegen skill, built-in mode) to edit Image 1 and create ONE image at 16:9 aspect ratio, exactly 2560x1440 pixels, then copy the generated PNG into the current working directory as ./NAME.png. Do not write code or any other files. Reply with just the saved path.
+
+Use case: precise-object-edit
+Asset type: master base plate for an animated pixel-art scene
+Input images: Image 1 is the edit target.
+
+Change only this one thing:
+The seated man's hands and forearms. Both hands now rest ON the keyboard, palms down over the keys with the fingers curled onto the keycaps, clearly overlapping the top of the keyboard, as someone typing. His forearms reach a little further forward so the wrists are above the keyboard's near edge. The hands are the same skin tone and the same size as now. The keyboard itself, with its white keys and coloured accent keys, stays where it is and stays the same size.
+
+Keep everything else unchanged, pixel for pixel: his head, face, glasses, headphones, body, shirt, jeans, shoes, the chair, the desk, both monitors with their flat #FF00FF magenta and #00FFFF cyan screens, the mouse, the mug, the bookshelf, the window, the guitar, the piano, the stool, the lamp, the fireplace with logs and no flames, the rug, the sleeping dog, the walls and the floor. Do not crop, reframe, or rescale.
+Style: polished 16-bit pixel art on the same art-pixel grid as Image 1 (one art pixel equals exactly 4 image pixels), hard edges, no anti-aliasing, no blur, no text.

@@ -14,17 +14,17 @@ const SEATTLE_LAYER_X = 830;
 const ROOMS = {
   wide: {
     ...layouts.wide,
-    focusX: 0.7,
-    focusY: 0.8,
-    anchorY: 0.7889,
-    subjectSpan: 0.56,
+    focusX: 0.5,
+    focusY: 0.6,
+    anchorY: 0.6,
+    subjectSpan: 0.9,
   },
   tall: {
     ...layouts.tall,
-    keep: [80, 453] as const,
-    focusY: 0.6594,
-    anchorY: 0.6642,
-    subjectSpan: 0.66,
+    keep: [30, 335] as const,
+    focusY: 0.58,
+    anchorY: 0.55,
+    subjectSpan: 0.85,
   },
 };
 const WIDE_ROOM_MIN_ASPECT = 1.1;
