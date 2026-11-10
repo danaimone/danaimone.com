@@ -1,0 +1,22 @@
+Use your built-in image generation tool (imagegen skill, built-in mode) to edit Image 1 and create ONE image at 16:9 aspect ratio, exactly 2560x1440 pixels, then copy the generated PNG into the current working directory as ./NAME.png. Do not write code or any other files. Reply with just the saved path.
+
+Use case: precise-object-edit
+Asset type: master base plate for an animated pixel-art scene in a game. Code will later draw the screen contents and small animations on top.
+Input images: Image 1 is the edit target: a cosy log cabin at night with a man working at a desk.
+
+Change only the desk group: the man, his chair, the desk and the things on the desk. Repaint that group as follows.
+
+THE DESK is a modern electric sit-stand desk, the kind with a solid hardwood top on a black steel lifting frame:
+- The top is one thick slab of solid walnut, rich warm brown with visible straight grain, softly rounded edges and corners, about as thick as the man's wrist.
+- Under the top is a slim black steel frame. The desk stands on exactly two black lifting columns, one near each end of the top. Each column is a rectangular telescoping leg made of two nested segments, the lower one slightly thicker. Each column stands on a long, flat, black steel foot that lies on the floor and runs front to back.
+- A thin black crossbar under the top joins the two columns. A small black control keypad is fixed under the front edge of the top.
+- There are no wooden legs, no drawers and no side or back panels. Between the two columns the space under the desk is open, and the log wall and plank floor show through it.
+
+THE MAN is the same man as in Image 1: the same face, wavy brown hair, beard, glasses, over-ear headphones, tan overshirt, blue jeans and white sneakers. He STANDS at the desk, which is raised to standing height, in clean side profile facing RIGHT, relaxed and upright, forearms level, both hands on the keyboard as if typing. His black mesh office chair is pushed back and stands empty just behind him. His head is clear of the monitors.
+
+ON THE DESK, angled toward us so we see the screens: the main monitor on a black stand, its screen a perfectly flat #FF00FF magenta rectangle; to its right a smaller second monitor turned upright in portrait, its screen a perfectly flat #00FFFF cyan rectangle; his small mechanical keyboard with white keycaps and a few coloured accent keys; a mouse; a cream coffee mug. Both screens are flat single colours with crisp straight edges, no reflections, no glow, no content.
+
+SIZE: draw the man, the chair and the desk about 25 percent larger than in Image 1, keeping them on the same floor line and in the same part of the room, between the bookshelf and the fireplace. His hands must be large enough that each hand shows clearly separated fingers resting on separate keys.
+
+Keep everything else unchanged, pixel for pixel: the log walls, the plank floor, the window and its night view, the guitar, the red piano and its stool, the bookshelf, the wall lamp, the stone fireplace with logs and no flames, the mantel with candles and picture, the rug and the sleeping white dog. Nothing new is added to the room. Do not crop, reframe, or rescale the room.
+Style: polished 16-bit pixel art on the same art-pixel grid as Image 1 (one art pixel equals exactly 4 image pixels), hard edges, no anti-aliasing, no blur, no text. Same warm firelit palette and lighting as Image 1.

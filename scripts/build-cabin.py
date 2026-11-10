@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Build the cabin's plate and animation layers from one painted scene per layout.
 
-Each layout is one painting on the art grid, used as painted, with one correction: the desk was painted with no left
-leg, so its right leg is copied across, behind the shoes. The monitors are painted as
+Each layout is one painting on the art grid, used as painted: nothing is pasted onto it. The monitors are painted as
 flat key colours and become the screen masks. Every animation layer is cut from the plate or drawn to fit it; the fire burns in the page, from the hearth measured here.
 
     build-cabin.py ~/danaimone-art public/game src/components/game/room-layouts.json
@@ -13,7 +12,7 @@ import sys
 from collections import deque
 from pathlib import Path
 
-from PIL import Image, ImageFilter
+from PIL import Image
 
 SCREEN_GLASS = (30, 30, 46)
 PALETTE_COLORS = 256
@@ -31,26 +30,24 @@ FIRE_SPREAD = 4
 
 ROOMS = {
     "wide": {
-        "source": "wide.png",
+        "source": "wide-standing.png",
         "fire": {"opening": (537, 153, 603, 232), "grateTop": 226, "logRim": [(544, 217), (550, 211), (560, 206), (570, 201), (578, 199), (582, 203), (585, 210), (590, 215), (592, 221)]},
         "dog": (455, 262, 570, 330), "snore": (552, 270), "snoreDrift": -12,
         "window": (110, 47, 262, 179), "starLight": 150, "city": (150, 148, 240, 162), "lake": (140, 160, 250, 179),
-        "coffee": (462, 182), "candles": [(530, 83), (543, 89)],
-        "blink": (354, 138, 2, 2),
-        "hands": (394, 170, 414, 194),
-        "deskLeg": {"right": (451, 205, 469, 276), "shift": -58, "shoes": (372, 250, 410, 278)},
-        "taps": {"origin": (320, 137), "frames": ["tap-wide-f1.png", "tap-wide-n1.png", "tap-wide-f2.png", "tap-wide-n2.png", "tap-wide-f3.png"]},
+        "coffee": (461, 146), "candles": [(530, 83), (543, 89)],
+        "blink": (353, 91, 3, 2),
+        "hands": (384, 138, 410, 162),
+        "taps": {"origin": (316, 105), "frames": ["tap-wide-f1.png", "tap-wide-n1.png", "tap-wide-f2.png", "tap-wide-n2.png", "tap-wide-f3.png"]},
     },
     "tall": {
-        "source": "tall.png",
+        "source": "tall-standing.png",
         "fire": {"opening": (269, 381, 332, 474), "grateTop": 458, "logRim": [(270, 452), (278, 444), (293, 435), (307, 429), (312, 431), (316, 436), (322, 441), (328, 449)]},
         "dog": (180, 512, 312, 592), "snore": (272, 526), "snoreDrift": -10,
         "window": (18, 164, 142, 298), "starLight": 150, "city": (55, 256, 125, 272), "lake": (40, 268, 125, 298),
-        "coffee": (200, 423), "candles": [(266, 315), (280, 321)],
-        "blink": (81, 367, 2, 2),
-        "hands": (126, 408, 148, 436),
-        "deskLeg": {"right": (190, 449, 208, 515), "shift": -60, "shoes": (98, 494, 150, 522)},
-        "taps": {"origin": (55, 379), "frames": ["tap-tall-f1.png", "tap-tall-n1.png", "tap-tall-f2.png", "tap-tall-n2.png", "tap-tall-f3.png"]},
+        "coffee": (200, 409), "candles": [(266, 315), (280, 321)],
+        "blink": (93, 341, 2, 2),
+        "hands": (114, 400, 146, 424),
+        "taps": {"origin": (50, 367), "frames": ["tap-tall-f1.png", "tap-tall-n1.png", "tap-tall-f2.png", "tap-tall-n2.png", "tap-tall-f3.png"]},
     },
 }
 
@@ -240,28 +237,8 @@ def lake_spans(plate, box):
     return spans
 
 
-def add_left_desk_leg(plate, leg):
-    """Copy the desk's right leg to where the left one stands, leaving the shoes and their outline in front of it."""
-    px = plate.load()
-    sx0, sy0, sx1, sy1 = leg["shoes"]
-    shoes = Image.new("L", plate.size, 0)
-    mark = shoes.load()
-    for y in range(sy0, sy1):
-        for x in range(sx0, sx1):
-            r, g, b = px[x, y]
-            if r > 190 and g > 160 and b > 120:
-                mark[x, y] = 255
-    in_front = shoes.filter(ImageFilter.MaxFilter(3)).load()
-    x0, y0, x1, y1 = leg["right"]
-    copied = {(x + leg["shift"], y): px[x, y] for y in range(y0, y1) for x in range(x0, x1)}
-    for (x, y), color in copied.items():
-        if not in_front[x, y]:
-            px[x, y] = color
-
-
 def build(art, out, name, spec):
     plate = Image.open(art / "cabin2" / spec["source"]).convert("RGB")
-    add_left_desk_leg(plate, spec["deskLeg"])
     magenta = keyed(plate, lambda r, g, b: r > 170 and b > 170 and g < 90)
     cyan = keyed(plate, lambda r, g, b: g > 170 and b > 170 and r < 90)
     main, side = box_of(magenta), box_of(cyan)
