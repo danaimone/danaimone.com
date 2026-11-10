@@ -93,4 +93,4 @@ Roles, dates, and figures follow Dan's résumé, confirmed by Dan on October 30,
 
 ## Licence
 
-The code is MIT licensed. The artwork and the résumé text are not: they depict a real person and are all rights reserved. Doom and the fonts carry their own licences. See `LICENSE`.
+The code is MIT licensed. The artwork and the résumé text are not: they depict a real person and are all rights reserved. Doom and the fonts carry their own licences. See `LICENSE` and `NOTICE.md`.
