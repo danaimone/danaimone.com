@@ -97,10 +97,14 @@ async function render(page, resume, contactPhone, path) {
   const htmlPath = join(root, "resume/out/.page.html");
   await writeFile(htmlPath, html(resume, contactPhone));
   await page.goto(pathToFileURL(htmlPath).href, { waitUntil: "networkidle" });
+  await page.setViewportSize({ width: 8.5 * 96, height: 11 * 96 });
+  await page.emulateMedia({ media: "print" });
+  const spare = await page.evaluate(() => Math.round(11 * 96 - document.body.getBoundingClientRect().height));
   await page.pdf({ path, format: "Letter", printBackground: true, preferCSSPageSize: true });
   await rm(htmlPath);
   const pages = (await readFile(path, "latin1")).match(/\/Type\s*\/Page\b/g)?.length ?? 0;
-  if (pages !== 1) throw new Error(`${path} is ${pages} pages; a résumé must be 1. Cut a bullet or shorten one.`);
+  if (pages !== 1) throw new Error(`${path} is ${pages} pages (${-spare}px too tall; a line is about 20px); a résumé must be 1. Cut a bullet or shorten one.`);
+  console.log(`${spare}px to spare on the page`);
 }
 
 await mkdir(join(root, "resume/out"), { recursive: true });
