@@ -41,13 +41,13 @@ Before publishing, walk the whole page at desktop and phone widths. Check the ar
 
 ## Production deployment
 
-The site is static. In production nginx serves `dist/` behind a reverse proxy.
+The site is static: any web server can serve `dist/`. In production nginx serves it behind a reverse proxy.
 
 1. Copy `resume/private.example.mjs` to `resume/private.mjs`. That file holds the phone number for private PDFs and stays out of git.
 2. Run `bun run resume` on a machine with the licensed fonts. `public/resume.pdf` is committed output and has no phone number.
 3. Run `bun run build`.
-4. Package `dist/`, copy it to the web server's root.
-5. Reload nginx, then check the page, `/resume.pdf`, and the security headers through https://danaimone.com.
+4. Copy `dist/` to the web server's root, replacing the old copy in one move.
+5. Check the page, `/resume.pdf`, and the security headers through https://danaimone.com.
 
 Pushing to `main` does not deploy.
 
@@ -55,7 +55,7 @@ Pushing to `main` does not deploy.
 
 - A strict Content Security Policy is generated at build time, with hashes for inline scripts and styles. Set dynamic styles through the CSSOM, because `style` attributes are blocked.
 - The page makes no third-party requests. Fonts and images are served from the same origin.
-- nginx allows only GET and HEAD, blocks dotfiles, and sends the usual hardening headers. HSTS is sent for the apex domain.
+- The web server allows only GET and HEAD, blocks dotfiles, and sends the usual hardening headers, HSTS among them.
 - HTML, the PDF, and images send `Cache-Control: no-cache`, so browsers revalidate. Hashed `_astro` files are cached for a year.
 
 ## Structure
