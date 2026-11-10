@@ -1,7 +1,7 @@
 import type { Doom, DoomEnd } from "./doom";
 import { driveWithFinger } from "./finger";
 import { DITHER_PERIOD, GROUND_DEPTH, SOIL_DEPTH, drawGem, drawPuff, drawSun, mix, paintGround, paintSky, rng, skyAt, smokePuffs, soilFlecks, sunHalo, tileThroughTurn } from "./art";
-import { buildPath, placeProps, surfaceAt } from "./path";
+import { buildPath, placeProps, plantStands, plantUnderstory, surfaceAt } from "./path";
 import { CLOUD_KINDS, DAN_SHEET, MISHKA_SHEET, PROP_SHEET, TREE_SHEET, loadArt, type Art } from "./assets";
 import layouts from "./room-layouts.json";
 import { ROOM_SCALE, createRoomScene } from "./room-scene";
@@ -41,7 +41,8 @@ function roomLeft(room: (typeof ROOMS)[keyof typeof ROOMS], pixel: number, viewW
 const ROOM_SCALE_SNAP = 0.05;
 const REVEAL = { from: 3380, to: 3930, summitAt: 0.56, baseBelowGround: 6, buriedTop: 70, drift: 34 };
 const FIRST_NEAR_TREE = 340;
-const TREE_BUILDING_MARGIN = 110;
+const TREE_BUILDING_MARGIN = 50;
+const UNDERSTORY_DEPTH = 14;
 const SKYLINE_PARALLAX = 0.26;
 const SKYLINE_X = { rattlesnake: 0, olympics: 500, issaquah: 1040, beyond: 1570 };
 const SKYLINE_RISE = 8;
@@ -107,6 +108,20 @@ export type WalkElements = {
   actors: HTMLCanvasElement;
   room: HTMLCanvasElement;
 };
+
+type Size = { width: number; height: number };
+
+function drawSprite(c: CanvasRenderingContext2D, sheet: HTMLImageElement, kind: number, cell: Size, x: number, y: number, drawn: Size, flipped: boolean) {
+  if (!flipped) {
+    c.drawImage(sheet, kind * cell.width, 0, cell.width, cell.height, x, y, drawn.width, drawn.height);
+    return;
+  }
+  c.save();
+  c.translate(x + drawn.width, y);
+  c.scale(-1, 1);
+  c.drawImage(sheet, kind * cell.width, 0, cell.width, cell.height, 0, 0, drawn.width, drawn.height);
+  c.restore();
+}
 
 function slice(image: HTMLImageElement, width: number, height: number) {
   const frames = (flip: boolean) =>
@@ -260,19 +275,16 @@ export function startWalk({ stage, view, canvas, layers: layerCanvases, plane, a
         const clearOfWheel = (layerX: number) =>
           layerX + drawn.width + GREAT_WHEEL.reach < wheelX + (parallax - HILLS_PARALLAX) * wheelOnScreenFrom ||
           layerX - GREAT_WHEEL.reach > wheelX + (parallax - HILLS_PARALLAX) * wheelOnScreenTo;
-        let tx = FIRST_NEAR_TREE;
-        while (tx < width) {
-          const surface = surfaceAt(centredWorldX(tx));
-          const sparse = surface.name === "sand";
-          const grove = sparse ? 1 + Math.floor(r() * 2) : 2 + Math.floor(r() * 5);
-          for (let i = 0; i < grove && tx < width; i++) {
-            const kind = surface.trees[Math.floor(r() * surface.trees.length)];
-            if (clearOfBuildings(centredWorldX(tx)) && clearOfWheel(tx)) {
-              c.drawImage(art.trees, kind * TREE_SHEET.width, 0, TREE_SHEET.width, TREE_SHEET.height, Math.round(tx), ground + LAYER_BASE - drawn.height, drawn.width, drawn.height);
-            }
-            tx += (34 + r() * 40) * scale;
-          }
-          tx += (sparse ? 240 : 80) + r() * 220;
+        for (const tree of plantStands(r, FIRST_NEAR_TREE, width, drawn.width, (x) => surfaceAt(centredWorldX(x)))) {
+          if (!clearOfBuildings(centredWorldX(tree.x)) || !clearOfWheel(tree.x)) continue;
+          drawSprite(c, art.trees, tree.kind, TREE_SHEET, tree.x, ground + LAYER_BASE - drawn.height, drawn, tree.flipped);
+        }
+      };
+      const paintUnderstory = (c: CanvasRenderingContext2D, width: number) => {
+        const worldX = (layerX: number) => (layerX - vw / 2) / MEADOW_PARALLAX + vw / 2;
+        for (const plant of plantUnderstory(rng(57), width, (x) => surfaceAt(worldX(x)))) {
+          const top = ground + LAYER_BASE - PROP_SHEET.height - Math.round(plant.depth * UNDERSTORY_DEPTH);
+          drawSprite(c, art.props, plant.kind, PROP_SHEET, plant.x, top, PROP_SHEET, plant.flipped);
         }
       };
       layers = [
@@ -303,7 +315,10 @@ export function startWalk({ stage, view, canvas, layers: layerCanvases, plane, a
           c.globalCompositeOperation = "source-over";
         }),
         layer(NEAR_TREE_PARALLAX, TREE_SHEET.height, (c, width) => paintGroves(c, width, NEAR_TREE_PARALLAX, rng(21), 1)),
-        layer(MEADOW_PARALLAX, art.meadow.after.height, (c, width) => tileThroughTurn(c, art.meadow, layerXAt(MEADOW_TURN_WORLD_X, MEADOW_PARALLAX), width, ground + LAYER_BASE)),
+        layer(MEADOW_PARALLAX, PROP_SHEET.height + UNDERSTORY_DEPTH, (c, width) => {
+          tileThroughTurn(c, art.meadow, layerXAt(MEADOW_TURN_WORLD_X, MEADOW_PARALLAX), width, ground + LAYER_BASE);
+          paintUnderstory(c, width);
+        }),
       ];
       props = placeProps(rng(9));
       const r = rng(3);
