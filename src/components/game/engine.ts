@@ -915,7 +915,7 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
         return;
       }
       const inControl = event.target instanceof Element && event.target.closest("a, button, input, textarea");
-      if (simulation.view().finale >= CONTACT_FINALE && !inControl && !event.metaKey && !event.ctrlKey && !event.altKey && terminal.press(event.key)) {
+      if (simulation.view().finale >= CONTACT_FINALE && measureTrack().pinned && !inControl && !event.metaKey && !event.ctrlKey && !event.altKey && terminal.press(event.key)) {
         event.preventDefault();
         return;
       }
