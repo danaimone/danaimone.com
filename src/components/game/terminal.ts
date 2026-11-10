@@ -6,7 +6,9 @@ export const TERMINAL_ROWS = 7;
 export const PROMPT = "→ ";
 const MAX_INPUT = 40;
 const MAX_HISTORY = 40;
-const TICKS_PER_DEMO_KEY = 7;
+// A person does not type on a metronome: the gap before each demo key cycles
+// through these, in ticks.
+const DEMO_KEY_TICKS = [6, 9, 5, 7, 12, 6, 8, 5, 10];
 const TICKS_AFTER_DEMO_COMMAND = 150;
 const DEMO_RESUMES_AFTER_TICKS = 900;
 const DEMO_COMMANDS = ["whoami", "neofetch", "mishka", "top"];
@@ -81,7 +83,7 @@ export function createTerminal(onCommand: (command: string) => void = () => {}) 
     if (demoLetter < command.length) {
       input += command[demoLetter];
       demoLetter += 1;
-      demoWait = TICKS_PER_DEMO_KEY;
+      demoWait = DEMO_KEY_TICKS[keystrokes % DEMO_KEY_TICKS.length];
       return;
     }
     run();

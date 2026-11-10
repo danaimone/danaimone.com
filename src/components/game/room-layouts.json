@@ -129,12 +129,12 @@
       "reach": 28.0
     },
     "handsBox": {
-      "x": 368,
-      "y": 166,
-      "width": 48,
-      "height": 30
+      "x": 394,
+      "y": 170,
+      "width": 20,
+      "height": 24
     },
-    "typingHands": 2,
+    "typingFrames": 5,
     "mishkaBox": {
       "x": 455,
       "y": 262,
@@ -883,12 +883,12 @@
       "reach": 33.0
     },
     "handsBox": {
-      "x": 104,
-      "y": 406,
-      "width": 54,
-      "height": 32
+      "x": 126,
+      "y": 408,
+      "width": 22,
+      "height": 28
     },
-    "typingHands": 2,
+    "typingFrames": 5,
     "mishkaBox": {
       "x": 180,
       "y": 512,

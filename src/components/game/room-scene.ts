@@ -18,7 +18,7 @@ export type RoomLayout = {
   fireBox: Box;
   hearth: Omit<Hearth, "width" | "height">;
   handsBox: Box;
-  typingHands: number;
+  typingFrames: number;
   mishkaBox: Box;
   stars: number[][];
   lake: number[][];
@@ -61,9 +61,7 @@ const DOUBLE_BLINK_EVERY_SECONDS = 5.6;
 const BLINK_SECONDS = 0.14;
 const EYELID = "#e8b888";
 const LASHES = "#4a2c20";
-const FINGER_LIFT_SECONDS = 0.09;
-const KEYSTROKE_KINDS = 8;
-const NEAR_HAND_LIFTS = 3;
+const FINGER_TAP_SECONDS = 0.08;
 const STEAM_HEIGHT = 18;
 const SCREEN_GRID = 3;
 const SCREEN_DETAIL = 2;
@@ -363,6 +361,7 @@ export function createRoomScene(art: RoomArt, room: RoomLayout, terminal: Termin
   const side = createScreen(room.side, room.sideCorners, room.side, art.side);
   let keystrokes = 0;
   let lastKeyAt = -1;
+  let tap = 0;
   let paintedMain = "";
   let paintedGameFrame = 0;
   let paintedLine = -1;
@@ -432,14 +431,11 @@ export function createRoomScene(art: RoomArt, room: RoomLayout, terminal: Termin
       if (screen.keystrokes !== keystrokes) {
         keystrokes = screen.keystrokes;
         lastKeyAt = t;
+        const next = (Math.imul(keystrokes, 0x9e3779b1) >>> 16) % room.typingFrames;
+        tap = next === tap ? (next + 1) % room.typingFrames : next;
       }
       if (animate) drawBlink(ctx, room.blink, t);
-      // Most keystrokes move nothing you can see. The near hand's lift is small,
-      // the far hand's is the big one, so it is the rarest.
-      const kind = (Math.imul(keystrokes, 0x9e3779b1) >>> 16) % KEYSTROKE_KINDS;
-      if (lastKeyAt >= 0 && t - lastKeyAt < FINGER_LIFT_SECONDS && kind <= NEAR_HAND_LIFTS) {
-        drawStripFrame(ctx, art.hands, room.handsBox, kind === 0 ? 0 : 1);
-      }
+      if (lastKeyAt >= 0 && t - lastKeyAt < FINGER_TAP_SECONDS) drawStripFrame(ctx, art.hands, room.handsBox, tap);
       const cursorOn = !animate || Math.floor(t * 2) % 2 === 0;
       const now = new Date();
       const clock = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;

@@ -34,8 +34,8 @@ ROOMS = {
         "window": (110, 47, 262, 179), "starLight": 150, "city": (150, 148, 240, 162), "lake": (140, 160, 250, 179),
         "coffee": (462, 182), "candles": [(530, 83), (543, 89)],
         "blink": (354, 138, 2, 2),
-        "hands": (368, 166, 416, 196),
-        "lifts": {"origin": (320, 137), "frames": ["lift-wide-far.png", "lift-wide-near.png"]},
+        "hands": (394, 170, 414, 194),
+        "taps": {"origin": (320, 137), "frames": ["tap-wide-f1.png", "tap-wide-n1.png", "tap-wide-f2.png", "tap-wide-n2.png", "tap-wide-f3.png"]},
     },
     "tall": {
         "source": "tall.png",
@@ -44,8 +44,8 @@ ROOMS = {
         "window": (18, 164, 142, 298), "starLight": 150, "city": (55, 256, 125, 272), "lake": (40, 268, 125, 298),
         "coffee": (200, 423), "candles": [(266, 315), (280, 321)],
         "blink": (81, 367, 2, 2),
-        "hands": (104, 406, 158, 438),
-        "lifts": {"origin": (55, 379), "frames": ["lift-tall-far.png", "lift-tall-near.png"]},
+        "hands": (126, 408, 148, 436),
+        "taps": {"origin": (55, 379), "frames": ["tap-tall-f1.png", "tap-tall-n1.png", "tap-tall-f2.png", "tap-tall-n2.png", "tap-tall-f3.png"]},
     },
 }
 
@@ -120,18 +120,18 @@ def hearth(fire):
 
 
 def typing_strip(art, spec):
-    """One painted frame per hand, the far hand first: that hand with its fingers raised off the keys. Each is a patch
-    holding only the hand's pixels that differ from the plate, so the keyboard beside it does not flicker."""
+    """One painted frame per tap: a finger or two of one hand raised off the keys or pressed in, with the hand itself
+    still. Each is a patch holding only the finger pixels that differ from the plate, so nothing else can move."""
     x0, y0, x1, y1 = spec["hands"]
     width, height = x1 - x0, y1 - y0
-    frames = spec["lifts"]["frames"]
+    frames = spec["taps"]["frames"]
     strip = Image.new("RGBA", (width * len(frames), height))
-    ox, oy = spec["lifts"]["origin"]
+    ox, oy = spec["taps"]["origin"]
     for hand, frame in enumerate(frames):
-        lifted = Image.open(art / "cabin2" / frame).convert("RGBA")
-        left, top, right, bottom = lifted.getbbox()
-        assert x0 <= ox + left and ox + right <= x1 and y0 <= oy + top and oy + bottom <= y1, "the lifted hand leaves the hands box"
-        strip.alpha_composite(lifted, (hand * width + ox - x0, oy - y0))
+        tap = Image.open(art / "cabin2" / frame).convert("RGBA")
+        left, top, right, bottom = tap.getbbox()
+        assert x0 <= ox + left and ox + right <= x1 and y0 <= oy + top and oy + bottom <= y1, "the tap leaves the hands box"
+        strip.alpha_composite(tap, (hand * width + ox - x0, oy - y0))
     return strip
 
 
@@ -248,7 +248,7 @@ def build(art, out, name, spec):
         "width": plate.width, "height": plate.height, "main": main, "side": side,
         "mainCorners": corners(main), "sideCorners": corners(side),
         "fireBox": box(spec["fire"]["opening"]), "hearth": hearth(spec["fire"]),
-        "handsBox": box(spec["hands"]), "typingHands": len(spec["lifts"]["frames"]),
+        "handsBox": box(spec["hands"]), "typingFrames": len(spec["taps"]["frames"]),
         "mishkaBox": box(spec["dog"]), "mishkaFrames": SLEEP_FRAMES, "stars": stars, "city": city, "lake": lake_spans(plate, spec["lake"]),
         "coffee": point(spec["coffee"]), "snore": point(spec["snore"]), "snoreDrift": spec["snoreDrift"], "candles": [point(c) for c in spec["candles"]],
         "blink": {"x": bx, "y": by, "width": bw, "height": bh},

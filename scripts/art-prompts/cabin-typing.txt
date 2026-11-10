@@ -1,13 +1,13 @@
 Use your built-in image generation tool (imagegen skill, built-in mode) to edit Image 1 and create ONE image at 16:9 aspect ratio, exactly 2560x1440 pixels, then copy the generated PNG into the current working directory as ./NAME.png. Do not write code or any other files. Reply with just the saved path.
 
 Use case: precise-object-edit
-Asset type: one frame of a typing animation for a pixel-art game scene
-Input images: Image 1 is the edit target. It is a close-up of a man's two forearms and hands typing on a small mechanical keyboard on a wooden desk, seen from the side, under a monitor.
+Asset type: one in-between frame of a subtle typing animation for a pixel-art game scene
+Input images: Image 1 is the edit target. It is a close-up of a man's two forearms and hands resting on a small mechanical keyboard on a wooden desk, seen from the side, under a monitor.
 
-Change only this one thing:
-The hand FARTHER from the viewer (the upper one): its fingers are lifted clearly off the keys, raised and slightly spread, with a visible gap of dark keyboard between the fingertips and the keycaps. The nearer hand stays exactly as it is.
+Change only this one thing, on the hand FARTHER from the viewer (the upper one):
+Its index finger, the fingertip furthest to the right, is raised a little off its key, about one keycap of height, and slightly straightened. Its other fingers stay on the keys.
 
-This is one frame of a typing animation, so the change must be easy to see, but the hand keeps the same size, skin tones, dark outline and wrist position. Only the fingers and knuckles of that one hand move.
+This is natural touch typing: the hand itself does not move. The wrist, the back of the hand, the thumb and the forearm stay in exactly the same place, pixel for pixel. Only the named fingers change, and the change is small.
 
 Keep everything else unchanged, pixel for pixel: both forearms and sleeves, the other hand, the keyboard and every keycap, the desk, the monitor and its stand, the mouse and the wall. Do not crop, reframe, or rescale.
-Style: polished 16-bit pixel art on the same art-pixel grid as Image 1 (one art pixel is exactly a 16x16 block of image pixels), hard edges, flat colour blocks, no anti-aliasing, no blur, no text.
+Style: polished 16-bit pixel art on the same art-pixel grid as Image 1 (one art pixel is exactly a 16x16 block of image pixels), crisp hard edges, flat colour blocks, the same dark outline around the fingers, no anti-aliasing, no blur, no motion smear, no text.
