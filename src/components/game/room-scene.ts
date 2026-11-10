@@ -1,4 +1,5 @@
 import type { RoomArt } from "./assets";
+import { createFire, type Hearth } from "./fire";
 import simulationSource from "./simulation.ts?raw";
 import { PROMPT, type Terminal } from "./terminal";
 
@@ -15,7 +16,7 @@ export type RoomLayout = {
   mainCorners: ScreenCorners;
   sideCorners: ScreenCorners;
   fireBox: Box;
-  fireFrames: number;
+  hearth: Omit<Hearth, "width" | "height">;
   handsBox: Box;
   handFrames: number;
   mishkaBox: Box;
@@ -370,6 +371,25 @@ export function createRoomScene(art: RoomArt, room: RoomLayout, terminal: Termin
     ctx.drawImage(strip, frame * box.width, 0, box.width, box.height, box.x, box.y, box.width, box.height);
   }
 
+  const fire = createFire({ ...room.hearth, width: room.fireBox.width, height: room.fireBox.height });
+  const flames = document.createElement("canvas");
+  flames.width = room.fireBox.width;
+  flames.height = room.fireBox.height;
+  const flamesCtx = flames.getContext("2d")!;
+  const flamePixels = flamesCtx.createImageData(flames.width, flames.height);
+  let fireTick = -1;
+
+  function drawFire(ctx: Ctx, t: number, animate: boolean) {
+    const tick = animate ? Math.floor(t * FIRE_FPS) : 0;
+    if (tick !== fireTick) {
+      if (fireTick !== -1) fire.step();
+      fireTick = tick;
+      fire.paint(flamePixels.data);
+      flamesCtx.putImageData(flamePixels, 0, 0);
+    }
+    ctx.drawImage(flames, room.fireBox.x, room.fireBox.y);
+  }
+
   let scaledPlate: HTMLCanvasElement | null = null;
 
   function plateAtRoomScale() {
@@ -395,8 +415,7 @@ export function createRoomScene(art: RoomArt, room: RoomLayout, terminal: Termin
       ctx.setTransform(ROOM_SCALE, 0, 0, ROOM_SCALE, 0, 0);
       const screen = terminal.screen();
 
-      const fireFrame = Math.floor(t * FIRE_FPS) % room.fireFrames;
-      drawStripFrame(ctx, art.fire, room.fireBox, animate ? fireFrame : 0);
+      drawFire(ctx, t, animate);
       const flicker = animate ? 0.02 * Math.sin(t * 5) * Math.sin(t * 2.3) : 0;
       softLight(ctx, room.fireBox.x + room.fireBox.width / 2, room.fireBox.y + room.fireBox.height * 0.65, 170, 0.1 + flicker);
 

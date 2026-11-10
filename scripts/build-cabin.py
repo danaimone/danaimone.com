@@ -2,13 +2,12 @@
 """Build the cabin's plate and animation layers from one painted scene per layout.
 
 Each layout is one painting on the art grid, used as painted: nothing is pasted onto it. The monitors are painted as
-flat key colours and become the screen masks. Every animation layer is cut from the plate or drawn to fit it.
+flat key colours and become the screen masks. Every animation layer is cut from the plate or drawn to fit it; the fire burns in the page, from the hearth measured here.
 
     build-cabin.py ~/danaimone-art public/game src/components/game/room-layouts.json
 """
 import json
 import math
-import random
 import sys
 from collections import deque
 from pathlib import Path
@@ -17,7 +16,6 @@ from PIL import Image
 
 SCREEN_GLASS = (30, 30, 46)
 PALETTE_COLORS = 256
-FIRE_FRAMES = 16
 SLEEP_FRAMES = 8
 BREATH_PIXELS = 2
 RIB_SPAN = (0.3, 0.7)
@@ -26,18 +24,12 @@ STAR_GAP = 4
 LIGHT_GAP = 3
 MIN_LAKE_SPAN = 6
 FLAME_TUCK = 4
-FLAME_INKS = [(44, (255, 240, 180)), (32, (255, 204, 92)), (19, (255, 150, 40)), (8, (232, 92, 24))]
-FIRE_HEAT = 64
-FIRE_STEADY = 0.45
-FIRE_COOLING = (0, 1, 1, 1, 2)
-FIRE_DRIFT = (-1, 0, 0, 1)
 FIRE_SPREAD = 4
-FIRE_WARM_UP = 80
 
 ROOMS = {
     "wide": {
         "source": "wide.png",
-        "fire": {"opening": (537, 153, 603, 232), "grateTop": 226, "logRim": [(544, 217), (550, 211), (560, 206), (570, 201), (578, 199), (582, 203), (585, 210), (590, 215), (592, 221)], "seed": 51},
+        "fire": {"opening": (537, 153, 603, 232), "grateTop": 226, "logRim": [(544, 217), (550, 211), (560, 206), (570, 201), (578, 199), (582, 203), (585, 210), (590, 215), (592, 221)]},
         "dog": (455, 262, 570, 330), "snore": (552, 270), "snoreDrift": -12,
         "window": (110, 47, 262, 179), "starLight": 150, "city": (150, 148, 240, 162), "lake": (140, 160, 250, 179),
         "coffee": (462, 182), "candles": [(530, 83), (543, 89)],
@@ -46,7 +38,7 @@ ROOMS = {
     },
     "tall": {
         "source": "tall.png",
-        "fire": {"opening": (269, 381, 332, 474), "grateTop": 458, "logRim": [(270, 452), (278, 444), (293, 435), (307, 429), (312, 431), (316, 436), (322, 441), (328, 449)], "seed": 52},
+        "fire": {"opening": (269, 381, 332, 474), "grateTop": 458, "logRim": [(270, 452), (278, 444), (293, 435), (307, 429), (312, 431), (316, 436), (322, 441), (328, 449)]},
         "dog": (180, 512, 312, 592), "snore": (272, 526), "snoreDrift": -10,
         "window": (18, 164, 142, 298), "starLight": 150, "city": (55, 256, 125, 272), "lake": (40, 268, 125, 298),
         "coffee": (200, 423), "candles": [(266, 315), (280, 321)],
@@ -113,47 +105,16 @@ def flame_floor(fire):
     return floor
 
 
-def fire_strip(fire):
-    """A looped pixel fire behind the painted logs. Heat is fed in along the logs' top edge, hottest in the middle, and
-    each cell takes the heat of a cell just below it, shifted a column either way and cooled by a random step. The feed
-    swells and fades along the logs, so the heat rises as separate tongues, and each pixel is inked from the average
-    heat around it, so a tongue has a clean edge. Frames are consecutive steps: the loop's seam is one more flicker."""
+def hearth(fire):
+    """What the page needs to burn its own fire: the flame floor of each column and where along the logs the heat is fed."""
     x0, y0, x1, y1 = fire["opening"]
     floor = flame_floor(fire)
-    width, height = x1 - x0, y1 - y0
     rim = fire["logRim"]
-    middle, reach = (rim[0][0] + rim[-1][0]) / 2, (rim[-1][0] - rim[0][0]) / 2 + FIRE_SPREAD
-    rand = random.Random(fire["seed"])
-    heat = [[0] * width for _ in range(height)]
-    strip = Image.new("RGBA", (width * FIRE_FRAMES, height))
-    out = strip.load()
-    for step in range(FIRE_WARM_UP + FIRE_FRAMES):
-        for x in range(width):
-            off_centre = min(1.0, abs(x + x0 - middle) / reach)
-            lick = 0.5 + 0.5 * math.sin(x * 0.55 + step * 0.8) * math.sin(x * 0.23 - step * 0.45 + 1.3)
-            fuel = FIRE_HEAT * (1 - off_centre ** 2) * (FIRE_STEADY + (1 - FIRE_STEADY) * lick)
-            base = floor[x + x0] - y0
-            for y in range(base, min(height, base + FLAME_TUCK + 1)):
-                heat[y][x] = max(0, round(fuel * rand.uniform(0.7, 1)))
-        for y in range(height - 1):
-            for x in range(width):
-                if y >= floor[x + x0] - y0:
-                    continue
-                source = min(width - 1, max(0, x + rand.choice(FIRE_DRIFT)))
-                heat[y][x] = max(0, heat[y + 1][source] - rand.choice(FIRE_COOLING))
-        frame = step - FIRE_WARM_UP
-        if frame < 0:
-            continue
-        for y in range(height):
-            for x in range(width):
-                if y >= floor[x + x0] - y0:
-                    continue
-                near = [heat[ny][nx] for ny in (y - 1, y, y + 1) for nx in (x - 1, x, x + 1) if 0 <= ny < height and 0 <= nx < width and ny < floor[nx + x0] - y0]
-                warmth = (sum(near) + heat[y][x]) / (len(near) + 1)
-                color = next((ink for least, ink in FLAME_INKS if warmth >= least), None)
-                if color:
-                    out[frame * width + x, y] = color + (255,)
-    return strip
+    return {
+        "floor": [floor[x] - y0 for x in range(x0, x1)],
+        "middle": (rim[0][0] + rim[-1][0]) / 2 - x0,
+        "reach": (rim[-1][0] - rim[0][0]) / 2 + FIRE_SPREAD,
+    }
 
 
 def typing_strip(plate, spec):
@@ -269,7 +230,6 @@ def build(art, out, name, spec):
     indexed = plate.quantize(colors=PALETTE_COLORS, dither=Image.Dither.NONE)
     plate = indexed.convert("RGB")
 
-    fire_strip(spec["fire"]).save(out / f"room-{name}-fire.png", optimize=True)
     typing_strip(plate, spec).save(out / f"room-{name}-hands.png", optimize=True)
     sleeping_strip(plate, spec).save(out / f"room-{name}-mishka.png", optimize=True)
     mask_image(magenta, main).save(out / f"room-{name}-screen.png", optimize=True)
@@ -283,7 +243,7 @@ def build(art, out, name, spec):
     return {
         "width": plate.width, "height": plate.height, "main": main, "side": side,
         "mainCorners": corners(main), "sideCorners": corners(side),
-        "fireBox": box(spec["fire"]["opening"]), "fireFrames": FIRE_FRAMES,
+        "fireBox": box(spec["fire"]["opening"]), "hearth": hearth(spec["fire"]),
         "handsBox": box(spec["hands"]), "handFrames": len(spec["presses"]),
         "mishkaBox": box(spec["dog"]), "mishkaFrames": SLEEP_FRAMES, "stars": stars, "city": city, "lake": lake_spans(plate, spec["lake"]),
         "coffee": point(spec["coffee"]), "snore": point(spec["snore"]), "snoreDrift": spec["snoreDrift"], "candles": [point(c) for c in spec["candles"]],

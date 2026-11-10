@@ -17,15 +17,14 @@ const load = async (src: string) => {
 const game = (name: string) => load(gameUrl(name));
 
 const loadRoom = async (name: "wide" | "tall") => {
-  const [plate, fire, hands, mishka, screen, side] = await Promise.all([
+  const [plate, hands, mishka, screen, side] = await Promise.all([
     game(name === "wide" ? "interior" : "interior-tall"),
-    game(`room-${name}-fire`),
     game(`room-${name}-hands`),
     game(`room-${name}-mishka`),
     game(`room-${name}-screen`),
     game(`room-${name}-side`),
   ]);
-  return { plate, fire, hands, mishka, screen, side };
+  return { plate, hands, mishka, screen, side };
 };
 
 export type RoomArt = Awaited<ReturnType<typeof loadRoom>>;

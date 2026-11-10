@@ -6,7 +6,7 @@ Built with Bun, Astro 7, Svelte 5, TypeScript, and canvas. The page is static HT
 
 ### Art pipeline
 
-Art was generated with GPT Image (via Codex) from the prompts in `scripts/art-prompts/`, using the avatar as the identity reference and the Dan sheet as the style reference for everything else. Raw generations are not committed. Each one is cleaned into true pixel art, and building night lights are extracted. The cabin is built differently: each layout is one scene painted from scratch on a 4 px art grid (`cabin-wide.txt`, then `cabin-hands.txt` for the hands, then `cabin-tall.txt` to repaint the same room for phones). `scripts/build-cabin.py` uses each painting as painted, with nothing pasted on, and draws the fire, the typing fingers and Mishka's breathing to fit it, with `room-layouts.json` as the manifest. The monitors are generated as flat key colors, so the masks come straight from the art.
+Art was generated with GPT Image (via Codex) from the prompts in `scripts/art-prompts/`, using the avatar as the identity reference and the Dan sheet as the style reference for everything else. Raw generations are not committed. Each one is cleaned into true pixel art, and building night lights are extracted. The cabin is built differently: each layout is one scene painted from scratch on a 4 px art grid (`cabin-wide.txt`, then `cabin-hands.txt` for the hands, then `cabin-tall.txt` to repaint the same room for phones). `scripts/build-cabin.py` uses each painting as painted, with nothing pasted on, measures the hearth for the fire the page simulates, and draws the typing fingers and Mishka's breathing to fit it, with `room-layouts.json` as the manifest. The monitors are generated as flat key colors, so the masks come straight from the art.
 
 ```sh
 python3 scripts/pixelize.py raw/dan-sheet.png out/dan --frames 6 --height 84 --colors 28
@@ -67,7 +67,7 @@ Pushing to `main` does not deploy.
 - `src/components/game/simulation.ts`: the rules of the walk, with no browser: following, sprinting, jumps, gems, zones, teleport. Input and effects are plain data, so `bun test` covers it.
 - `src/components/game/world.ts`: career stops, landmarks, and gems. To add a job, add it to the résumé and give it a place here; the compiler requires it.
 - `src/components/game/assets.ts`: loads the art by name. If any image fails, the walk becomes a static hero and the résumé still works.
-- `src/components/game/room-scene.ts`: the cabin's live scene: fire and hand frames, candles, steam, Mishka, window lights, the Rex terminal, and Neovim showing `simulation.ts`.
+- `src/components/game/room-scene.ts`: the cabin's live scene: the fire (simulated in `fire.ts`), hand frames, candles, steam, Mishka, window lights, the Rex terminal, and Neovim showing `simulation.ts`.
 - `src/components/game/terminal.ts`: the toy terminal on the monitor. It prints canned text and runs nothing.
 - `src/components/game/engine.ts`: browser plumbing and drawing. It feeds the simulation and renders what the simulation reports.
 - `src/components/game/CareerWalk.svelte`: the overlay: intro, cards, toolkit, toasts, timeline.

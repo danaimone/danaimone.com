@@ -34,7 +34,7 @@ describe("built game art", () => {
 
   test("every image loadArt requests is a hashed file the bundle points at", async () => {
     const names = await namesLoadArtRequests();
-    expect(names.length).toBeGreaterThan(40);
+    expect(names.length).toBeGreaterThan(30);
     const hashed = filesUnder(join(DIST, "_astro")).filter((file) => file.endsWith(".png"));
     const byContent = new Map(hashed.map((file) => [sha(file), file]));
     const bundle = filesUnder(join(DIST, "_astro"))
