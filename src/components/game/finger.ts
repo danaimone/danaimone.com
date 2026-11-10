@@ -1,8 +1,8 @@
 import { clamp } from "./track";
 
-const VELOCITY_WINDOW_MS = 90;
+const VELOCITY_WINDOW_MS = 60;
 const HELD_STILL_MS = 70;
-const GLIDE_FROM_SPEED = 0.35;
+const GLIDE_FROM_SPEED = 0.1;
 const MAX_RELEASE_SPEED = 3;
 const GLIDE_DECAY_PER_MS = 0.998;
 const GLIDE_STOP_SPEED = 0.06;
@@ -55,7 +55,22 @@ export function fingerAt(samples: FingerSample[], at: number) {
 export const fingerTakes = ({ pinned, scrollY, drag, cardScrolls }: Take) =>
   pinned && !cardScrolls && !(scrollY <= 0 && drag > 0);
 
-type Drive = { startY: number; startScroll: number; ratio: number; samples: FingerSample[]; lift: { at: number; glide: Glide | null } | null };
+export type Lift = { at: number; glide: Glide | null };
+type Drive = { startY: number; startScroll: number; ratio: number; samples: FingerSample[]; lift: Lift | null };
+
+// How far the finger has dragged by `at`, and after it lifts, how far the glide has
+// carried on from there. A lift is dated at the last place the finger was seen:
+// touchend arrives a few ms later, and waiting out that gap would stall the walk
+// for a frame before the glide.
+export function travelAt({ startY, samples, lift }: Pick<Drive, "startY" | "samples" | "lift">, at: number) {
+  if (!lift || at <= lift.at) return startY - fingerAt(samples, at);
+  return startY - samples.at(-1)!.y + (lift.glide ? glideOffset(lift.glide, at - lift.at) : 0);
+}
+
+export const liftOff = (samples: FingerSample[], liftedAt: number, glides: boolean): Lift => ({
+  at: samples.at(-1)!.at,
+  glide: glides ? glideFrom(releaseSpeed(samples, liftedAt)) : null,
+});
 
 // iOS momentum cannot be shortened, only never started: the first touchmove has
 // to be cancelled, so a drag inside the pinned walk scrolls the page from here.
@@ -74,11 +89,6 @@ export function driveWithFinger(
     const now = performance.now();
     return Math.abs(event.timeStamp - now) < SAMPLE_CLOCK_SKEW_MS ? event.timeStamp : now;
   };
-
-  function travelAt({ startY, samples, lift }: Drive, at: number) {
-    if (!lift || at <= lift.at) return startY - fingerAt(samples, at);
-    return startY - samples.at(-1)!.y + (lift.glide ? glideOffset(lift.glide, at - lift.at) : 0);
-  }
 
   // The page rounds the scroll it was given. Until something else moves the page,
   // the position the finger asked for is the true one: taking the rounded value
@@ -138,8 +148,7 @@ export function driveWithFinger(
     if (event.touches.length > 0) return;
     if (state === "touched" && stoppedGlide && event.cancelable) event.preventDefault();
     if (state === "driving" && drive) {
-      const at = sampledAt(event);
-      drive.lift = { at, glide: glides ? glideFrom(releaseSpeed(drive.samples, at)) : null };
+      drive.lift = liftOff(drive.samples, sampledAt(event), glides);
     } else {
       drive = null;
     }
@@ -147,7 +156,7 @@ export function driveWithFinger(
   }
 
   function onCancel() {
-    if (drive && !drive.lift) drive.lift = { at: drive.samples.at(-1)!.at, glide: null };
+    if (drive && !drive.lift) drive.lift = liftOff(drive.samples, Infinity, false);
     state = "idle";
   }
 
@@ -161,6 +170,8 @@ export function driveWithFinger(
     frame,
     touched: () => touched,
     scroll: exactScroll,
+    touchAge: (now: number) => (state === "driving" && drive ? now - drive.samples.at(-1)!.at : null),
+    gliding: () => drive?.lift != null,
     stop() {
       drive = null;
       surface.removeEventListener("touchstart", onStart);

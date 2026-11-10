@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { fingerAt, fingerTakes, glideFrom, glideOffset, releaseSpeed } from "./finger";
+import { fingerAt, fingerTakes, glideFrom, glideOffset, liftOff, releaseSpeed, travelAt } from "./finger";
 
 const swipe = (pxPerMs: number, ms = 200, stepMs = 16) =>
   Array.from({ length: Math.floor(ms / stepMs) + 1 }, (_, i) => ({ y: 700 - i * stepMs * pxPerMs, at: 1000 + i * stepMs }));
@@ -15,9 +15,26 @@ describe("releasing the finger", () => {
     expect(releaseSpeed(samples, samples.at(-1)!.at + 200)).toBe(0);
   });
 
-  test("a slow drag stops where the finger left it", () => {
-    expect(glideFrom(0.15)).toBeNull();
-    expect(glideFrom(-0.15)).toBeNull();
+  test("a creeping drag stops where the finger left it", () => {
+    expect(glideFrom(0.05)).toBeNull();
+    expect(glideFrom(-0.05)).toBeNull();
+  });
+
+  test("a gentle swipe eases out instead of stopping dead", () => {
+    const glide = glideFrom(0.2)!;
+    expect(glideOffset(glide, glide.ms)).toBeGreaterThan(5);
+  });
+
+  test("the walk keeps the finger's pace through the lift, with no stalled frame", () => {
+    const samples = swipe(1);
+    const drive = { startY: samples[0].y, samples, lift: liftOff(samples, samples.at(-1)!.at + 12, true) };
+    const frame = 1000 / 60;
+    const from = samples.at(-1)!.at - 3 * frame;
+    const steps = [0, 1, 2, 3, 4, 5].map((i) => travelAt(drive, from + (i + 1) * frame) - travelAt(drive, from + i * frame));
+    for (const step of steps) {
+      expect(step).toBeGreaterThan(frame * 0.9);
+      expect(step).toBeLessThanOrEqual(frame + 1e-9);
+    }
   });
 
   test("every flick ends inside the 1.2 s budget, however hard", () => {
