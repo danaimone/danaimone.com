@@ -25,7 +25,7 @@ RIB_DEPTH = 18
 STAR_GAP = 4
 LIGHT_GAP = 3
 MIN_LAKE_SPAN = 6
-FLAME_TUCK = 2
+FLAME_TUCK = 4
 FLAME_INKS = [(44, (255, 240, 180)), (32, (255, 204, 92)), (19, (255, 150, 40)), (8, (232, 92, 24))]
 FIRE_HEAT = 64
 FIRE_STEADY = 0.45
@@ -46,7 +46,7 @@ ROOMS = {
     },
     "tall": {
         "source": "tall.png",
-        "fire": {"opening": (269, 381, 332, 474), "grateTop": 458, "logRim": [(273, 446), (278, 441), (293, 434), (307, 429), (312, 431), (315, 436), (320, 440), (323, 446)], "seed": 52},
+        "fire": {"opening": (269, 381, 332, 474), "grateTop": 458, "logRim": [(270, 452), (278, 444), (293, 435), (307, 429), (312, 431), (316, 436), (322, 441), (328, 449)], "seed": 52},
         "dog": (180, 512, 312, 592), "snore": (272, 526), "snoreDrift": -10,
         "window": (18, 164, 142, 298), "starLight": 150, "city": (55, 256, 125, 272), "lake": (40, 268, 125, 298),
         "coffee": (200, 423), "candles": [(266, 315), (280, 321)],
@@ -98,7 +98,7 @@ def mask_image(points, box):
 
 
 def flame_floor(fire):
-    """The lowest row a flame may reach in each column: just under the logs' top edge, or the grate beside them. The
+    """The lowest row a flame may reach in each column: just over the logs' top edge, or the grate beside them. The
     edge is measured off the painting, because the fire-lit brick behind the logs is as bright as the logs are."""
     x0, _, x1, _ = fire["opening"]
     rim = fire["logRim"]
@@ -148,7 +148,7 @@ def fire_strip(fire):
             for x in range(width):
                 if y >= floor[x + x0] - y0:
                     continue
-                near = [heat[ny][nx] for ny in (y - 1, y, y + 1) for nx in (x - 1, x, x + 1) if 0 <= ny < height and 0 <= nx < width]
+                near = [heat[ny][nx] for ny in (y - 1, y, y + 1) for nx in (x - 1, x, x + 1) if 0 <= ny < height and 0 <= nx < width and ny < floor[nx + x0] - y0]
                 warmth = (sum(near) + heat[y][x]) / (len(near) + 1)
                 color = next((ink for least, ink in FLAME_INKS if warmth >= least), None)
                 if color:
