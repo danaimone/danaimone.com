@@ -68,7 +68,7 @@ export function driveWithFinger(
   let drive: Drive | null = null;
   let stoppedGlide = false;
   let touched = false;
-  let driven: number | null = null;
+  let driven: { exact: number; reported: number } | null = null;
 
   const sampledAt = (event: TouchEvent) => {
     const now = performance.now();
@@ -80,14 +80,20 @@ export function driveWithFinger(
     return startY - samples.at(-1)!.y + (lift.glide ? glideOffset(lift.glide, at - lift.at) : 0);
   }
 
+  // The page rounds the scroll it was given. Until something else moves the page,
+  // the position the finger asked for is the true one: taking the rounded value
+  // when the finger lifts, or when it lands again, would step the walk backwards.
+  function exactScroll() {
+    if (driven && window.scrollY !== driven.reported) driven = null;
+    return driven?.exact ?? null;
+  }
+
   function frame(now: number) {
-    if (!drive || state === "touched") {
-      if (!drive) driven = null;
-      return;
-    }
+    if (!drive || state === "touched") return;
     const at = now - FINGER_DELAY_MS;
-    driven = drive.startScroll + travelAt(drive, at) * drive.ratio;
-    window.scrollTo(0, driven);
+    const exact = drive.startScroll + travelAt(drive, at) * drive.ratio;
+    window.scrollTo(0, exact);
+    driven = { exact, reported: window.scrollY };
     const { lift } = drive;
     if (lift && at >= lift.at + (lift.glide?.ms ?? 0)) drive = null;
   }
@@ -102,7 +108,7 @@ export function driveWithFinger(
     }
     state = "touched";
     const y = event.touches[0].clientY;
-    drive = { startY: y, startScroll: window.scrollY, ratio: dragRatio(), samples: [{ y, at: sampledAt(event) }], lift: null };
+    drive = { startY: y, startScroll: exactScroll() ?? window.scrollY, ratio: dragRatio(), samples: [{ y, at: sampledAt(event) }], lift: null };
   }
 
   function onMove(event: TouchEvent) {
@@ -154,7 +160,7 @@ export function driveWithFinger(
   return {
     frame,
     touched: () => touched,
-    scroll: () => driven,
+    scroll: exactScroll,
     stop() {
       drive = null;
       surface.removeEventListener("touchstart", onStart);
