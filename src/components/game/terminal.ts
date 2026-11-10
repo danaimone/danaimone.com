@@ -1,3 +1,5 @@
+import { EMAIL } from "../../data/resume";
+
 export const TERMINAL_COLUMNS = 20;
 export const TERMINAL_ROWS = 7;
 
@@ -17,8 +19,8 @@ export const RESPONSES: Record<string, string[]> = {
   "ls -a": [".mishka-treats", ".fire-is-on", "resume.pdf"],
   "cat resume.pdf": ["scroll down.", "or type hire"],
   "cat .mishka-treats": ["empty.", "she knows."],
-  hire: ["hello@danaimone.com"],
-  "sudo hire dan": ["granted.", "hello@danaimone.com"],
+  hire: [EMAIL],
+  "sudo hire dan": ["granted.", EMAIL],
   neofetch: ["os: log cabin", "wm: firewood", "shell: warm", "dog: samoyed"],
   top: ["mishka  100% nap", "fire     12% cpu", "dan      coffee"],
   uptime: ["up since 2017", "load: 1 samoyed"],

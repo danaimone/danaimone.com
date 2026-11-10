@@ -19,9 +19,7 @@
 
   --paper: var(--crust);
   --ink: var(--text);
-  --ink-soft: var(--subtext1);
   --ink-faint: var(--overlay);
-  --rule: var(--surface0);
   --amber: var(--peach);
   --amber-soft: #f9e2af;
   --glass: rgb(17 17 27 / 0.76);
@@ -29,7 +27,6 @@
 
   --sans: "Instrument Sans Variable", ui-sans-serif, system-ui, sans-serif;
   --pixel: "Pixelify Sans Variable", var(--sans);
-  --measure: 40rem;
   --gutter: clamp(1.25rem, 4.5vw, 3.5rem);
   --page: 78rem;
   --mark: 3.5rem;
@@ -318,14 +315,6 @@ a:hover {
   image-rendering: pixelated;
 }
 
-.walk-actions > a:not(.button) {
-  text-shadow: 0 1px 2px rgb(12 11 26 / 0.7), 0 0 18px rgb(12 11 26 / 0.45);
-}
-
-.walk-intro h1 span {
-  display: block;
-}
-
 .walk-lede {
   max-width: 33rem;
   margin-top: 1rem;
@@ -483,26 +472,6 @@ kbd {
   font-size: 1.0625rem;
 }
 
-.walk-card.is-shown.is-left {
-  animation: card-settle-left 320ms ease;
-}
-
-.walk-card.is-shown.is-right {
-  animation: card-settle-right 320ms ease;
-}
-
-@keyframes card-settle-left {
-  from {
-    opacity: 0;
-  }
-}
-
-@keyframes card-settle-right {
-  from {
-    opacity: 0;
-  }
-}
-
 .walk-card header {
   display: flex;
   align-items: baseline;
@@ -575,10 +544,6 @@ kbd {
   width: 0.3125rem;
   height: 0.3125rem;
   background: var(--amber);
-}
-
-.walk-contact > p {
-  color: var(--subtext1);
 }
 
 .walk-email {
@@ -1169,8 +1134,6 @@ kbd {
   .walk-intro {
     top: 5.5rem;
   }
-
-
 
   .walk-card,
   .walk-card.is-left {

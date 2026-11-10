@@ -190,7 +190,7 @@ export function startWalk({ stage, view, canvas, room: roomCanvas }: WalkElement
       const size = `${w} ${h} ${dpr}`;
       if (size === laidOutSize) return;
       laidOutSize = size;
-      const device =Math.max(2, Math.min(Math.floor((h * dpr) / 300), Math.floor((w * dpr) / 250)));
+      const device = Math.max(2, Math.min(Math.floor((h * dpr) / 300), Math.floor((w * dpr) / 250)));
       scale = device / dpr;
       vw = Math.ceil(w / scale);
       vh = Math.ceil(h / scale);
