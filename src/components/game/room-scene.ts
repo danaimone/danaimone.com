@@ -32,7 +32,7 @@ export type RoomLayout = {
 
 export type GameScreen = { picture: HTMLCanvasElement; frame: number };
 
-export const ROOM_SCALE = 3;
+export const ROOM_SCALE = 2;
 
 const NIGHT_SKY = "#101a4a";
 const RIPPLE_HIGH = "#6f93dc";
@@ -62,7 +62,8 @@ const EYELID = "#e8b888";
 const LASHES = "#4a2c20";
 const HANDS_LINGER_SECONDS = 0.18;
 const STEAM_HEIGHT = 18;
-const SCREEN_DETAIL = 3;
+const SCREEN_GRID = 3;
+const SCREEN_DETAIL = 2;
 
 const MOCHA = {
   base: "#1e1e2e",
@@ -247,10 +248,13 @@ function drawLake(ctx: Ctx, lake: number[][], t: number) {
   });
 }
 
+// A screen's text is laid out on its own grid, finer than the room's canvas: the
+// monitors are too narrow for a terminal row at one glyph pixel per art pixel, and
+// a finer room canvas is the costliest thing the door wipe paints.
 function createScreen({ width, height }: Box, corners: ScreenCorners, box: Box, mask: HTMLImageElement) {
   const flat = document.createElement("canvas");
-  flat.width = width * ROOM_SCALE * SCREEN_DETAIL;
-  flat.height = height * ROOM_SCALE * SCREEN_DETAIL;
+  flat.width = width * SCREEN_GRID * SCREEN_DETAIL;
+  flat.height = height * SCREEN_GRID * SCREEN_DETAIL;
   const flatCtx = flat.getContext("2d")!;
   flatCtx.scale(SCREEN_DETAIL, SCREEN_DETAIL);
   const canvas = document.createElement("canvas");
@@ -265,8 +269,8 @@ function createScreen({ width, height }: Box, corners: ScreenCorners, box: Box, 
   return {
     canvas,
     flatCtx,
-    flatWidth: width * ROOM_SCALE,
-    flatHeight: height * ROOM_SCALE,
+    flatWidth: width * SCREEN_GRID,
+    flatHeight: height * SCREEN_GRID,
     finish(source: HTMLCanvasElement = flat) {
       ctx.globalCompositeOperation = "source-over";
       ctx.setTransform(1, 0, 0, 1, 0, 0);
