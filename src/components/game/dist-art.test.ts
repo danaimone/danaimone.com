@@ -12,15 +12,15 @@ function filesUnder(dir: string): string[] {
   );
 }
 
-async function namesLoadArtRequests() {
+async function namesTheWalkRequests() {
   const names: string[] = [];
   mock.module("./art-url", () => ({ gameUrl: (name: string) => (names.push(name), name) }));
   globalThis.Image = class {
     src = "";
     decode = async () => {};
   } as unknown as typeof Image;
-  const { loadArt } = await import("./assets");
-  await loadArt();
+  const { loadArt, loadRoom } = await import("./assets");
+  await Promise.all([loadArt(), loadRoom("wide"), loadRoom("tall")]);
   return names;
 }
 
@@ -32,8 +32,8 @@ describe("built game art", () => {
     expect(stale).toEqual([]);
   });
 
-  test("every image loadArt requests is a hashed file the bundle points at", async () => {
-    const names = await namesLoadArtRequests();
+  test("every image the walk requests is a hashed file the bundle points at", async () => {
+    const names = await namesTheWalkRequests();
     expect(names.length).toBeGreaterThan(30);
     const hashed = filesUnder(join(DIST, "_astro")).filter((file) => file.endsWith(".png"));
     const byContent = new Map(hashed.map((file) => [sha(file), file]));

@@ -16,7 +16,7 @@ const load = async (src: string) => {
 
 const game = (name: string) => load(gameUrl(name));
 
-const loadRoom = async (name: "wide" | "tall") => {
+export const loadRoom = async (name: "wide" | "tall") => {
   const [plate, hands, mishka, screen, side] = await Promise.all([
     game(name === "wide" ? "interior" : "interior-tall"),
     game(`room-${name}-hands`),
@@ -30,7 +30,7 @@ const loadRoom = async (name: "wide" | "tall") => {
 export type RoomArt = Awaited<ReturnType<typeof loadRoom>>;
 
 export async function loadArt() {
-  const [dan, sun, moon, mishka, rainier, trees, props, clouds, rattlesnake, olympics, issaquah, foothills, foothillsDry, foothillsTurn, meadow, meadowDry, meadowTurn, seattle, wide, tall, landmarks] = await Promise.all([
+  const [dan, sun, moon, mishka, rainier, trees, props, clouds, rattlesnake, olympics, issaquah, foothills, foothillsDry, foothillsTurn, meadow, meadowDry, meadowTurn, seattle, landmarks] = await Promise.all([
     game("dan"),
     game("sun"),
     game("moon"),
@@ -49,8 +49,6 @@ export async function loadArt() {
     game("meadow-dry"),
     game("meadow-turn"),
     game("seattle"),
-    loadRoom("wide"),
-    loadRoom("tall"),
     Promise.all(
       LANDMARKS.map(async (landmark) => {
         const [sprite, lights, logo] = await Promise.all([
@@ -62,7 +60,7 @@ export async function loadArt() {
       }),
     ),
   ]);
-  return { dan, sun, moon, mishka, rainier, trees, props, clouds, skylines: [rattlesnake, olympics, issaquah], foothills: { before: foothillsDry, turn: foothillsTurn, after: foothills }, meadow: { before: meadowDry, turn: meadowTurn, after: meadow }, seattle, rooms: { wide, tall }, landmarks };
+  return { dan, sun, moon, mishka, rainier, trees, props, clouds, skylines: [rattlesnake, olympics, issaquah], foothills: { before: foothillsDry, turn: foothillsTurn, after: foothills }, meadow: { before: meadowDry, turn: meadowTurn, after: meadow }, seattle, landmarks };
 }
 
 export type Art = Awaited<ReturnType<typeof loadArt>>;

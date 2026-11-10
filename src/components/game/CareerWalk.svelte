@@ -89,7 +89,7 @@
     <canvas bind:this={actors} class="walk-canvas walk-actors" aria-hidden="true"></canvas>
 
     <div class="walk-intro" class:is-shown={zone === "intro"}>
-      <h1><img src={gameUrl("title")} alt="Dan Aimone" /></h1>
+      <h1><img src={gameUrl("title")} alt="Dan Aimone" width="286" height="112" /></h1>
       <p class="walk-lede">
         AI-native software engineer at Vannevar, building agentic products
         end to end, from the harness to the interface. Previously Atlassian

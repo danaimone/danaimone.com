@@ -2,7 +2,7 @@ import type { Doom, DoomEnd } from "./doom";
 import { driveWithFinger } from "./finger";
 import { DITHER_PERIOD, GROUND_DEPTH, SOIL_DEPTH, drawGem, drawPuff, drawSun, mix, paintGround, paintSky, rng, skyAt, smokePuffs, soilFlecks, sunHalo, tileThroughTurn } from "./art";
 import { buildPath, placeProps, plantStands, plantUnderstory, surfaceAt } from "./path";
-import { CLOUD_KINDS, DAN_SHEET, MISHKA_SHEET, PROP_SHEET, TREE_SHEET, loadArt, type Art } from "./assets";
+import { CLOUD_KINDS, DAN_SHEET, MISHKA_SHEET, PROP_SHEET, TREE_SHEET, loadArt, loadRoom, type Art } from "./assets";
 import layouts from "./room-layouts.json";
 import { ROOM_SCALE, createRoomScene } from "./room-scene";
 import { createSteadyClock } from "./steady-clock";
@@ -339,6 +339,7 @@ export function startWalk({ stage, view, canvas, layers: layerCanvases, plane, a
         s: r() * 6,
       }));
       view.style.setProperty("--scale", `${scale}`);
+      view.classList.add("is-laid-out");
     }
 
     let smokeAt = 0;
@@ -486,11 +487,21 @@ export function startWalk({ stage, view, canvas, layers: layerCanvases, plane, a
     const flecks = soilFlecks(WORLD_WIDTH);
     const puffs = smokePuffs();
 
-    const scenes = {
-      wide: createRoomScene(art.rooms.wide, ROOMS.wide, terminal, () => doom?.screen()),
-      tall: createRoomScene(art.rooms.tall, ROOMS.tall, terminal, () => doom?.screen()),
-    };
+    type RoomName = keyof typeof ROOMS;
+    const scenes: Partial<Record<RoomName, ReturnType<typeof createRoomScene>>> = {};
+    const roomsAsked = new Set<RoomName>();
     let roomKey = "";
+    function fetchRoom(name: RoomName) {
+      if (roomsAsked.has(name)) return;
+      roomsAsked.add(name);
+      loadRoom(name).then(
+        (roomArt) => {
+          scenes[name] = createRoomScene(roomArt, ROOMS[name], terminal, () => doom?.screen());
+          roomKey = "";
+        },
+        () => on.unavailable(),
+      );
+    }
     let wasInside = false;
     let wasCovered = false;
     let wasWarm = false;
@@ -506,6 +517,7 @@ export function startWalk({ stage, view, canvas, layers: layerCanvases, plane, a
     const rctx = roomCanvas.getContext("2d", { alpha: false })!;
 
     const roomName = () => (view.clientWidth / view.clientHeight >= WIDE_ROOM_MIN_ASPECT ? "wide" : "tall");
+    fetchRoom(roomName());
 
     function irisRadius(iris: number) {
       return iris * iris * (3 - 2 * iris) * Math.hypot(view.clientWidth, view.clientHeight) * 1.15;
@@ -569,6 +581,8 @@ export function startWalk({ stage, view, canvas, layers: layerCanvases, plane, a
       const viewH = view.clientHeight;
       const dpr = window.devicePixelRatio || 1;
       const name = roomName();
+      const scene = scenes[name];
+      if (!scene) return fetchRoom(name);
       const room = ROOMS[name];
       const cover = Math.max(viewW / room.width, viewH / room.height);
       const crisp = Math.ceil(cover * dpr - ROOM_SCALE_SNAP) / dpr;
@@ -615,7 +629,7 @@ export function startWalk({ stage, view, canvas, layers: layerCanvases, plane, a
         rctx.rect((-left / pixel) * ROOM_SCALE, (-top / pixel) * ROOM_SCALE, (viewW / pixel) * ROOM_SCALE, (viewH / pixel) * ROOM_SCALE);
       }
       rctx.clip();
-      scenes[name].draw(rctx, quick ? steadyScreenTime(t) : t, !reduced, iris < 1);
+      scene.draw(rctx, quick ? steadyScreenTime(t) : t, !reduced, iris < 1);
       rctx.restore();
     }
 

@@ -274,6 +274,8 @@ a:hover {
   position: absolute;
   left: 0;
   bottom: 0;
+  width: 0;
+  height: 0;
   image-rendering: pixelated;
   cursor: pointer;
 }
@@ -665,6 +667,10 @@ kbd {
 .walk-timeline ol {
   position: absolute;
   inset: 0;
+}
+
+.walk-view:not(.is-laid-out) .walk-timeline ol {
+  visibility: hidden;
 }
 
 .walk-timeline li {
@@ -1268,4 +1274,18 @@ kbd {
   .walk-toast {
     animation-duration: 0.01s;
   }
+}
+
+.lost {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 1rem;
+  min-height: 100svh;
+  padding: var(--gutter);
+  text-align: center;
+}
+
+.lost img {
+  image-rendering: pixelated;
 }
