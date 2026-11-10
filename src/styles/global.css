@@ -690,6 +690,7 @@ kbd {
 
 .walk-timeline li:first-child button {
   align-items: flex-start;
+  padding-left: 0;
 }
 
 .walk-timeline li:last-child {
@@ -698,6 +699,7 @@ kbd {
 
 .walk-timeline li:last-child button {
   align-items: flex-end;
+  padding-right: 0;
 }
 
 .walk-timeline button {
@@ -727,7 +729,7 @@ kbd {
 }
 
 .walk-timeline li:first-child button::before {
-  left: -4px;
+  left: 0;
 }
 
 .walk-timeline li:not(:first-child):not(:last-child) button::before {
@@ -735,7 +737,17 @@ kbd {
 }
 
 .walk-timeline li:last-child button::before {
-  right: -4px;
+  right: 0;
+}
+
+.walk-timeline button:focus-visible {
+  outline: none;
+  color: var(--text);
+}
+
+.walk-timeline button:focus-visible::before {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
 }
 
 .walk-timeline button.is-passed {

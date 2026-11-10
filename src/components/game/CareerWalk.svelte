@@ -164,7 +164,11 @@
       <ol>
         {#each TIMELINE as mark (mark.label)}
           <li use:cssProps={{ "--at": mark.at }}>
-            <button type="button" class:is-passed={progress >= mark.at - 0.01} onclick={() => walk?.teleport(mark.destination)}>
+            <button type="button" class:is-passed={progress >= mark.at - 0.01} onclick={(event) => {
+                walk?.teleport(mark.destination);
+                if (event.detail > 0) event.currentTarget.blur();
+              }}
+            >
               <span class="walk-year">{mark.caption}</span>
               {mark.label}
             </button>
