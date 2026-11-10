@@ -12,7 +12,3 @@ resume/private.mjs
 resume/bank.md
 resume/versions/*
 !resume/versions/example.ts
-
-# Local tool settings
-.claude/settings.local.json
-.openai/
