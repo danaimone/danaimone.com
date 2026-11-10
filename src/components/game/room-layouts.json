@@ -129,10 +129,10 @@
       "reach": 28.0
     },
     "handsBox": {
-      "x": 384,
-      "y": 172,
-      "width": 30,
-      "height": 20
+      "x": 368,
+      "y": 166,
+      "width": 48,
+      "height": 30
     },
     "typingHands": 2,
     "mishkaBox": {
@@ -883,10 +883,10 @@
       "reach": 33.0
     },
     "handsBox": {
-      "x": 120,
-      "y": 412,
-      "width": 30,
-      "height": 24
+      "x": 104,
+      "y": 406,
+      "width": 54,
+      "height": 32
     },
     "typingHands": 2,
     "mishkaBox": {
