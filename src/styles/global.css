@@ -775,10 +775,12 @@ kbd {
   padding-inline: var(--gutter);
 }
 
-main {
-  background:
-    linear-gradient(#2a2029 0 6px, #1f1a24 6px 12px, #171520 12px 18px, transparent 18px) no-repeat
-      0 calc(580vh) / 100% 18px;
+.walk::after {
+  content: "";
+  position: absolute;
+  inset: 100% 0 auto;
+  height: 18px;
+  background: linear-gradient(#2a2029 0 6px, #1f1a24 6px 12px, #171520 12px 18px);
 }
 
 .resume {
@@ -1044,7 +1046,7 @@ main {
 
 .skills div {
   display: grid;
-  grid-template-columns: 8.5rem minmax(0, 1fr);
+  grid-template-columns: 10rem minmax(0, 1fr);
   gap: 0.75rem;
 }
 
