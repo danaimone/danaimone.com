@@ -5,6 +5,7 @@ import { buildPath, placeProps, surfaceAt } from "./path";
 import { CLOUD_KINDS, DAN_SHEET, MISHKA_SHEET, PROP_SHEET, TREE_SHEET, loadArt, type Art } from "./assets";
 import layouts from "./room-layouts.json";
 import { ROOM_SCALE, createRoomScene } from "./room-scene";
+import { createSteadyClock } from "./steady-clock";
 import { CONTACT_FINALE, cameraAt, createSimulation, createStepClock, type WalkDirection, type Zone } from "./simulation";
 import { createTerminal } from "./terminal";
 import { FRACTION_PER_WORLD_PX, clamp, progressAt, type Destination } from "./track";
@@ -930,7 +931,10 @@ export function startWalk({ stage, view, canvas, layers: layerCanvases, plane, a
     let lastFrame = performance.now();
     const stepClock = createStepClock();
 
-    function loop(now: number) {
+    const frameClock = createSteadyClock();
+
+    function loop(reported: number) {
+      const now = frameClock(reported);
       frame = 0;
       finger.frame(now);
       const { steps, blend } = stepClock(now - lastFrame);

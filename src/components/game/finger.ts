@@ -1,6 +1,8 @@
+import { createSteadyClock } from "./steady-clock";
 import { clamp } from "./track";
 
-const VELOCITY_WINDOW_MS = 60;
+const VELOCITY_WINDOW_MS = 35;
+const SAMPLES_KEPT_MS = 200;
 const HELD_STILL_MS = 70;
 const GLIDE_FROM_SPEED = 0.1;
 const MAX_RELEASE_SPEED = 3;
@@ -84,6 +86,7 @@ export function driveWithFinger(
   let stoppedGlide = false;
   let touched = false;
   let driven: { exact: number; reported: number } | null = null;
+  let sampleClock = createSteadyClock();
 
   const sampledAt = (event: TouchEvent) => {
     const now = performance.now();
@@ -118,7 +121,8 @@ export function driveWithFinger(
     }
     state = "touched";
     const y = event.touches[0].clientY;
-    drive = { startY: y, startScroll: exactScroll() ?? window.scrollY, ratio: dragRatio(), samples: [{ y, at: sampledAt(event) }], lift: null };
+    sampleClock = createSteadyClock();
+    drive = { startY: y, startScroll: exactScroll() ?? window.scrollY, ratio: dragRatio(), samples: [{ y, at: sampleClock(sampledAt(event)) }], lift: null };
   }
 
   function onMove(event: TouchEvent) {
@@ -139,9 +143,9 @@ export function driveWithFinger(
       }
     }
     event.preventDefault();
-    const at = sampledAt(event);
+    const at = sampleClock(sampledAt(event));
     drive.samples.push({ y, at });
-    drive.samples = drive.samples.filter((sample) => at - sample.at <= VELOCITY_WINDOW_MS * 2 + FINGER_DELAY_MS);
+    drive.samples = drive.samples.filter((sample) => at - sample.at <= SAMPLES_KEPT_MS);
   }
 
   function onEnd(event: TouchEvent) {
