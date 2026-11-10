@@ -156,6 +156,7 @@
         {/each}
         <a href="#resume" tabindex={zone === "contact" ? 0 : -1}>Résumé</a>
       </div>
+      <p class="walk-terminal-hint hint-key">The terminal works. Try typing <kbd>help</kbd></p>
     </article>
 
     <div class="walk-toasts" aria-hidden="true">

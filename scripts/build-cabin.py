@@ -82,11 +82,6 @@ def box_of(points):
     return {"x": min(xs), "y": min(ys), "width": max(xs) - min(xs) + 1, "height": max(ys) - min(ys) + 1}
 
 
-def corners(box):
-    x0, y0, x1, y1 = box["x"], box["y"], box["x"] + box["width"], box["y"] + box["height"]
-    return {"topLeft": {"x": x0, "y": y0}, "topRight": {"x": x1, "y": y0}, "bottomLeft": {"x": x0, "y": y1}, "bottomRight": {"x": x1, "y": y1}}
-
-
 def mask_image(points, box):
     out = Image.new("RGBA", (box["width"], box["height"]))
     px = out.load()
@@ -288,7 +283,6 @@ def build(art, out, name, spec):
     bx, by, bw, bh = spec["blink"]
     return {
         "width": plate.width, "height": plate.height, "main": main, "side": side,
-        "mainCorners": corners(main), "sideCorners": corners(side),
         "fireBox": box(spec["fire"]["opening"]), "hearth": hearth(spec["fire"]),
         "handsBox": box(spec["hands"]), "typingFrames": len(spec["taps"]["frames"]),
         "mishkaBox": box(spec["dog"]), "mishkaFrames": SLEEP_FRAMES, "stars": stars, "city": city, "lake": lake_spans(plate, spec["lake"]),
