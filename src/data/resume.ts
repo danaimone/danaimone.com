@@ -81,7 +81,7 @@ export const resume: Resume = {
       years: "2022",
       bullets: [
         "Built the dynamic pricing backend features behind a 20% revenue increase across 4,000 SKUs",
-        "Improved React/Next.js application performance 90% by reworking the frontend architecture",
+        "Raised bundle sales 90% by reworking the React/Next.js frontend architecture",
       ],
     },
     {
@@ -104,7 +104,7 @@ export const resume: Resume = {
     field: "Computer Science",
   },
   skills: [
-    ["AI", "Agent harnesses, tool calling, prompt design, deterministic citations, end-to-end agent testing"],
+    ["AI", "Agent harnesses, LangGraph, LangChain, tool calling, prompt design, end-to-end agent testing"],
     ["Languages", "TypeScript, JavaScript, Python, Go, C#, Java, Kotlin, Scala"],
     ["Frontend", "React, Next.js, Remix, Svelte, Astro, TanStack Query, Tailwind, Playwright, Jest"],
     ["Backend", "Node.js, GraphQL, REST APIs, PostgreSQL, SQL Server, MongoDB, Redis"],
