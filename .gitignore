@@ -108,3 +108,7 @@ resume/private.mjs
 
 # Python cache
 __pycache__/
+
+# Local tool settings
+.claude/settings.local.json
+.openai/
