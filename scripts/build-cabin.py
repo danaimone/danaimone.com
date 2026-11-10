@@ -265,8 +265,9 @@ def lake_spans(plate, box):
 
 def build(art, out, name, spec):
     plate = Image.open(art / "cabin2" / spec["source"]).convert("RGB")
-    magenta = keyed(plate, lambda r, g, b: r > 170 and b > 170 and g < 90)
-    cyan = keyed(plate, lambda r, g, b: g > 170 and b > 170 and r < 90)
+    # The painter shades the key colour at a screen's edge, so the darker shades count as screen too.
+    magenta = keyed(plate, lambda r, g, b: r > 75 and b > 75 and g < 50)
+    cyan = keyed(plate, lambda r, g, b: g > 70 and b > 75 and r < 50)
     main, side = box_of(magenta), box_of(cyan)
     px = plate.load()
     for point in magenta | cyan:

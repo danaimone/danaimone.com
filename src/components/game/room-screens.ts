@@ -38,7 +38,11 @@ const MOCHA = {
 };
 
 const KEYWORDS = /^(const|let|function|return|if|else|for|of|type|export|import|from|new|switch|case|default)\b/;
-const EDITOR_LINES = simulationSource.split("\n");
+// Indents are halved: the monitor is nineteen columns wide.
+const EDITOR_LINES = simulationSource.split("\n").map((line) => {
+  const code = line.trimStart();
+  return " ".repeat(Math.floor((line.length - code.length) / 2)) + code.trimEnd();
+});
 
 export const screenFontReady = () => document.fonts.load(`${FONT_GRID}px "${FONT}"`);
 
@@ -179,7 +183,7 @@ function paintEditor(ctx: Ctx, width: number, height: number, firstLine: number)
     ctx.fillStyle = row === CURRENT_ROW ? MOCHA.yellow : MOCHA.overlay;
     const label = String(number + 1);
     write(label, EDITOR_GUTTER - 1 - label.length, row * line);
-    for (const token of tokens(EDITOR_LINES[number].trimEnd(), codeColumns)) {
+    for (const token of tokens(EDITOR_LINES[number], codeColumns)) {
       ctx.fillStyle = token.colour;
       write(token.text, EDITOR_GUTTER + token.column, row * line);
     }
