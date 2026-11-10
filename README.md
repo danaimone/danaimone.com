@@ -82,7 +82,7 @@ Pushing to `main` does not deploy.
 - `public/game/`: sprites, scenery layers, building `-lights` layers, company logos, and icons.
 - `scripts/assemble-sprites.py`, `scripts/assemble-scenery.py`, `scripts/pixelize.py`, `scripts/asset-lights.py`, `scripts/build-cabin.py`, `scripts/pack-art.py`, `scripts/art-prompts/`: the art pipeline.
 - `src/pages/index.astro`: page layout, metadata, the résumé sheet, About, and Contact.
-- `src/styles/global.css`: tokens, walk overlays, pixel buttons, and the résumé sheet.
+- `src/styles/`: `base.css` holds the tokens, reset, pixel buttons and masthead; `walk.css` the walk's overlays, cards and timeline; `page.css` the résumé sheet, About, Contact and footer. Each file keeps its own narrow-screen rules.
 - `src/scripts/pixel-wipe.ts`: the pixel dissolve on in-page links.
 
 The walk renders at a small logical resolution (about 480 × 300 on a laptop), scaled by a whole number of device pixels so every art pixel stays square and sharp. The cabin interior is a separate canvas at art resolution, for the same reason. Physics run at a fixed 60 steps per second on any display. See `GLOSSARY.md` for the terms used in the code. The loop stops when the walk is off screen. Skill gems are placed only where the verified history supports them; TypeScript, Node.js, and AWS sit at the cabin because they describe current day-to-day work, not a specific employer.
