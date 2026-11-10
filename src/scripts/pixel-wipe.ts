@@ -50,19 +50,55 @@ function pixelWipe(clientX: number, clientY: number, atCover: () => void) {
   requestAnimationFrame(frame);
 }
 
-document.addEventListener("click", (event) => {
-  if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
-  const link = (event.target as Element).closest<HTMLAnchorElement>('a[href^="#"]');
-  const hash = link?.getAttribute("href");
-  const target = hash ? document.querySelector<HTMLElement>(hash) : null;
-  if (!hash || !target) return;
-  event.preventDefault();
+const TAP_SLOP_PX = 10;
 
+function sectionLink(target: EventTarget | null) {
+  const link = target instanceof Element ? target.closest<HTMLAnchorElement>('a[href^="#"]') : null;
+  const hash = link?.getAttribute("href");
+  const section = hash ? document.querySelector<HTMLElement>(hash) : null;
+  return hash && section ? { hash, section } : null;
+}
+
+function goTo({ hash, section }: { hash: string; section: HTMLElement }, clientX: number, clientY: number) {
   const jump = () => {
     history.pushState(null, "", hash);
-    target.scrollIntoView();
-    target.focus({ preventScroll: true });
+    section.scrollIntoView();
+    section.focus({ preventScroll: true });
   };
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) jump();
-  else pixelWipe(event.clientX, event.clientY, jump);
+  else pixelWipe(clientX, clientY, jump);
+}
+
+document.addEventListener("click", (event) => {
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+  const link = sectionLink(event.target);
+  if (!link) return;
+  event.preventDefault();
+  goTo(link, event.clientX, event.clientY);
 });
+
+// iOS Safari can treat the first tap on a link as a hover and send no click
+// (https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/HandlingEvents/HandlingEvents.html).
+// A tap on a section link is followed from the touch itself, and its click is cancelled.
+let touchedAt: { x: number; y: number } | null = null;
+document.addEventListener(
+  "touchstart",
+  (event) => {
+    const touch = event.touches.length === 1 ? event.touches[0] : null;
+    touchedAt = touch && sectionLink(event.target) ? { x: touch.clientX, y: touch.clientY } : null;
+  },
+  { passive: true },
+);
+document.addEventListener(
+  "touchend",
+  (event) => {
+    const start = touchedAt;
+    touchedAt = null;
+    const touch = event.changedTouches[0];
+    const link = sectionLink(event.target);
+    if (!start || !link || !event.cancelable || Math.hypot(touch.clientX - start.x, touch.clientY - start.y) > TAP_SLOP_PX) return;
+    event.preventDefault();
+    goTo(link, touch.clientX, touch.clientY);
+  },
+  { passive: false },
+);
