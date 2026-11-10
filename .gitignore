@@ -6,9 +6,12 @@ dist/
 __pycache__/
 .cache/
 
-# Tailored résumé PDFs and private résumé details
+# Tailored résumé PDFs, private résumé details, the fact bank, and versions written for one employer
 resume/out/
 resume/private.mjs
+resume/bank.md
+resume/versions/*
+!resume/versions/example.ts
 
 # Local tool settings
 .claude/settings.local.json
