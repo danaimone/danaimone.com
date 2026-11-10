@@ -4,11 +4,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { build } from "esbuild";
 import { chromium } from "playwright";
-import { phone } from "../resume/private.mjs";
+import { fonts as privateFonts, phone } from "../resume/private.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const fonts = join(root, "node_modules/@fontsource");
-const licensedFonts = process.env.RESUME_FONTS ?? "fonts";
+const licensedFonts = process.env.RESUME_FONTS ?? privateFonts;
 const name = process.argv[2] ?? "main";
 const entry = name === "main" ? "resume/main-entry.ts" : `resume/versions/${name}.ts`;
 

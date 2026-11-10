@@ -61,7 +61,7 @@ Pushing to `main` does not deploy.
 ## Structure
 
 - `src/data/resume.ts`: the résumé and contact links. The walk, the page, and the PDF all read it. Edit content here.
-- `resume/`: tailored versions (`versions/example.ts` shows the shape). The fact bank, versions written for one employer, and the private details stay out of the repository. `bun run resume` builds the PDFs, and `bun run resume <version>` builds a tailored one. PDFs use licensed fonts from the folder named by `RESUME_FONTS` and fall back to Jost and Source Serif 4 when they are missing. The fonts stay out of git.
+- `resume/`: tailored versions (`versions/example.ts` shows the shape). The fact bank, versions written for one employer, and the private details stay out of the repository. `bun run resume` builds the PDFs, and `bun run resume <version>` builds a tailored one. PDFs use licensed fonts from the folder named in `resume/private.mjs` or by `RESUME_FONTS` and fall back to Jost and Source Serif 4 when they are missing. The fonts stay out of git.
 - `src/components/game/track.ts`: converts between scroll, world position, walk progress, and the finale.
 - `src/components/game/simulation.ts`: the rules of the walk, with no browser: following, sprinting, jumps, gems, zones, teleport. Input and effects are plain data, so `bun test` covers it.
 - `src/components/game/world.ts`: career stops, landmarks, and gems. To add a job, add it to the résumé and give it a place here; the compiler requires it.
@@ -90,3 +90,7 @@ The walk renders at a small logical resolution (about 480 × 300 on a laptop), s
 ## Content verification
 
 Roles, dates, and figures follow Dan's résumé, confirmed by Dan on October 30, 2026, plus his 2026 self-review for Vannevar. Dates are years only. Public text says "government users" and names no customers, units, or internal products.
+
+## Licence
+
+The code is MIT licensed. The artwork and the résumé text are not: they depict a real person and are all rights reserved. Doom and the fonts carry their own licences. See `LICENSE`.
