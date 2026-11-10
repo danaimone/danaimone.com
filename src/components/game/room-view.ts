@@ -2,6 +2,7 @@ import { loadRoom } from "./assets";
 import type { PageActivity } from "./page-activity";
 import layouts from "./room-layouts.json";
 import { ROOM_SCALE, createRoomScene, type GameScreen } from "./room-scene";
+import { createRoomScreens, screenFontReady, type RoomScreens, type ScreenCanvases } from "./room-screens";
 import type { Terminal } from "./terminal";
 import { clamp } from "./track";
 import { IRIS_FROM_FINALE, type Bounds } from "./wipe";
@@ -49,8 +50,6 @@ function movingBoxes(room: Room) {
   const { coffee, snore, snoreDrift } = room;
   return [
     room.fireBox,
-    room.main,
-    room.side,
     room.mishkaBox,
     room.handsBox,
     room.blink,
@@ -62,6 +61,7 @@ function movingBoxes(room: Room) {
 
 type RoomViewParts = {
   canvas: HTMLCanvasElement;
+  screens: ScreenCanvases;
   view: HTMLElement;
   terminal: Terminal;
   gameScreen: () => GameScreen | null | undefined;
@@ -73,9 +73,9 @@ type RoomViewParts = {
 
 // Where the room sits on screen, when its art loads, and how much of it a frame
 // repaints. room-scene.ts draws the room itself.
-export function createRoomView({ canvas, view, terminal, gameScreen, reduced, page, holeBounds, unavailable }: RoomViewParts) {
+export function createRoomView({ canvas, screens, view, terminal, gameScreen, reduced, page, holeBounds, unavailable }: RoomViewParts) {
   const ctx = canvas.getContext("2d", { alpha: false })!;
-  const scenes: Partial<Record<RoomName, ReturnType<typeof createRoomScene>>> = {};
+  const scenes: Partial<Record<RoomName, { room: ReturnType<typeof createRoomScene>; screens: RoomScreens }>> = {};
   const asked = new Set<RoomName>();
   let placed = "";
   let clearedAt = -Infinity;
@@ -88,7 +88,7 @@ export function createRoomView({ canvas, view, terminal, gameScreen, reduced, pa
     if (asked.has(name)) return;
     asked.add(name);
     loadRoom(name).then((art) => {
-      scenes[name] = createRoomScene(art, ROOMS[name], terminal, gameScreen);
+      scenes[name] = { room: createRoomScene(art, ROOMS[name], terminal), screens: createRoomScreens(screens, art, ROOMS[name], terminal, gameScreen) };
       placed = "";
     }, unavailable);
   }
@@ -127,6 +127,17 @@ export function createRoomView({ canvas, view, terminal, gameScreen, reduced, pa
       canvas.style.height = `${h}px`;
       canvas.style.left = `${left}px`;
       canvas.style.top = `${top}px`;
+      for (const [screen, box] of [[screens.main, room.main], [screens.side, room.side]] as const) {
+        const edge = (art: number, origin: number) => Math.round((origin + art * pixel) * dpr) / dpr;
+        const [x0, x1, y0, y1] = [edge(box.x, left), edge(box.x + box.width, left), edge(box.y, top), edge(box.y + box.height, top)];
+        screen.width = Math.round((x1 - x0) * dpr);
+        screen.height = Math.round((y1 - y0) * dpr);
+        screen.style.width = `${x1 - x0}px`;
+        screen.style.height = `${y1 - y0}px`;
+        screen.style.left = `${x0}px`;
+        screen.style.top = `${y0}px`;
+      }
+      scene.screens.wiped();
       clearedAt = t;
     }
 
@@ -151,12 +162,19 @@ export function createRoomView({ canvas, view, terminal, gameScreen, reduced, pa
       ctx.rect((-left / pixel) * ROOM_SCALE, (-top / pixel) * ROOM_SCALE, (viewW / pixel) * ROOM_SCALE, (viewH / pixel) * ROOM_SCALE);
     }
     ctx.clip();
-    scene.draw(ctx, quick ? steadyScreenTime(t) : t, !reduced, iris < 1);
+    const sceneTime = quick ? steadyScreenTime(t) : t;
+    scene.room.draw(ctx, sceneTime, !reduced, iris < 1);
     ctx.restore();
+    scene.screens.draw(sceneTime, !reduced);
+  }
+
+  function hide(hidden: boolean) {
+    for (const element of [canvas, screens.main, screens.side]) element.hidden = hidden;
   }
 
   fetchRoom(roomName());
-  canvas.hidden = true;
+  screenFontReady().then(() => (placed = ""));
+  hide(true);
 
   return {
     // The first paint re-projects both screens, so it gets a quiet frame of its
@@ -168,7 +186,7 @@ export function createRoomView({ canvas, view, terminal, gameScreen, reduced, pa
         if (warm) paint(1, t);
       }
       const ahead = finale <= IRIS_FROM_FINALE - ROOM_REVEAL_LEAD;
-      if (canvas.hidden !== ahead) canvas.hidden = ahead;
+      if (canvas.hidden !== ahead) hide(ahead);
     },
     paint,
   };

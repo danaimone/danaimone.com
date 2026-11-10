@@ -67,7 +67,8 @@ Pushing to `main` does not deploy.
 - `src/components/game/simulation.ts`: the rules of the walk, with no browser: following, sprinting, jumps, gems, zones, teleport. Input and effects are plain data, so `bun test` covers it.
 - `src/components/game/world.ts`: career stops, landmarks, and gems. To add a job, add it to the résumé and give it a place here; the compiler requires it.
 - `src/components/game/assets.ts`: loads the art by name. If any image fails, the walk becomes a static hero and the résumé still works.
-- `src/components/game/room-scene.ts`: the cabin's live scene: the fire (simulated in `fire.ts`), hand frames, candles, steam, Mishka, window lights, the Rex terminal, and Neovim showing `simulation.ts`.
+- `src/components/game/room-scene.ts`: the cabin's live scene: the fire (simulated in `fire.ts`), hand frames, candles, steam, Mishka, and window lights.
+- `src/components/game/room-screens.ts`: the two monitors, the Rex terminal and Neovim showing `simulation.ts`. They are drawn on their own canvases at the display's resolution, in Departure Mono (SIL Open Font License, `src/fonts/`), sized to the font's 11 px grid where it fits. A monitor too small for readable type shows a minimap of the code instead.
 - `src/components/game/terminal.ts`: the toy terminal on the monitor. It prints canned text and runs nothing.
 - `src/components/game/engine.ts`: the conductor. It feeds the simulation scroll and keys, turns its effects into page events, and decides the order of each frame. It draws nothing itself.
 - `src/components/game/surface.ts`: the contract every canvas of the walk implements (`resize`, `paint`, `cut`), and the layout they share. `sky.ts`, `parallax.ts`, `plane.ts`, and `actors.ts` each own one canvas, or one set that moves together: its pixels, size, and transform. To add a canvas, write one surface and add it to the list in `engine.ts`.

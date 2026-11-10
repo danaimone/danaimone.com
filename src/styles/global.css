@@ -1,5 +1,11 @@
 /* Tokens. The page lives at the end of the walk: night, with the amber of
    Dan's tee as the one accent. The pixel world carries the colour. */
+@font-face {
+  font-family: "Departure Mono";
+  src: url("../fonts/DepartureMono-Regular.woff2") format("woff2");
+  font-display: block;
+}
+
 :root {
   --crust: #11111b;
   --mantle: #181825;
@@ -258,6 +264,11 @@ a:hover {
 .walk-room {
   position: absolute;
   image-rendering: pixelated;
+  pointer-events: none;
+}
+
+.walk-screen {
+  position: absolute;
   pointer-events: none;
 }
 

@@ -8,6 +8,7 @@ import { createPageActivity } from "./page-activity";
 import { createParallax } from "./parallax";
 import { createParticles } from "./particles";
 import { createPlane } from "./plane";
+import type { ScreenCanvases } from "./room-screens";
 import { createRoomView } from "./room-view";
 import { CONTACT_FINALE, cameraAt, createSimulation, createStepClock, type Zone } from "./simulation";
 import { createSky } from "./sky";
@@ -34,7 +35,8 @@ export type WalkEvents = {
 // ground. Those are wider than the view: each is drawn at a whole art pixel and
 // slid the rest of the way by the compositor, so the world moves in device pixels.
 // `actors` holds Dan and Mishka, who stay put on screen. `room` is the cabin
-// interior, under all of them, which the wipe opens a hole onto.
+// interior, under all of them, which the wipe opens a hole onto; `screens` are
+// its two monitors, drawn over it at the display's own resolution.
 export type WalkElements = {
   stage: HTMLElement;
   view: HTMLElement;
@@ -43,9 +45,10 @@ export type WalkElements = {
   plane: HTMLCanvasElement;
   actors: HTMLCanvasElement;
   room: HTMLCanvasElement;
+  screens: ScreenCanvases;
 };
 
-export function startWalk({ stage, view, canvas, layers, plane, actors, room }: WalkElements, on: WalkEvents) {
+export function startWalk({ stage, view, canvas, layers, plane, actors, room, screens }: WalkElements, on: WalkEvents) {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const simulation = createSimulation({ reduced });
   let probe: ReturnType<typeof import("./probe").startProbe> | null = null;
@@ -76,6 +79,7 @@ export function startWalk({ stage, view, canvas, layers, plane, actors, room }: 
     const wipe = createWipe({ view, page, surfaces });
     const roomView = createRoomView({
       canvas: room,
+      screens,
       view,
       terminal,
       gameScreen: () => doom.running()?.screen(),

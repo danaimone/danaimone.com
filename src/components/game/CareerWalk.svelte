@@ -18,6 +18,8 @@
   let plane: HTMLCanvasElement;
   let actors: HTMLCanvasElement;
   let room: HTMLCanvasElement;
+  let mainScreen: HTMLCanvasElement;
+  let sideScreen: HTMLCanvasElement;
   let walk: ReturnType<typeof startWalk> | undefined;
 
   let zone = $state<Zone>("intro");
@@ -42,7 +44,7 @@
 
   onMount(() => {
     walk = startWalk(
-      { stage, view, canvas, layers, plane, actors, room },
+      { stage, view, canvas, layers, plane, actors, room, screens: { main: mainScreen, side: sideScreen } },
       {
         zone: (next) => (zone = next),
         inside: (next) => (inside = next),
@@ -75,6 +77,8 @@
 <section class="walk" class:is-unavailable={unavailable} bind:this={stage} aria-label="Career walk">
   <div class="walk-view" bind:this={view}>
     <canvas bind:this={room} class="walk-room" aria-hidden="true" hidden></canvas>
+    <canvas bind:this={mainScreen} class="walk-screen" aria-hidden="true" hidden></canvas>
+    <canvas bind:this={sideScreen} class="walk-screen" aria-hidden="true" hidden></canvas>
     <canvas
       bind:this={canvas}
       class="walk-canvas"
