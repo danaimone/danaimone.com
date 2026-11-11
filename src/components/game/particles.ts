@@ -1,8 +1,42 @@
-import { drawPuff, smokePuffs } from "./art";
 import { clamp } from "./track";
 import { CHIMNEY } from "./world";
 
 const TELEPORT_COLORS = ["#fde3cf", "#fab387", "#cba6f7", "#ffffff"];
+
+const PUFF_RADII = [2, 3, 4, 5, 6, 7];
+const PUFF_CELL = 18;
+const PUFF_LOBES = [[0, 0, 1], [-0.65, 0.3, 0.68], [0.65, 0.25, 0.72], [0.1, -0.55, 0.7]];
+const PUFF_LIGHT = "#e4e6f4";
+const PUFF_BODY = "#b8bcd8";
+const PUFF_SHADE = "#7c80a8";
+const PUFF_ALPHA = 0.62;
+
+function smokePuffs() {
+  const atlas = document.createElement("canvas");
+  atlas.width = PUFF_CELL;
+  atlas.height = PUFF_CELL * PUFF_RADII.length;
+  const c = atlas.getContext("2d")!;
+  PUFF_RADII.forEach((radius, row) => {
+    for (let y = 0; y < PUFF_CELL; y++) {
+      for (let x = 0; x < PUFF_CELL; x++) {
+        const dx = x - PUFF_CELL / 2 + 0.5;
+        const dy = y - PUFF_CELL / 2 + 0.5;
+        const reach = Math.max(...PUFF_LOBES.map(([lx, ly, size]) => 1 - Math.hypot(dx - lx * radius * 0.6, dy - ly * radius * 0.6) / (radius * size)));
+        if (reach <= 0) continue;
+        const lit = (-dx - dy) / radius;
+        c.fillStyle = lit > 0.5 ? PUFF_LIGHT : lit < -0.45 ? PUFF_SHADE : PUFF_BODY;
+        c.fillRect(x, row * PUFF_CELL + y, 1, 1);
+      }
+    }
+  });
+  return atlas;
+}
+
+function drawPuff(ctx: CanvasRenderingContext2D, puffs: HTMLCanvasElement, x: number, y: number, age: number) {
+  const row = Math.min(PUFF_RADII.length - 1, Math.floor(age * 1.15 * PUFF_RADII.length));
+  ctx.globalAlpha = PUFF_ALPHA * (1 - age) ** 0.7;
+  ctx.drawImage(puffs, 0, row * PUFF_CELL, PUFF_CELL, PUFF_CELL, Math.round(x - PUFF_CELL / 2), Math.round(y - PUFF_CELL / 2), PUFF_CELL, PUFF_CELL);
+}
 
 type Particle = { x: number; y: number; vx: number; vy: number; life: number; color: string; smoke?: boolean };
 
