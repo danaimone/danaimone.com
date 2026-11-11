@@ -61,8 +61,8 @@ const html = (r, contactPhone) => `<!doctype html>
   .line b { font-weight: 500; }
   .line i { font-size: 12.4pt; font-weight: 300; color: #222; }
   ul { list-style: none; }
-  li { position: relative; padding-left: 9pt; margin-top: 0.6pt; }
-  li::before { content: ""; position: absolute; left: 0.3pt; top: 0.42em; width: 4.4pt; height: 4.4pt; border-radius: 50%; background: #000; }
+  li { padding-left: 9pt; margin-top: 0.6pt; }
+  li::before { content: ""; float: left; margin: 0.42em 0 0 -8.7pt; width: 4.4pt; height: 4.4pt; border-radius: 50%; background: #000; }
   .degree em { font-style: italic; }
   .skills { display: grid; grid-template-columns: max-content 1fr; gap: 0.5pt 12pt; margin-top: 4pt; }
   .skills b { font-weight: 500; }
