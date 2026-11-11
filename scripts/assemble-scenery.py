@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Assemble the plant, tree, and skyline sheets from PixelLab candidates.
+"""Assemble the plant, tree, and skyline sheets from candidate images.
 
-    assemble-scenery.py pixellab_dir public/game
+    assemble-scenery.py source_dir public/game
 """
 import colorsys
 import math

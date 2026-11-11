@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assemble Dan's and Mishka's sheets from PixelLab frames.
+"""Assemble Dan's and Mishka's sheets from separate frames.
 
     assemble-sprites.py frames_dir mishka-base.png public/game
 """

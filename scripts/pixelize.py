@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Turn a generated "pixel art" image into real pixel art.
+"""Snap a pixel-style image to its pixel grid and a small palette, keying out the background.
 
     pixelize.py in.png out.png [--cell N] [--colors 24] [--key ff00ff]
     pixelize.py sheet.png out_dir --frames 6     # slice a one-row sprite sheet
