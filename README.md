@@ -87,6 +87,7 @@ Pushing to `main` does not deploy.
 - `src/components/game/wipe.ts` and `room-view.ts`: the iris from the cabin door onto the room, and where the room sits and how much of it a frame repaints. `wipe.plan()` says whether a frame is covered by the room, only needs the hole cut wider, or must repaint the walk.
 - `src/components/game/finger.ts`, `keys.ts`, `page-activity.ts`, `particles.ts`, `toast-layer.ts`, `doom-launcher.ts`: touch, keyboard, what the page is doing around the walk, sparks and smoke, toast positions, and loading Doom on demand.
 - `scripts/walk-frames.mjs`: captures the walk frame by frame under a fake clock and seeded randomness, at four screen sizes, and compares the result with an earlier capture. Run it before and after any change that should not move a pixel.
+- `scripts/hero-still.mjs`: saves the walk's opening scene from the built site as `public/images/hero-wide.png` and `hero-tall.png`, the stills the hero shows when scripts are off. I rerun it when the art changes.
 - `src/components/game/CareerWalk.svelte`: the overlay: intro, cards, toolkit, toasts, timeline.
 - `src/components/game/math.ts`: the seeded random numbers, ordered dithering, and smoothstep the drawing code shares.
 - `src/components/game/path.ts`: the ground under the walk, stretch by stretch: its texture, what grows beside it, and where the trees stand.
