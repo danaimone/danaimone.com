@@ -156,7 +156,7 @@ export function startWalk({ stage, view, canvas, layers, plane, actors, room, sc
             break;
           case "promoted":
             particles.burst(effect.x, ground - 60, ["#ffac42", "#ffe1a0", "#ffffff", "#e96b54"], 40, 3.2);
-            on.toast("Promoted to Engineer II", effect.x, "level");
+            on.toast("Promoted to Engineer 2", effect.x, "level");
             break;
           default: {
             const _exhaustive: never = effect;
