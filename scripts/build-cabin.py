@@ -4,7 +4,7 @@
 Each layout is one painting on the art grid, used as painted: nothing is pasted onto it. The monitors are painted as
 flat key colours and become the screen masks. Every animation layer is cut from the plate or drawn to fit it; the fire burns in the page, from the hearth measured here.
 
-    build-cabin.py ~/danaimone-art public/game src/components/game/room-layouts.json
+    build-cabin.py paintings_dir public/game src/components/game/room-layouts.json
 """
 import json
 import math

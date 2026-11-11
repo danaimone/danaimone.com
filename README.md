@@ -72,11 +72,11 @@ Pushing to `main` does not deploy.
 ## Structure
 
 - `src/data/resume.ts`: the résumé and contact links. The walk, the page, and the PDF all read it. Edit content here.
-- `resume/`: tailored versions (`versions/example.ts` shows the shape). The fact bank, versions written for one employer, and the private details stay out of the repository. `bun run resume` builds the PDFs, and `bun run resume <version>` builds a tailored one. PDFs use licensed fonts from the folder named in `resume/private.mjs` or by `RESUME_FONTS` and fall back to Jost and Source Serif 4 when they are missing. The fonts stay out of git.
+- `resume/`: tailored versions (`versions/example.ts` shows the shape). The fact bank, versions written for one employer, and the private details stay out of the repository. `scripts/build-resume.mjs` builds the PDFs: `bun run resume` for the main one, and `bun run resume <version>` for a tailored one. PDFs use licensed fonts from the folder named in `resume/private.mjs` or by `RESUME_FONTS` and fall back to Jost and Source Serif 4 when they are missing. The fonts stay out of git.
 - `src/components/game/track.ts`: converts between scroll, world position, walk progress, and the finale.
 - `src/components/game/simulation.ts`: the rules of the walk, with no browser: following, sprinting, jumps, gems, zones, teleport. Input and effects are plain data, so `bun test` covers it.
 - `src/components/game/world.ts`: career stops, landmarks, and gems. To add a job, add it to the résumé and give it a place here; the compiler requires it.
-- `src/components/game/assets.ts`: loads the art by name. If any image fails, the walk becomes a static hero and the résumé still works.
+- `src/components/game/assets.ts`: loads the art by name. If any image fails, the walk becomes a static hero and the résumé still works. `art-url.ts` turns a name into the hashed file the build emits for it.
 - `src/components/game/sheets.ts`: the frame size and count of each sprite sheet.
 - `src/data/projects.ts`: the projects listed under the résumé.
 - `src/components/game/room-scene.ts`: the cabin's live scene: the fire (simulated in `fire.ts`), hand frames, candles, steam, Mishka, and window lights.
@@ -90,11 +90,11 @@ Pushing to `main` does not deploy.
 - `src/components/game/CareerWalk.svelte`: the overlay: intro, cards, toolkit, toasts, timeline.
 - `src/components/game/art.ts`: sky palettes and dithering, the sun, smoke, tiled scenery, soil, gems.
 - `src/components/game/path.ts`: the ground under the walk, stretch by stretch: its texture, what grows beside it, and where the trees stand.
-- `src/components/game/doom.ts`: Doom on the cabin's monitor, loaded only when asked for (see `public/doom/` for its licences and build script).
+- `src/components/game/doom.ts`: Doom on the cabin's monitor, loaded only when asked for. `scripts/build-doom.sh` builds it from pinned sources into `public/doom/`, with the platform layer and the worker from `scripts/doom/`, and writes the manifest `doom-files.json`. `public/doom/` also holds its licences.
 - `src/components/game/steady-clock.ts`, `probe.ts`: frame and touch times with the browser's rounding removed, and the `?probe` overlay that measures a swipe on a real phone.
 - `public/game/`: sprites, scenery layers, building `-lights` layers, company logos, and icons.
 - `scripts/assemble-sprites.py`, `scripts/assemble-scenery.py`, `scripts/pixelize.py`, `scripts/asset-lights.py`, `scripts/build-cabin.py`, `scripts/pack-art.py`, `scripts/art-prompts/`: the art pipeline.
-- `src/pages/index.astro`: page layout, metadata, the résumé sheet, About, and Contact.
+- `src/pages/index.astro`: page layout, metadata, the résumé sheet, About, and Contact. `doom.astro` lists Doom's credits, licences, and source, and `404.astro` is the page for a missing link.
 - `src/styles/`: `base.css` holds the tokens, reset, pixel buttons and masthead; `walk.css` the walk's overlays, cards and timeline; `page.css` the résumé sheet, About, Contact and footer. Each file keeps its own narrow-screen rules.
 - `src/scripts/pixel-wipe.ts`: the pixel dissolve on in-page links.
 
