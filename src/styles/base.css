@@ -145,6 +145,7 @@ a:hover {
 .wordmark,
 .mark,
 .project,
+.project-stack li,
 .sheet {
   --px: 3px;
   clip-path: polygon(

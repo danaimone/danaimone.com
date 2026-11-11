@@ -337,9 +337,23 @@ a.project:hover {
 }
 
 .project-stack {
-  margin-top: 0.5rem;
-  font-size: 0.9375rem;
-  color: var(--subtext0);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.75rem;
+  padding-top: 1rem;
+  background: repeating-linear-gradient(90deg, var(--surface0) 0 3px, transparent 3px 6px) top / 100% 3px no-repeat;
+}
+
+.project-stack li {
+  --px: 2px;
+  padding: 0.1875rem 0.5rem 0.125rem;
+  background: var(--surface0);
+  box-shadow: inset 2px 2px 0 var(--surface1), inset -2px -2px 0 var(--crust);
+  font-family: var(--pixel);
+  font-size: 1.171875rem;
+  line-height: 1.2;
+  color: var(--subtext1);
 }
 
 .project-source {

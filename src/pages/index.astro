@@ -168,7 +168,9 @@ const description =
                           ))}
                         </dl>
                       )}
-                      <p class="project-stack">{stack.join(" · ")}</p>
+                      <ul class="project-stack" aria-label="Built with">
+                        {stack.map((item) => <li>{item}</li>)}
+                      </ul>
                       {href && <span class="project-source pixel" aria-hidden="true">Source →</span>}
                       {privateSource && <span class="project-source pixel">Private</span>}
                     </Card>
