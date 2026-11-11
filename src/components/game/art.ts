@@ -1,4 +1,5 @@
-import { BAYER, PATH_ROWS } from "./path";
+import { bayerThreshold, smoothstep } from "./math";
+import { PATH_ROWS } from "./path";
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -45,7 +46,7 @@ export function skyAt(p: number) {
   const a = SKIES[i];
   const b = SKIES[i + 1];
   const t = Math.min(1, Math.max(0, (p - a.at) / (b.at - a.at)));
-  const s = t * t * (3 - 2 * t);
+  const s = smoothstep(t);
   return {
     top: mix(a.top, b.top, s),
     mid: mix(a.mid, b.mid, s),
@@ -56,8 +57,6 @@ export function skyAt(p: number) {
     lights: a.lights + (b.lights - a.lights) * s,
   };
 }
-
-export const DITHER_PERIOD = 4;
 
 // Banded, ordered-dithered sky: the gradient is quantised into steps and the
 // boundaries are dithered, the way a pixel artist would paint it.
@@ -78,7 +77,7 @@ export function paintSky(img: ImageData, sky: ReturnType<typeof skyAt>, horizon:
     const k = Math.min(BANDS - 2, Math.floor(f));
     const frac = f - k;
     for (let x = 0; x < w; x++) {
-      const c = frac > BAYER[(y & 3) * 4 + (x & 3)] ? bands[k + 1] : bands[k];
+      const c = frac > bayerThreshold(x, y) ? bands[k + 1] : bands[k];
       const o = (y * w + x) * 4;
       data[o] = c[0];
       data[o + 1] = c[1];
@@ -86,17 +85,6 @@ export function paintSky(img: ImageData, sky: ReturnType<typeof skyAt>, horizon:
       data[o + 3] = 255;
     }
   }
-}
-
-export function rng(seed: number) {
-  let s = seed >>> 0;
-  return () => {
-    s = (s + 0x6d2b79f5) >>> 0;
-    let t = s;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
 }
 
 function hash(n: number) {

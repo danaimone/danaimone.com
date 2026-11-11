@@ -1,3 +1,4 @@
+import { bayerThreshold } from "./math";
 import { PROP_SHEET } from "./sheets";
 import { WORLD_WIDTH } from "./world";
 
@@ -142,15 +143,13 @@ export function groundIndexAt(x: number) {
   return GROUNDS.findIndex((ground) => x < ground.until);
 }
 
-export const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((value) => (value + 0.5) / 16);
-
 function blendedGround(x: number, row: number) {
   const index = groundIndexAt(x);
   const next = GROUNDS[index + 1];
   if (!next) return GROUNDS[index];
   const reach = (GROUNDS[index].until - x) / BLEND_WIDTH;
   if (reach >= 1) return GROUNDS[index];
-  return 1 - reach > BAYER[(row & 3) * 4 + (x & 3)] ? next : GROUNDS[index];
+  return 1 - reach > bayerThreshold(x, row) ? next : GROUNDS[index];
 }
 
 const between = ([least, most]: Span, random: () => number) => least + random() * (most - least);

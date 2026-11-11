@@ -1,3 +1,4 @@
+import { smoothstep } from "./math";
 import type { PageActivity } from "./page-activity";
 import type { Viewport, WalkSurface } from "./surface";
 import { clamp } from "./track";
@@ -26,7 +27,7 @@ export function createWipe({ view, page, surfaces }: { view: HTMLElement; page: 
   let paintedCamX = 0;
   let widenedFrames = 0;
 
-  const cssRadius = (iris: number) => iris * iris * (3 - 2 * iris) * Math.hypot(view.clientWidth, view.clientHeight) * 1.15;
+  const cssRadius = (iris: number) => smoothstep(iris) * Math.hypot(view.clientWidth, view.clientHeight) * 1.15;
   const radius = (iris: number) => cssRadius(iris) / viewport.scale;
   const centre = (camera: number) => ({ x: DOOR.x + DOOR.width / 2 - camera, y: viewport.ground + DOOR.y + DOOR.height / 2 });
 

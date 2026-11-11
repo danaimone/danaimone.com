@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createFire } from "./fire";
-import { rng } from "./art";
+import { rng } from "./math";
 import layouts from "./room-layouts.json";
 
 describe("the cabin fire", () => {

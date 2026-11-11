@@ -1,5 +1,6 @@
-import { DITHER_PERIOD, drawSun, mix, paintSky, rng, sunHalo } from "./art";
+import { drawSun, mix, paintSky, sunHalo } from "./art";
 import type { Art } from "./assets";
+import { DITHER_PERIOD, rng, smoothstep } from "./math";
 import { CLOUD_KINDS } from "./sheets";
 import { cutHole, fitCanvas, type Frame, type Sky, type Viewport, type WalkSurface } from "./surface";
 import { clamp } from "./track";
@@ -94,7 +95,7 @@ export function createSky({ canvas, stage, art, reduced }: { canvas: HTMLCanvasE
 
   function paintRainier(reveal: number) {
     const { width, ground } = viewport;
-    const eased = reveal * reveal * (3 - 2 * reveal);
+    const eased = smoothstep(reveal);
     const restTop = ground + REVEAL.baseBelowGround - rainier.height;
     const buried = ground - REVEAL.buriedTop;
     const mountainX = Math.round(width * REVEAL.summitAt - rainier.width / 2 - eased * REVEAL.drift);

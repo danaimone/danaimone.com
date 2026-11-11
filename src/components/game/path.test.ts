@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { rng } from "./art";
+import { rng } from "./math";
 import { PROP_SHEET, TREE_SHEET } from "./sheets";
 import { BLEND_WIDTH, GROUNDS, STAND_SPACING, hasCentreDash, placeProps, plantStands, groundAt, groundIndexAt } from "./path";
 import { WORLD_WIDTH } from "./world";
