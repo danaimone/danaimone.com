@@ -28,7 +28,7 @@ export const LANDMARKS = [TRAIL_SIGN, LAB, CHEWY_OFFICE, TOWER, LABS_NOW, CABIN]
 
 export const spriteTop = ({ height }: { height: number }) => BASELINE - height;
 
-export function onLandmark(landmark: Landmark, point: { x: number; y: number }) {
+function onLandmark(landmark: Landmark, point: { x: number; y: number }) {
   return { x: landmark.x + point.x, y: spriteTop(landmark) + point.y };
 }
 

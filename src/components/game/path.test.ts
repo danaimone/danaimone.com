@@ -1,19 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { PROP_SHEET } from "./sheets";
-import { BLEND_WIDTH, GROUNDS, hasCentreDash, placeProps, plantStands, groundAt, groundIndexAt } from "./path";
-
-const seeded = (start: number) => {
-  let value = start;
-  return () => {
-    value = (value * 16807) % 2147483647;
-    return value / 2147483647;
-  };
-};
+import { rng } from "./art";
+import { PROP_SHEET, TREE_SHEET } from "./sheets";
+import { BLEND_WIDTH, GROUNDS, STAND_SPACING, hasCentreDash, placeProps, plantStands, groundAt, groundIndexAt } from "./path";
+import { WORLD_WIDTH } from "./world";
 
 describe("path props", () => {
   test("nothing grows out of paved ground, at any seed", () => {
     for (const seed of [1, 9, 77, 12345]) {
-      for (const prop of placeProps(seeded(seed))) {
+      for (const prop of placeProps(rng(seed))) {
         const left = GROUNDS[groundIndexAt(prop.x)];
         const right = GROUNDS[groundIndexAt(prop.x + PROP_SHEET.width)];
         expect(left.props).toContain(prop.kind);
@@ -25,7 +19,7 @@ describe("path props", () => {
   test("no prop touches a change of ground or the dithered blend before it, across many walks", () => {
     const seams = GROUNDS.filter((ground) => ground.until !== Infinity).map((ground) => ground.until);
     for (let seed = 1; seed <= 500; seed++) {
-      for (const prop of placeProps(seeded(seed))) {
+      for (const prop of placeProps(rng(seed))) {
         const touched = seams.filter((seam) => prop.x + PROP_SHEET.width > seam - BLEND_WIDTH && prop.x < seam);
         expect({ prop, touched }).toEqual({ prop, touched: [] });
       }
@@ -33,19 +27,20 @@ describe("path props", () => {
   });
 
   test("natural ground still gets props", () => {
-    expect(placeProps(seeded(9)).length).toBeGreaterThan(3);
+    expect(placeProps(rng(9)).length).toBeGreaterThan(3);
   });
 });
 
 describe("tree stands", () => {
-  const TREE_WIDTH = 112;
+  const TREE_WIDTH = TREE_SHEET.width;
+  const plant = (seed: number) => plantStands(rng(seed), 0, WORLD_WIDTH, TREE_WIDTH, groundAt);
   const speciesOf = (kind: number, x: number) => groundAt(x).trees.findIndex((species) => species.includes(kind));
   const standsOf = (seed: number) => {
     const stands: { species: number; x: number }[][] = [];
-    for (const tree of plantStands(seeded(seed), 340, 4000, TREE_WIDTH, groundAt)) {
+    for (const tree of plant(seed)) {
       const last = stands.at(-1)?.at(-1);
       const member = { species: speciesOf(tree.kind, tree.x), x: tree.x };
-      if (last && tree.x - last.x <= TREE_WIDTH * 0.7) stands.at(-1)!.push(member);
+      if (last && tree.x - last.x <= TREE_WIDTH * STAND_SPACING[1]) stands.at(-1)!.push(member);
       else stands.push([member]);
     }
     return stands;
@@ -53,7 +48,7 @@ describe("tree stands", () => {
 
   test("every tree is a species of the stretch it grows in", () => {
     for (const seed of [1, 9, 77, 12345]) {
-      for (const tree of plantStands(seeded(seed), 340, 4000, TREE_WIDTH, groundAt)) expect(speciesOf(tree.kind, tree.x)).toBeGreaterThanOrEqual(0);
+      for (const tree of plant(seed)) expect(speciesOf(tree.kind, tree.x)).toBeGreaterThanOrEqual(0);
     }
   });
 
@@ -67,7 +62,7 @@ describe("tree stands", () => {
 
   test("trees in a stand overlap less than two thirds, so none hides another", () => {
     for (const seed of [1, 9, 77]) {
-      const trees = plantStands(seeded(seed), 340, 4000, TREE_WIDTH, groundAt);
+      const trees = plant(seed);
       for (let i = 1; i < trees.length; i++) expect(trees[i].x - trees[i - 1].x).toBeGreaterThan(TREE_WIDTH / 3);
     }
   });

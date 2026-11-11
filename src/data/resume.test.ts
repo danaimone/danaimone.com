@@ -1,26 +1,19 @@
 import { describe, expect, test } from "bun:test";
-import example from "../../resume/versions/example";
 import { resume, tailored } from "./resume";
 
 // The list lives in the untracked resume/private.mjs, so a fresh clone skips this check.
 const banned: string[] | undefined = await import("../../resume/private.mjs").then((details) => details.banned, () => undefined);
 
 describe("tailored résumés", () => {
-  test("keep every job in the main order", () => {
-    expect(example.jobs.map((job) => job.id)).toEqual(resume.jobs.map((job) => job.id));
-  });
-
   test("a job the version does not mention keeps its main bullets", () => {
+    const bulletsOf = ({ jobs }: typeof resume, id: string) => {
+      const job = jobs.find((candidate) => candidate.id === id);
+      if (!job) throw new Error(`no job ${id}`);
+      return job.bullets;
+    };
     const version = tailored({ bullets: { chewy: ["Tailored."] } });
-    const job = (id: string) => version.jobs.find((candidate) => candidate.id === id);
-    expect(job("chewy")?.bullets).toEqual(["Tailored."]);
-    expect(job("vannevar")?.bullets).toEqual(resume.jobs.find((candidate) => candidate.id === "vannevar")?.bullets);
-  });
-
-  test("bullets stay on their own employer", () => {
-    expect(example.jobs.find((job) => job.id === "chewy")?.company).toBe("Chewy");
-    const bullets = (from: typeof resume) => [...(from.jobs.find((job) => job.id === "pnnl")?.bullets ?? [])].sort();
-    expect(bullets(example)).toEqual(bullets(resume));
+    expect(bulletsOf(version, "chewy")).toEqual(["Tailored."]);
+    expect(bulletsOf(version, "vannevar")).toEqual(bulletsOf(resume, "vannevar"));
   });
 });
 

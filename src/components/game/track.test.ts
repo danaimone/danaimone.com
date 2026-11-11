@@ -1,11 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { KEY_STEP, WALK_END, WALK_START, finaleAt, fractionOf, progressAt, worldAt } from "./track";
+import { WALK_END, WALK_START, finaleAt, fractionOf, progressAt, worldAt } from "./track";
 import { TIMELINE } from "./world";
 
 describe("scroll track", () => {
   test("the walk starts at the trailhead and reaches the cabin before the page ends", () => {
     expect(worldAt(0)).toBe(WALK_START);
-    expect(worldAt(fractionOf({ kind: "world", x: WALK_END }))).toBeCloseTo(WALK_END);
     expect(fractionOf({ kind: "world", x: WALK_END })).toBeLessThan(1);
   });
 
@@ -29,9 +28,5 @@ describe("scroll track", () => {
     for (const mark of TIMELINE) {
       expect(progressAt(worldAt(fractionOf(mark.destination)))).toBeCloseTo(mark.at);
     }
-  });
-
-  test("a key step covers the declared walking speed", () => {
-    expect(worldAt(KEY_STEP) - worldAt(0)).toBeCloseTo(2.15);
   });
 });

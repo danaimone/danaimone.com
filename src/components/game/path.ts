@@ -154,7 +154,7 @@ function blendedGround(x: number, row: number) {
 }
 
 const between = ([least, most]: Span, random: () => number) => least + random() * (most - least);
-const STAND_SPACING: Span = [0.42, 0.7];
+export const STAND_SPACING: Span = [0.42, 0.7];
 const UNDERSTORY_GAP: Span = [34, 100];
 
 type Tree = { x: number; kind: number; flipped: boolean };

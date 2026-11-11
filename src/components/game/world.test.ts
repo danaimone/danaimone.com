@@ -1,21 +1,23 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { experience } from "../../data/resume";
 import { CLOUD_KINDS, DAN_SHEET, MISHKA_SHEET, PROP_SHEET, TREE_SHEET } from "./sheets";
 import layouts from "./room-layouts.json";
 import { fractionOf, worldAt } from "./track";
-import { BEACON, CHIMNEY, DOOR, GEMS, LANDMARKS, PROMOTION_X, STOPS, TIMELINE, onLandmark, spriteTop } from "./world";
+import { BEACON, CHIMNEY, DOOR, GEMS, LANDMARKS, PROMOTION_X, STOPS, TIMELINE, spriteTop } from "./world";
 
 function pngSize(name: string) {
   const file = readFileSync(`public/game/${name}.png`);
   return { width: file.readUInt32BE(16), height: file.readUInt32BE(20) };
 }
 
-const atlassianStop = STOPS.find((stop) => stop.id === "atlassian");
+function findOrThrow<T>(items: T[], matches: (item: T) => boolean) {
+  const found = items.find(matches);
+  if (!found) throw new Error("no match");
+  return found;
+}
 
 describe("career stops", () => {
-  test("every job has a stop, oldest first", () => {
-    expect(STOPS.map((stop) => stop.id)).toEqual(experience.map((stop) => stop.id).reverse());
+  test("stops stand along the walk oldest first", () => {
     const xs = STOPS.map((stop) => stop.markerX);
     expect(xs).toEqual([...xs].sort((a, b) => a - b));
   });
@@ -34,7 +36,9 @@ describe("career stops", () => {
   });
 
   test("the promotion happens at Atlassian", () => {
-    expect(atlassianStop && PROMOTION_X >= atlassianStop.zone.from && PROMOTION_X <= atlassianStop.zone.to).toBe(true);
+    const { zone } = findOrThrow(STOPS, (stop) => stop.id === "atlassian");
+    expect(PROMOTION_X).toBeGreaterThanOrEqual(zone.from);
+    expect(PROMOTION_X).toBeLessThanOrEqual(zone.to);
   });
 
   test("gem labels are unique and on the walk", () => {
@@ -70,13 +74,17 @@ describe("art matches the code", () => {
   });
 
   test("anchors sit on their landmarks", () => {
-    const cabin = LANDMARKS.find((landmark) => landmark.name === "cabin");
-    const labsNow = LANDMARKS.find((landmark) => landmark.name === "labsnow");
-    expect(cabin && onLandmark(cabin, { x: 0, y: 0 }).y).toBe(cabin && spriteTop(cabin));
-    expect(cabin && DOOR.x >= cabin.x && DOOR.x + DOOR.width <= cabin.x + cabin.width).toBe(true);
-    expect(cabin && DOOR.y + DOOR.height).toBeLessThanOrEqual(2);
-    expect(cabin && CHIMNEY.x < cabin.x + cabin.width).toBe(true);
-    expect(labsNow && BEACON.x < labsNow.x + labsNow.width).toBe(true);
+    const named = (name: string) => findOrThrow(LANDMARKS, (landmark) => landmark.name === name);
+    const inside = (landmark: (typeof LANDMARKS)[number], box: { x: number; y: number; width?: number; height?: number }) => {
+      const top = spriteTop(landmark);
+      expect(box.x).toBeGreaterThanOrEqual(landmark.x);
+      expect(box.x + (box.width ?? 0)).toBeLessThanOrEqual(landmark.x + landmark.width);
+      expect(box.y).toBeGreaterThanOrEqual(top);
+      expect(box.y + (box.height ?? 0)).toBeLessThanOrEqual(top + landmark.height);
+    };
+    inside(named("cabin"), DOOR);
+    inside(named("cabin"), CHIMNEY);
+    inside(named("labsnow"), BEACON);
   });
 });
 

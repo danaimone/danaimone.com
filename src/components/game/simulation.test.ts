@@ -277,17 +277,20 @@ describe("zones", () => {
       walk.settle();
       let zone = "";
       const overlaps: string[] = [];
+      const checked = new Set<string>();
       for (let x = 100; x < 3900; x += 2) {
         for (const effect of walk.walkOne(x)) {
           if (effect.kind === "zone") zone = effect.zone;
         }
         const stop = STOPS.find((candidate) => candidate.id === zone);
         if (!stop) continue;
+        checked.add(stop.id);
         const left = stop.landmark.x + stop.landmark.focus.x - cameraAt(walk.simulation.view().dan.x, viewWidth);
         const right = left + stop.landmark.focus.width;
         const covered = stop.cardSide === "left" ? right > 0 && left < cardSpan : left < viewWidth && right > viewWidth - cardSpan;
         if (covered) overlaps.push(`${stop.id} at ${x}`);
       }
+      expect([...checked]).toEqual(STOPS.map((stop) => stop.id));
       expect(overlaps).toEqual([]);
     });
   }

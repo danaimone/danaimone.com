@@ -37,8 +37,8 @@ describe("releasing the finger", () => {
     }
   });
 
-  test("every flick ends inside the 1.2 s budget, however hard", () => {
-    for (const speed of [0.5, 1, 3, 12, 60]) expect(glideFrom(speed)!.ms).toBeLessThan(1200);
+  test("every flick comes to rest within a second, however hard", () => {
+    for (const speed of [0.5, 1, 3, 12, 60]) expect(glideFrom(speed)!.ms).toBeLessThanOrEqual(1000);
   });
 
   test("a harder flick travels further, up to the same limit", () => {
