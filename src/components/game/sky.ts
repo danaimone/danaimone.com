@@ -190,6 +190,7 @@ export function createSky({ canvas, stage, art, reduced }: { canvas: HTMLCanvasE
   const tileCtx = tile.getContext("2d")!;
   let tilePixels: ImageData | null = null;
   let paintedStep = "";
+  let painted = "";
   let viewport: Viewport;
   let stars: Star[] = [];
   let clouds: Cloud[] = [];
@@ -258,6 +259,7 @@ export function createSky({ canvas, stage, art, reduced }: { canvas: HTMLCanvasE
       tile.height = height;
       tilePixels = tileCtx.createImageData(DITHER_PERIOD, height);
       paintedStep = "";
+      painted = "";
       const r = rng(3);
       clouds = [];
       for (let cx = 0; cx < width + CLOUD_MARGIN * 2; cx += CLOUD_SPAWN.gap + r() * CLOUD_SPAWN.gapSpread) {
@@ -278,6 +280,13 @@ export function createSky({ canvas, stage, art, reduced }: { canvas: HTMLCanvasE
     },
     paint({ t, camera, tod, sky, walk }: Frame) {
       const { width, ground } = viewport;
+      const reveal = clamp((walk.dan.x - REVEAL.from) / (REVEAL.to - REVEAL.from), 0, 1);
+      const cloudAlpha = clamp((tod - CLOUDS.appearFrom) / CLOUDS.appearOver, 0, 1) * (1 - clamp(reveal / REVEAL_FADE, 0, 1));
+      const drift = reduced ? 0 : t * CLOUDS.drift;
+      const cloudLefts = cloudAlpha > 0 ? clouds.map((c) => cloudLeft(c, camera, drift)) : [];
+      const scene = !reduced && sky.stars > 0.02 ? "" : `${tod} ${walk.dan.x} ${cloudLefts}`;
+      if (scene && scene === painted) return;
+      painted = scene;
       paintBands(tod, sky);
       ctx.drawImage(banded, 0, 0, width, ground, 0, 0, width, ground);
 
@@ -294,7 +303,6 @@ export function createSky({ canvas, stage, art, reduced }: { canvas: HTMLCanvasE
         }
         ctx.globalAlpha = 1;
       }
-      const reveal = clamp((walk.dan.x - REVEAL.from) / (REVEAL.to - REVEAL.from), 0, 1);
       if (moonRise > 0) {
         ctx.globalAlpha = moonRise;
         ctx.drawImage(art.moon, moonLeft, moonTop);
@@ -309,23 +317,21 @@ export function createSky({ canvas, stage, art, reduced }: { canvas: HTMLCanvasE
         drawSun(ctx, sunArt, sx, sy, clamp((sunT - SUN_EVENING.from) / SUN_EVENING.over, 0, 1));
       }
 
-      const cloudAlpha = clamp((tod - CLOUDS.appearFrom) / CLOUDS.appearOver, 0, 1) * (1 - clamp(reveal / REVEAL_FADE, 0, 1));
       ctx.globalAlpha = cloudAlpha;
-      if (cloudAlpha > 0) {
-        const drift = reduced ? 0 : t * CLOUDS.drift;
-        const { height } = art.clouds;
-        for (const c of clouds) {
-          const column = c.facing === "right" ? c.kind : CLOUD_KINDS - 1 - c.kind;
-          const row = c.facing === "right" ? 0 : height;
-          ctx.drawImage(tintedClouds, column * cloudWidth, row, cloudWidth, height, cloudLeft(c, camera, drift), c.y, cloudWidth, height);
-        }
-      }
+      const { height } = art.clouds;
+      cloudLefts.forEach((left, i) => {
+        const c = clouds[i];
+        const column = c.facing === "right" ? c.kind : CLOUD_KINDS - 1 - c.kind;
+        const row = c.facing === "right" ? 0 : height;
+        ctx.drawImage(tintedClouds, column * cloudWidth, row, cloudWidth, height, left, c.y, cloudWidth, height);
+      });
       ctx.globalAlpha = 1;
 
       if (reveal > 0) paintRainier(reveal);
     },
     cut(hole) {
       cutHole(ctx, hole.x, hole.y, hole.radius);
+      painted = "";
     },
   };
 }

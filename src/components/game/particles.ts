@@ -81,6 +81,9 @@ export function createParticles(reduced: boolean) {
         if (q.life <= 0) particles.splice(i, 1);
       }
     },
+    showsIn(camX: number, width: number) {
+      return particles.some((q) => q.x - camX > -PUFF_CELL && q.x - camX < width + PUFF_CELL);
+    },
     draw(c: CanvasRenderingContext2D, camX: number) {
       for (const q of particles) {
         if (q.smoke) {

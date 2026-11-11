@@ -32,6 +32,7 @@ export function createActors({ canvas, art, particles }: { canvas: HTMLCanvasEle
   const dan = slice(art.dan, DAN_SHEET.width, DAN_SHEET.height);
   const dog = slice(art.mishka, MISHKA_SHEET.width, MISHKA_SHEET.height);
   let viewport: Viewport;
+  let painted = "";
 
   function drawContactShadow(x: number, y: number, halfWidth: number, lift: number, presence: number) {
     const shrink = clamp(1 - lift / 60, 0.4, 1);
@@ -48,9 +49,15 @@ export function createActors({ canvas, art, particles }: { canvas: HTMLCanvasEle
     resize(next) {
       viewport = next;
       fitCanvas(canvas, viewport.width, viewport.height, viewport.scale);
+      painted = "";
     },
     paint({ camera, camX, walk: { dan: walker, mishka, warpLevel } }: Frame) {
       const { width, height, ground } = viewport;
+      const scene = particles.showsIn(camX, width)
+        ? ""
+        : `${camera} ${warpLevel} ${walker.x} ${walker.facing} ${walker.lift} ${walker.frame} ${mishka.x} ${mishka.facing} ${mishka.lift} ${mishka.frame} ${mishka.depthRows} ${mishka.inFront} ${mishka.barking}`;
+      if (scene && scene === painted) return;
+      painted = scene;
       ctx.clearRect(0, 0, width, height);
       if (warpLevel > 0) {
         for (const wx of [walker.x, mishka.x]) {
@@ -105,6 +112,7 @@ export function createActors({ canvas, art, particles }: { canvas: HTMLCanvasEle
     },
     cut(hole) {
       cutHole(ctx, hole.x, hole.y, hole.radius);
+      painted = "";
     },
   };
 }

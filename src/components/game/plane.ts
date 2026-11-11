@@ -34,6 +34,7 @@ export function createPlane({ canvas, art, reduced }: { canvas: HTMLCanvasElemen
   let viewport: Viewport;
   let props: { x: number; kind: number }[] = [];
   let slid = -1;
+  let painted = "";
 
   return {
     elements: [canvas],
@@ -41,6 +42,7 @@ export function createPlane({ canvas, art, reduced }: { canvas: HTMLCanvasElemen
       viewport = next;
       fitCanvas(canvas, viewport.width + 1, viewport.height, viewport.scale);
       slid = -1;
+      painted = "";
       props = placeProps(rng(9));
     },
     paint({ t, camera, sky, walk }: Frame) {
@@ -52,6 +54,16 @@ export function createPlane({ canvas, art, reduced }: { canvas: HTMLCanvasElemen
         slid = slide;
         canvas.style.transform = `translate3d(${-slide / window.devicePixelRatio}px, 0, 0)`;
       }
+
+      const beaconOn = Math.sin(t * 3) > 0.2;
+      const doorOpen = clamp(walk.finale / DOOR_OPEN_BY_FINALE, 0, 1);
+      const gems = GEMS.filter((gem) => !walk.collected.has(gem.label) && gem.x - left >= -10 && gem.x - left <= width + 10).map((gem) => ({
+        ...gem,
+        bob: reduced ? 0 : Math.round(Math.sin(t * 3 + gem.x) * 2),
+      }));
+      const scene = `${left} ${sky.tint} ${sky.tintAlpha} ${sky.lights} ${beaconOn} ${doorOpen} ${gems.map((gem) => `${gem.label}:${gem.bob}`)}`;
+      if (scene === painted) return;
+      painted = scene;
 
       ctx.clearRect(0, 0, width, height);
       paintGround(ctx, path, flecks, left, width, ground, height);
@@ -86,12 +98,11 @@ export function createPlane({ canvas, art, reduced }: { canvas: HTMLCanvasElemen
         if (sx < -size || sx > width) continue;
         ctx.drawImage(logo, sx, sy, size, size);
       }
-      if (Math.sin(t * 3) > 0.2) {
+      if (beaconOn) {
         ctx.fillStyle = "#ff5a4f";
         ctx.fillRect(BEACON.x - left - 1, ground + BEACON.y, 3, 2);
       }
 
-      const doorOpen = clamp(walk.finale / DOOR_OPEN_BY_FINALE, 0, 1);
       if (doorOpen > 0) {
         const doorX = DOOR.x - left;
         const doorY = ground + DOOR.y;
@@ -103,16 +114,11 @@ export function createPlane({ canvas, art, reduced }: { canvas: HTMLCanvasElemen
         ctx.globalAlpha = 1;
       }
 
-      for (const gem of GEMS) {
-        if (walk.collected.has(gem.label)) continue;
-        const sx = gem.x - left;
-        if (sx < -10 || sx > width + 10) continue;
-        const bob = reduced ? 0 : Math.round(Math.sin(t * 3 + gem.x) * 2);
-        drawGem(ctx, sx, ground - GEM_FLOAT_HEIGHT + bob, gem.color);
-      }
+      for (const gem of gems) drawGem(ctx, gem.x - left, ground - GEM_FLOAT_HEIGHT + gem.bob, gem.color);
     },
     cut(hole) {
       cutHole(ctx, hole.x + (hole.camera - Math.floor(hole.camera)), hole.y, hole.radius);
+      painted = "";
     },
   };
 }
