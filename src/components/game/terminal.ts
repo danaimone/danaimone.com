@@ -86,11 +86,11 @@ const clockAt = (date: Date) => `${String(date.getHours()).padStart(2, "0")}:${S
 function reply(command: string, now: Date): string[] | null {
   if (command === "date") return wrapWords(now.toDateString());
   if (command.startsWith("echo ")) return wrapWords(command.slice(5));
-  return RESPONSES[command] ?? null;
+  return Object.hasOwn(RESPONSES, command) ? RESPONSES[command] : null;
 }
 
 const BUILT_IN = ["clear", "date", "history"];
-const isKnown = (command: string) => BUILT_IN.includes(command) || command.startsWith("echo ") || command in RESPONSES;
+const isKnown = (command: string) => BUILT_IN.includes(command) || command.startsWith("echo ") || Object.hasOwn(RESPONSES, command);
 
 // The first row of a command leaves room for the prompt's arrow.
 function commandRows(input: string, known: boolean): Line[] {

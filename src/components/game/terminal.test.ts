@@ -78,6 +78,14 @@ describe("cabin terminal", () => {
     expect(shown(terminal)).toContain("git log");
   });
 
+  test("names an object inherits are unknown commands", () => {
+    const terminal = createTerminal();
+    type(terminal, "constructor");
+    type(terminal, "__proto__");
+    expect(shown(terminal).join(" ")).toContain("zsh: command not found: constructor");
+    expect(shown(terminal).join(" ")).toContain("zsh: command not found: __proto__");
+  });
+
   test("ignores keys that are not typing", () => {
     const terminal = createTerminal();
     expect(terminal.press("ArrowLeft")).toBe(false);
