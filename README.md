@@ -1,5 +1,7 @@
 # danaimone.com
 
+[![CI](https://github.com/danaimone/danaimone.com/actions/workflows/ci.yml/badge.svg)](https://github.com/danaimone/danaimone.com/actions/workflows/ci.yml)
+
 My personal site, live at https://danaimone.com. The top of the page is a scroll-driven pixel-art career walk: my Samoyed, Mishka, and I walk through Washington from a research lab (PNNL, 2017) past Chewy and Atlassian to Vannevar, with the Seattle skyline in the distance. The sky moves from dawn to night, Mount Rainier rises for the final reveal, and the walk ends inside a cabin with contact details. Below the walk is a résumé in Catppuccin Mocha, built from the same data as the downloadable PDF.
 
 Built with Bun, Astro 7, Svelte 5, TypeScript, and canvas. The page is static HTML. The walk is one island: a framework-free game engine and a small Svelte overlay. UI text is Instrument Sans, with Jersey 15 for headings and buttons, sized in multiples of 7.5 px where it can be, so its pixels land on a 2x screen's; both are self-hosted. Characters, landmarks, scenery, icons, and the title logo are pixel-art sprites in `public/game/`. The sky and the era-by-era path are drawn in code.
@@ -31,11 +33,13 @@ The site runs at http://localhost:4321.
 ## Validation
 
 ```sh
-bun test
 bun run typecheck
 bun run build
+bun test
 bun run preview
 ```
+
+CI runs the first three on every push. Some tests read `dist/`, so build first.
 
 Before publishing, walk the whole page at desktop and phone widths. Check the arrow keys, Space and tap to jump, the timeline teleports and Back to Start, the Rainier reveal, the cabin finale forward and back, the pixel dissolve on section links, reduced motion, and the PDF link. Open the browser console and confirm there are no Content Security Policy violations.
 
@@ -66,6 +70,8 @@ Pushing to `main` does not deploy.
 - `src/components/game/simulation.ts`: the rules of the walk, with no browser: following, sprinting, jumps, gems, zones, teleport. Input and effects are plain data, so `bun test` covers it.
 - `src/components/game/world.ts`: career stops, landmarks, and gems. To add a job, add it to the résumé and give it a place here; the compiler requires it.
 - `src/components/game/assets.ts`: loads the art by name. If any image fails, the walk becomes a static hero and the résumé still works.
+- `src/components/game/sheets.ts`: the frame size and count of each sprite sheet.
+- `src/data/projects.ts`: the projects listed under the résumé.
 - `src/components/game/room-scene.ts`: the cabin's live scene: the fire (simulated in `fire.ts`), hand frames, candles, steam, Mishka, and window lights.
 - `src/components/game/room-screens.ts`: the two monitors, the Rex terminal and Neovim showing `simulation.ts`. They are drawn on their own canvases at the display's resolution, in Departure Mono (SIL Open Font License, `src/fonts/`), sized to the font's 11 px grid where it fits. A monitor too small for readable type shows a minimap of the code instead.
 - `src/components/game/terminal.ts`: the toy terminal on the monitor, styled after my own shell. Its replies are canned; a few commands act on the page (`resume`, `open resume.pdf`, `stoke`, `doom`).

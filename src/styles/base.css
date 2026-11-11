@@ -135,6 +135,7 @@ a:hover {
 .walk-toast,
 .wordmark,
 .mark,
+.project,
 .sheet {
   --px: 3px;
   clip-path: polygon(

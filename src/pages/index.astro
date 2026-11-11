@@ -1,6 +1,7 @@
 ---
 import { gameUrl } from "../components/game/art-url";
 import CareerWalk from "../components/game/CareerWalk.svelte";
+import { projects } from "../data/projects";
 import { EMAIL, contact, elsewhere, experience, resume } from "../data/resume";
 import "@fontsource-variable/instrument-sans/wdth.css";
 import "@fontsource/jersey-15/latin-400.css";
@@ -70,6 +71,7 @@ const description =
       </a>
       <nav aria-label="Sections">
         <a href="#resume">Résumé</a>
+        <a href="#projects">Projects</a>
         <a href="#about">About</a>
         <a href="#contact">Contact</a>
       </nav>
@@ -144,6 +146,23 @@ const description =
         </article>
 
         <div class="after">
+          <section class="projects" id="projects" tabindex="-1" aria-labelledby="projects-title">
+            <h2 class="sheet-head-label" id="projects-title">Projects</h2>
+            <ul class="project-list">
+              {projects.map(({ name, href, summary, detail, stack }) => (
+                <li>
+                  <a class="project" href={href} rel="me noopener">
+                    <h3 class="pixel">{name}</h3>
+                    <p class="project-summary">{summary}</p>
+                    <p class="project-detail">{detail}</p>
+                    <p class="project-stack">{stack.join(" · ")}</p>
+                    <span class="project-source pixel" aria-hidden="true">Source →</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+
           <section id="about" tabindex="-1" aria-labelledby="about-title">
             <h2 class="sheet-head-label" id="about-title">About</h2>
             <div class="about">
