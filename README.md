@@ -42,10 +42,11 @@ The site runs at http://localhost:4321.
 bun run typecheck
 bun run build
 bun test
+bun run test:dist
 bun run preview
 ```
 
-CI runs the first three on every push. Some tests read `dist/`, so build first.
+`bun test` runs the unit tests and needs no build. `bun run test:dist` checks the built site in `dist/`, so it runs after `bun run build`. CI runs the first four on every push.
 
 Before publishing, walk the whole page at desktop and phone widths. Check the arrow keys, Space and tap to jump, the timeline teleports and Back to Start, the Rainier reveal, the cabin finale forward and back, the pixel dissolve on section links, reduced motion, and the PDF link. Open the browser console and confirm there are no Content Security Policy violations.
 
