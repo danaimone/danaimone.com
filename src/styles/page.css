@@ -303,7 +303,7 @@
   transition: transform 80ms steps(2), background-color 80ms steps(2);
 }
 
-.project:hover {
+a.project:hover {
   color: inherit;
   background: #232336;
   transform: translate(0, -2px);
@@ -342,7 +342,7 @@
   color: var(--subtext0);
 }
 
-.project:hover .project-source {
+a.project:hover .project-source {
   color: var(--amber-soft);
 }
 

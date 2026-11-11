@@ -150,17 +150,20 @@ const description =
           <section class="projects" id="projects" tabindex="-1" aria-labelledby="projects-title">
             <h2 class="sheet-head-label" id="projects-title">Projects</h2>
             <ul class="project-list">
-              {projects.map(({ name, href, summary, detail, stack }) => (
-                <li>
-                  <a class="project" href={href} rel="me noopener">
-                    <h3 class="pixel">{name}</h3>
-                    <p class="project-summary">{summary}</p>
-                    <p class="project-detail">{detail}</p>
-                    <p class="project-stack">{stack.join(" · ")}</p>
-                    <span class="project-source pixel" aria-hidden="true">Source →</span>
-                  </a>
-                </li>
-              ))}
+              {projects.map(({ name, href, summary, detail, stack }) => {
+                const Card = href ? "a" : "div";
+                return (
+                  <li>
+                    <Card class="project" href={href} rel={href && "me noopener"}>
+                      <h3 class="pixel">{name}</h3>
+                      <p class="project-summary">{summary}</p>
+                      <p class="project-detail">{detail}</p>
+                      <p class="project-stack">{stack.join(" · ")}</p>
+                      <span class="project-source pixel" aria-hidden={href ? "true" : undefined}>{href ? "Source →" : "Private"}</span>
+                    </Card>
+                  </li>
+                );
+              })}
             </ul>
           </section>
 
