@@ -50,19 +50,15 @@ const CEDARS = [10, 11];
 const HEMLOCKS = [12, 13];
 
 type Span = [least: number, most: number];
+type Species = number[];
 
-// What grows along a stretch of the walk, east to west across Washington: the
-// shrub-steppe around Richland, the Puget lowland, the Cascade forest, and the
-// subalpine meadows under Rainier. `props` stand on the path's verge, `understory`
-// grows in the bank behind it, and `trees` lists species, each with its variants:
-// a stand is one species.
 export type Ground = {
   name: string;
   until: number;
   tufts: string | null;
   props: number[];
   understory: number[];
-  trees: number[][];
+  trees: Species[];
   stand: Span;
   standGap: Span;
   texel: Texel;
@@ -163,14 +159,9 @@ const UNDERSTORY_GAP: Span = [34, 100];
 
 type Tree = { x: number; kind: number; flipped: boolean };
 
-// Trees along a parallax layer `width` wide, where `groundAtLayerX` says what
-// grows at a layer position. A stand is one species in its variants, set close
-// enough to read as a stand without piling up, and the next stand is a different
-// species when the stretch has more than one. Trees are mirrored at random, and
-// two of the same variant side by side always face opposite ways.
 export function plantStands(random: () => number, from: number, width: number, treeWidth: number, groundAtLayerX: (x: number) => Ground) {
   const trees: Tree[] = [];
-  let previous: number[] = [];
+  let previous: Species = [];
   let x = from;
   while (x < width) {
     const ground = groundAtLayerX(x);

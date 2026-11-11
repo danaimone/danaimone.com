@@ -40,8 +40,6 @@ function drawPuff(ctx: CanvasRenderingContext2D, puffs: HTMLCanvasElement, x: nu
 
 type Particle = { x: number; y: number; vx: number; vy: number; life: number; color: string; smoke?: boolean };
 
-// Sparks and chimney smoke, in world positions. Stepped at the simulation's tick
-// rate and drawn on the actors canvas.
 export function createParticles(reduced: boolean) {
   const particles: Particle[] = [];
   const puffs = smokePuffs();
@@ -61,7 +59,6 @@ export function createParticles(reduced: boolean) {
         particles.push({ x: x - 8 + Math.random() * 16, y: ground - Math.random() * 70, vx: 0, vy: -1.6 - Math.random() * 2, life: 0.7, color: TELEPORT_COLORS[Math.floor(Math.random() * TELEPORT_COLORS.length)] });
       }
     },
-    // Sparks fall, chimney smoke drifts.
     step(now: number, ground: number) {
       if (!reduced && now > smokeAt) {
         smokeAt = now + 110 + Math.random() * 110;

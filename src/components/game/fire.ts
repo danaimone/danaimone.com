@@ -15,10 +15,6 @@ const INKS = [
   { least: 8, rgb: [232, 92, 24] },
 ];
 
-// A fire that never repeats. Heat is fed in along the logs' top edge (`floor`, one
-// row per column), hottest in the middle. Each step a cell takes the heat of a cell
-// just below it, shifted a column either way and cooled by a random amount. The
-// feed swells and fades along the logs, so the heat rises as separate tongues.
 export function createFire({ width, height, floor, middle, reach }: Hearth, random: () => number = Math.random) {
   const heat = new Uint8Array(width * height);
   const pick = (from: number[]) => from[Math.floor(random() * from.length)];
@@ -45,31 +41,33 @@ export function createFire({ width, height, floor, middle, reach }: Hearth, rand
     stoked = Math.max(0, stoked - 1);
   }
 
+  function averageHeatAround(x: number, y: number) {
+    let sum = heat[y * width + x];
+    let cells = 1;
+    for (let ny = Math.max(0, y - 1); ny <= Math.min(height - 1, y + 1); ny++) {
+      for (let nx = Math.max(0, x - 1); nx <= Math.min(width - 1, x + 1); nx++) {
+        if (ny >= floor[nx]) continue;
+        sum += heat[ny * width + nx];
+        cells++;
+      }
+    }
+    return sum / cells;
+  }
+
   for (let i = 0; i < WARM_UP_STEPS; i++) step();
 
   return {
     step,
-    // A poke at the logs: for a few seconds every tongue burns at full fuel and holds its heat higher.
     stoke() {
       stoked = STOKED_STEPS;
     },
-    // Each pixel is inked from the average heat around it, so a tongue has a clean
-    // edge. Nothing is painted at or below the logs.
     paint(rgba: Uint8ClampedArray) {
       rgba.fill(0);
       for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
           if (y >= floor[x]) continue;
-          let sum = heat[y * width + x];
-          let cells = 1;
-          for (let ny = Math.max(0, y - 1); ny <= Math.min(height - 1, y + 1); ny++) {
-            for (let nx = Math.max(0, x - 1); nx <= Math.min(width - 1, x + 1); nx++) {
-              if (ny >= floor[nx]) continue;
-              sum += heat[ny * width + nx];
-              cells++;
-            }
-          }
-          const ink = INKS.find(({ least }) => sum / cells >= least);
+          const heatAround = averageHeatAround(x, y);
+          const ink = INKS.find(({ least }) => heatAround >= least);
           if (ink) rgba.set([...ink.rgb, 255], (y * width + x) * 4);
         }
       }

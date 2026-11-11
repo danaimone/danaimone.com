@@ -25,8 +25,6 @@ function slice(image: HTMLImageElement, width: number, height: number) {
   return { right: frames(false), left: frames(true) };
 }
 
-// The actors canvas: Dan and Mishka with their shadows, the teleport beam, and the
-// particles. The walkers stay put on screen while the world slides under them.
 export function createActors({ canvas, art, particles }: { canvas: HTMLCanvasElement; art: Art; particles: Particles }): WalkSurface {
   const ctx = canvas.getContext("2d")!;
   const dan = slice(art.dan, DAN_SHEET.width, DAN_SHEET.height);
@@ -72,7 +70,6 @@ export function createActors({ canvas, art, particles }: { canvas: HTMLCanvasEle
         ctx.globalAlpha = 1;
       }
 
-      // The beam fades both walkers out at one place and in at the next.
       const presence = 1 - warpLevel;
       const mishkaLeft = Math.round(mishka.x - camera - MISHKA_SHEET.width / 2);
       const mishkaTop = Math.round(ground + FOOT_DROP + spriteTop(MISHKA_SHEET) - mishka.lift) + mishka.depthRows;

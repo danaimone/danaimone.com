@@ -2,7 +2,7 @@ import type { Art } from "./assets";
 import { rng } from "./math";
 import { PROP_SHEET } from "./sheets";
 import { buildPath, paintGround, placeProps, soilFlecks } from "./path";
-import { cutHole, fitCanvas, tintOver, type Frame, type Viewport, type WalkSurface } from "./surface";
+import { cutHole, fitCanvas, slideInDevicePixels, tintOver, type Frame, type Viewport, type WalkSurface } from "./surface";
 import { clamp } from "./track";
 import { BEACON, DOOR, GEMS, WORLD_WIDTH, spriteTop } from "./world";
 
@@ -23,10 +23,6 @@ function drawGem(ctx: CanvasRenderingContext2D, x: number, y: number, color: str
   px(-1, -2, 1, 1, "#ffffff");
 }
 
-// The ground plane: the path, props, landmarks with their lights and signs, the
-// cabin door and the gems. Everything here is fixed to the world and slides as
-// one. The canvas is one art pixel wider than the view: it is drawn at a whole
-// art pixel and slid the rest of the way by the compositor.
 export function createPlane({ canvas, art, reduced }: { canvas: HTMLCanvasElement; art: Art; reduced: boolean }): WalkSurface {
   const ctx = canvas.getContext("2d")!;
   const path = buildPath();
@@ -49,11 +45,7 @@ export function createPlane({ canvas, art, reduced }: { canvas: HTMLCanvasElemen
       const { height, ground, scale } = viewport;
       const width = viewport.width + 1;
       const left = Math.floor(camera);
-      const slide = Math.round((camera - left) * scale * window.devicePixelRatio);
-      if (slide !== slid) {
-        slid = slide;
-        canvas.style.transform = `translate3d(${-slide / window.devicePixelRatio}px, 0, 0)`;
-      }
+      slid = slideInDevicePixels(canvas, camera - left, scale, slid);
 
       const beaconOn = Math.sin(t * 3) > 0.2;
       const doorOpen = clamp(walk.finale / DOOR_OPEN_BY_FINALE, 0, 1);
@@ -79,7 +71,6 @@ export function createPlane({ canvas, art, reduced }: { canvas: HTMLCanvasElemen
       }
       if (sky.tintAlpha > 0.005) tintOver(ctx, sky.tint, sky.tintAlpha, width, height);
 
-      // Light sources sit on top of the tint.
       for (const { landmark, lights } of art.landmarks) {
         if (!lights || !landmark.lights) continue;
         const sx = landmark.x - left;

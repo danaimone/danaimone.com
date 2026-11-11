@@ -2,7 +2,7 @@ import type { Art } from "./assets";
 import { rng } from "./math";
 import { PROP_SHEET, TREE_SHEET } from "./sheets";
 import { plantStands, plantUnderstory, groundAt } from "./path";
-import { cutHole, tintOver, type Frame, type Viewport, type WalkSurface } from "./surface";
+import { cutHole, slideInDevicePixels, tintOver, type Frame, type Viewport, type WalkSurface } from "./surface";
 import { LANDMARKS, WORLD_WIDTH } from "./world";
 
 const LAYER_STRETCH = 32;
@@ -55,12 +55,9 @@ function tileThroughTurn(c: CanvasRenderingContext2D, { before, turn, after }: T
   for (let x = turnX + turn.width; x < width; x += after.width) c.drawImage(after, x, baseY - after.height);
 }
 
-// Where a world position sits on a layer, and back. Both agree at the middle of the view.
 const layerXAt = (worldX: number, parallax: number, viewWidth: number) => Math.round((worldX - viewWidth / 2) * parallax + viewWidth / 2);
 const worldXAt = (layerX: number, parallax: number, viewWidth: number) => (layerX - viewWidth / 2) / parallax + viewWidth / 2;
 
-// Trees stand clear of every building, and of the Great Wheel on the layer behind
-// them for as long as it is on screen.
 function paintGroves(c: CanvasRenderingContext2D, width: number, { art, viewport, travel }: Scene, parallax: number, random: () => number, scale: number) {
   const { width: vw, ground } = viewport;
   const drawn = { width: Math.round(TREE_SHEET.width * scale), height: Math.round(TREE_SHEET.height * scale) };
@@ -86,8 +83,7 @@ function paintUnderstory(c: CanvasRenderingContext2D, width: number, { art, view
   }
 }
 
-// Back to front, in the order of the canvases the page renders.
-const LAYERS: readonly LayerRecipe[] = [
+const LAYERS_BACK_TO_FRONT: readonly LayerRecipe[] = [
   {
     parallax: SKYLINE_PARALLAX,
     rows: () => SKYLINE_ROWS,
@@ -137,7 +133,7 @@ const LAYERS: readonly LayerRecipe[] = [
   },
 ];
 
-export const PARALLAX_LAYERS = LAYERS.length;
+export const PARALLAX_LAYERS = LAYERS_BACK_TO_FRONT.length;
 
 type Layer = {
   strip: HTMLCanvasElement;
@@ -148,13 +144,9 @@ type Layer = {
   rows: number;
   left: number;
   slid: number;
-  shade: string;
+  paintedShade: string;
 };
 
-// Each layer is painted once into a strip as long as its whole journey. Its canvas
-// is a little wider than the view: it shows one stretch of the strip and is slid
-// the rest of the way by the compositor, so it is repainted only when it has slid
-// a whole stretch or the light has changed.
 export function createParallax(canvases: HTMLCanvasElement[], art: Art): WalkSurface {
   let viewport: Viewport;
   let layers: Layer[] = [];
@@ -165,7 +157,7 @@ export function createParallax(canvases: HTMLCanvasElement[], art: Art): WalkSur
       viewport = next;
       const { width, height, ground, scale } = viewport;
       const scene = { art, viewport, travel: WORLD_WIDTH - width };
-      layers = LAYERS.map((recipe, index) => {
+      layers = LAYERS_BACK_TO_FRONT.map((recipe, index) => {
         const rows = recipe.rows(art);
         const strip = document.createElement("canvas");
         strip.width = Math.ceil(scene.travel * recipe.parallax + width) + LAYER_STRETCH;
@@ -180,36 +172,30 @@ export function createParallax(canvases: HTMLCanvasElement[], art: Art): WalkSur
         surface.style.width = `${surface.width * scale}px`;
         surface.style.height = `${rows * scale}px`;
         surface.style.bottom = `${(height - top - rows) * scale}px`;
-        return { strip, surface, ctx: surface.getContext("2d")!, parallax: recipe.parallax, top, rows, left: NaN, slid: -1, shade: "" };
+        return { strip, surface, ctx: surface.getContext("2d")!, parallax: recipe.parallax, top, rows, left: NaN, slid: -1, paintedShade: "" };
       });
     },
     paint({ camera, sky: { tint, tintAlpha } }: Frame) {
-      const dpr = window.devicePixelRatio;
       const shade = tintAlpha > 0.005 ? `${tint} ${Math.round(tintAlpha * 200)}` : "";
       for (const layer of layers) {
         const offset = camera * layer.parallax;
         const left = Math.floor(offset / LAYER_STRETCH) * LAYER_STRETCH;
-        if (left !== layer.left || shade !== layer.shade) {
+        if (left !== layer.left || shade !== layer.paintedShade) {
           layer.left = left;
-          layer.shade = shade;
+          layer.paintedShade = shade;
           const c = layer.ctx;
           const { width } = layer.surface;
           c.clearRect(0, 0, width, layer.rows);
           c.drawImage(layer.strip, left, 0, width, layer.rows, 0, 0, width, layer.rows);
           if (shade) tintOver(c, tint, tintAlpha, width, layer.rows);
         }
-        const slide = Math.round((offset - left) * viewport.scale * dpr);
-        if (slide !== layer.slid) {
-          layer.slid = slide;
-          layer.surface.style.transform = `translate3d(${-slide / dpr}px, 0, 0)`;
-        }
+        layer.slid = slideInDevicePixels(layer.surface, offset - left, viewport.scale, layer.slid);
       }
     },
-    // A cut layer no longer matches its shade, so the next paint redraws it.
     cut(hole) {
       for (const layer of layers) {
         cutHole(layer.ctx, hole.x + (hole.camera * layer.parallax - layer.left), hole.y - layer.top, hole.radius);
-        layer.shade = "cut";
+        layer.paintedShade = "cut";
       }
     },
   };

@@ -11,7 +11,7 @@ const MOONLIT = { from: 0.55, over: 0.45, alpha: 0.6 };
 const SKY_REPAINT_STEPS = 300;
 const HORIZON_ABOVE_GROUND = 10;
 const SUN_ARC = { from: 0.02, over: 0.76, left: 0.12, across: 0.8, aboveGround: 14, rise: 0.72 };
-const SUN_ARC_OVERRUN = 0.14;
+const SUN_ARC_HIDDEN_BY_GROUND = 0.14;
 const SUN_EVENING = { from: 0.6, over: 0.4 };
 const MOON = { risesFrom: 0.9, risesOver: 0.1, x: 0.18, lowY: 0.42, climb: 0.22 };
 const MOON_DISC = { x: 12, y: 20, radius: 20.5 };
@@ -26,23 +26,20 @@ type Ctx = CanvasRenderingContext2D;
 type Star = { x: number; y: number; brightness: number; phase: number };
 type Cloud = { x: number; y: number; kind: number; facing: "left" | "right"; speed: number };
 
-// Accepts "#rrggbb" or the "rgb(r,g,b)" strings mix() returns.
-function hex(c: string) {
+function rgbChannels(c: string) {
   if (c[0] !== "#") return c.match(/\d+/g)!.slice(0, 3).map(Number);
   const n = parseInt(c.slice(1), 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
 function mix(a: string, b: string, t: number) {
-  const x = hex(a);
-  const y = hex(b);
+  const x = rgbChannels(a);
+  const y = rgbChannels(b);
   const c = x.map((v, i) => Math.round(v + (y[i] - v) * t));
   return `rgb(${c[0]},${c[1]},${c[2]})`;
 }
 
-// Time of day along the walk: dawn at the start, the avatar's own violet
-// dusk in the present, night at the cabin.
-type SkyKey = {
+type SkyKeyframe = {
   at: number;
   top: string;
   mid: string;
@@ -53,7 +50,7 @@ type SkyKey = {
   lights: number;
 };
 
-const SKIES: SkyKey[] = [
+const SKIES: SkyKeyframe[] = [
   { at: 0, top: "#2c3a72", mid: "#9a7fbf", low: "#ffb98a", tint: "#6a4f8e", tintAlpha: 0.24, stars: 0.22, lights: 0.4 },
   { at: 0.14, top: "#4677c2", mid: "#8bb2e3", low: "#f4dcc6", tint: "#ff9d6e", tintAlpha: 0.06, stars: 0, lights: 0 },
   { at: 0.42, top: "#3c71c2", mid: "#83ade2", low: "#dfeaf3", tint: "#ffffff", tintAlpha: 0, stars: 0, lights: 0 },
@@ -81,13 +78,11 @@ export function skyAt(p: number) {
   };
 }
 
-// Banded, ordered-dithered sky: the gradient is quantised into steps and the
-// boundaries are dithered, the way a pixel artist would paint it.
 function paintSky(img: ImageData, sky: ReturnType<typeof skyAt>, horizon: number) {
   const { width: w, height: h, data } = img;
-  const top = hex(sky.top);
-  const mid = hex(sky.mid);
-  const low = hex(sky.low);
+  const top = rgbChannels(sky.top);
+  const mid = rgbChannels(sky.mid);
+  const low = rgbChannels(sky.low);
   const BANDS = 18;
   const band = (k: number) => {
     const t = k / (BANDS - 1);
@@ -118,7 +113,7 @@ function sunHalo(color: string) {
   halo.width = size;
   halo.height = size;
   const c = halo.getContext("2d")!;
-  const [r, g, b] = hex(color);
+  const [r, g, b] = rgbChannels(color);
   const glow = c.createRadialGradient(SUN_HALO.outer, SUN_HALO.outer, SUN_HALO.inner, SUN_HALO.outer, SUN_HALO.outer, SUN_HALO.outer);
   for (let stop = 0; stop <= 8; stop++) {
     const fade = 1 - stop / 8;
@@ -131,7 +126,6 @@ function sunHalo(color: string) {
 
 type SunArt = { halo: HTMLCanvasElement; warmHalo: HTMLCanvasElement; sprite: HTMLImageElement; warm: HTMLCanvasElement };
 
-// One sprite along the whole arc; only the warm overlay grows with the evening.
 function drawSun(ctx: Ctx, { halo, warmHalo, sprite, warm }: SunArt, cx: number, cy: number, evening: number) {
   if (evening < 1) {
     ctx.globalAlpha = 1 - evening;
@@ -165,8 +159,6 @@ function tinted(img: HTMLImageElement, color: string, alpha: number) {
   return layer;
 }
 
-// The sky canvas: the banded sky, stars, moon, sun and clouds, and Rainier rising
-// out of the ground at the end of the walk.
 export function createSky({ canvas, stage, art, reduced }: { canvas: HTMLCanvasElement; stage: HTMLElement; art: Art; reduced: boolean }): WalkSurface {
   const ctx = canvas.getContext("2d")!;
   const { rainier } = art;
@@ -218,7 +210,6 @@ export function createSky({ canvas, stage, art, reduced }: { canvas: HTMLCanvasE
     return Math.round(cx - CLOUD_MARGIN);
   }
 
-  // The banded sky is repainted only when the time of day crosses a step.
   function paintBands(tod: number, sky: Sky) {
     const step = `${Math.round(tod * SKY_REPAINT_STEPS)}`;
     if (step === paintedStep || !tilePixels) return;
@@ -309,9 +300,8 @@ export function createSky({ canvas, stage, art, reduced }: { canvas: HTMLCanvasE
         ctx.globalAlpha = 1;
       }
 
-      // The sun's arc runs on past the horizon, so the world hides it at both ends.
       const sunT = (tod - SUN_ARC.from) / SUN_ARC.over;
-      if (sunT > -SUN_ARC_OVERRUN && sunT < 1 + SUN_ARC_OVERRUN) {
+      if (sunT > -SUN_ARC_HIDDEN_BY_GROUND && sunT < 1 + SUN_ARC_HIDDEN_BY_GROUND) {
         const sx = Math.round(width * (SUN_ARC.left + sunT * SUN_ARC.across));
         const sy = Math.round(ground - SUN_ARC.aboveGround - Math.sin(sunT * Math.PI) * (ground * SUN_ARC.rise));
         drawSun(ctx, sunArt, sx, sy, clamp((sunT - SUN_EVENING.from) / SUN_EVENING.over, 0, 1));

@@ -2,25 +2,24 @@ import type { createSimulation } from "./simulation";
 import type { skyAt } from "./sky";
 
 const GROUND_DEPTH = 40;
-// Rows of soil under the path; the timeline sits here.
-const SOIL_DEPTH = 25;
+const MIN_SOIL_ROWS = 25;
 const MIN_TIMELINE_PX = 60;
 
 export type Sky = ReturnType<typeof skyAt>;
 export type WalkView = ReturnType<ReturnType<typeof createSimulation>["view"]>;
 
-// Replaced whole on resize, never changed in place, so every surface sees the same
-// layout. Sizes are in art pixels; `scale` is CSS pixels per art pixel.
-export type Viewport = {
-  key: string;
-  scale: number;
-  width: number;
-  height: number;
-  ground: number;
-  cardSpan: number;
-};
+type ArtPixels = number;
+type CssPixelsPerArtPixel = number;
 
-// What one frame paints from. Built only on frames that repaint the walk.
+export type Viewport = Readonly<{
+  key: string;
+  scale: CssPixelsPerArtPixel;
+  width: ArtPixels;
+  height: ArtPixels;
+  ground: ArtPixels;
+  cardSpan: ArtPixels;
+}>;
+
 export type Frame = {
   t: number;
   camera: number;
@@ -30,11 +29,8 @@ export type Frame = {
   walk: WalkView;
 };
 
-// The iris, in view art pixels. Each surface offsets it by how far it has slid.
-export type Hole = { x: number; y: number; radius: number; camera: number };
+export type Hole = { x: ArtPixels; y: ArtPixels; radius: ArtPixels; camera: ArtPixels };
 
-// One canvas of the walk, or a set that moves together. Each owns its pixels, its
-// size and its transform; nothing else draws on it.
 export type WalkSurface = {
   readonly elements: readonly HTMLElement[];
   resize(viewport: Viewport): void;
@@ -44,17 +40,15 @@ export type WalkSurface = {
 
 export const sizeKey = (view: HTMLElement) => `${view.clientWidth} ${view.clientHeight} ${window.devicePixelRatio || 1}`;
 
-// The canvas is scaled by a whole number of device pixels, so art pixels stay
-// square and sharp on any screen.
 export function measureViewport(view: HTMLElement): Viewport {
   const w = view.clientWidth;
   const h = view.clientHeight;
   const dpr = window.devicePixelRatio || 1;
-  const device = Math.max(2, Math.min(Math.floor((h * dpr) / 300), Math.floor((w * dpr) / 250)));
-  const scale = device / dpr;
+  const devicePixelsPerArtPixel = Math.max(2, Math.min(Math.floor((h * dpr) / 300), Math.floor((w * dpr) / 250)));
+  const scale = devicePixelsPerArtPixel / dpr;
   const width = Math.ceil(w / scale);
   const height = Math.ceil(h / scale);
-  const soil = Math.max(SOIL_DEPTH, Math.ceil(MIN_TIMELINE_PX / scale));
+  const soil = Math.max(MIN_SOIL_ROWS, Math.ceil(MIN_TIMELINE_PX / scale));
   view.style.setProperty("--soil", `${soil}`);
   let cardSpan = 0;
   const card = view.querySelector<HTMLElement>(".walk-card");
@@ -63,7 +57,7 @@ export function measureViewport(view: HTMLElement): Viewport {
     const fullWidth = card.offsetWidth + gutter * 2 >= w - 1;
     cardSpan = fullWidth ? 0 : (card.offsetWidth + gutter) / scale;
   }
-  return { key: sizeKey(view), scale, width, height, ground: height - GROUND_DEPTH - (soil - SOIL_DEPTH), cardSpan };
+  return { key: sizeKey(view), scale, width, height, ground: height - GROUND_DEPTH - (soil - MIN_SOIL_ROWS), cardSpan };
 }
 
 export function fitCanvas(canvas: HTMLCanvasElement, width: number, height: number, scale: number) {
@@ -71,6 +65,13 @@ export function fitCanvas(canvas: HTMLCanvasElement, width: number, height: numb
   canvas.height = height;
   canvas.style.width = `${width * scale}px`;
   canvas.style.height = `${height * scale}px`;
+}
+
+export function slideInDevicePixels(element: HTMLElement, artPixels: ArtPixels, scale: CssPixelsPerArtPixel, slid: number) {
+  const dpr = window.devicePixelRatio;
+  const slide = Math.round(artPixels * scale * dpr);
+  if (slide !== slid) element.style.transform = `translate3d(${-slide / dpr}px, 0, 0)`;
+  return slide;
 }
 
 export function cutHole(c: CanvasRenderingContext2D, x: number, y: number, radius: number) {
