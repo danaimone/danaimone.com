@@ -12,16 +12,12 @@ const WIPE_WALK_REPAINT_EVERY = 2;
 
 export const irisAt = (finale: number) => clamp((finale - IRIS_FROM_FINALE) / IRIS_FINALE_SPAN, 0, 1);
 
-// covered: the hole is past every corner, so only the room paints.
-// widen:   the walk behind the hole has not moved, so the hole is just cut wider.
-// full:    repaint the walk, then cut the hole.
-export type WipePlan = "covered" | "widen" | "full";
+export type WipePlan = "room-only" | "widen-hole" | "repaint-walk";
 
 export type Bounds = { left: number; top: number; right: number; bottom: number };
 
-// The iris wipe from the cabin door onto the room. The room sits under the walk
-// canvases, which open this hole onto it. A clip-path on the room instead rebuilds
-// a full-screen mask every frame.
+// The walk canvases cut a hole onto the room beneath them, because a clip-path on
+// the room rebuilds a full-screen mask every frame.
 export function createWipe({ view, page, surfaces }: { view: HTMLElement; page: PageActivity; surfaces: readonly WalkSurface[] }) {
   let viewport: Viewport;
   let covered = false;
@@ -52,18 +48,17 @@ export function createWipe({ view, page, surfaces }: { view: HTMLElement; page: 
         for (const surface of surfaces) for (const element of surface.elements) element.style.visibility = covered ? "hidden" : "";
         page.markRestyled();
       }
-      if (covered) return "covered";
+      if (covered) return "room-only";
       const growing = iris > 0 && iris >= paintedIris && camX === paintedCamX;
       paintedIris = iris;
       paintedCamX = camX;
-      return growing && (page.restyled() || ++widenedFrames % WIPE_WALK_REPAINT_EVERY) ? "widen" : "full";
+      return growing && (page.restyled() || ++widenedFrames % WIPE_WALK_REPAINT_EVERY) ? "widen-hole" : "repaint-walk";
     },
     open(iris: number, camera: number) {
       const hole = { ...centre(camera), radius: radius(iris), camera };
       for (const surface of surfaces) surface.cut(hole);
     },
-    // The square around the hole as last painted, with a margin, in CSS pixels.
-    paintedBounds(iris: number): Bounds {
+    paintedHoleCssBounds(iris: number): Bounds {
       const { x, y } = centre(paintedCamX);
       const { scale } = viewport;
       const reach = (cssRadius(iris) * IRIS_HOLE_MARGIN) / scale;

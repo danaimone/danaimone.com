@@ -32,17 +32,10 @@ export type WalkEvents = {
   open(place: "resume" | "projects" | "pdf"): void;
 };
 
-// The walk is a stack of canvases at art resolution. `canvas` holds the sky. Each
-// of `layers` holds one parallax layer, and `plane` holds everything fixed to the
-// ground. Those are wider than the view: each is drawn at a whole art pixel and
-// slid the rest of the way by the compositor, so the world moves in device pixels.
-// `actors` holds Dan and Mishka, who stay put on screen. `room` is the cabin
-// interior, under all of them, which the wipe opens a hole onto; `screens` are
-// its two monitors, drawn over it at the display's own resolution.
 export type WalkElements = {
   stage: HTMLElement;
   view: HTMLElement;
-  canvas: HTMLCanvasElement;
+  sky: HTMLCanvasElement;
   layers: HTMLCanvasElement[];
   plane: HTMLCanvasElement;
   actors: HTMLCanvasElement;
@@ -50,7 +43,7 @@ export type WalkElements = {
   screens: ScreenCanvases;
 };
 
-export function startWalk({ stage, view, canvas, layers, plane, actors, room, screens }: WalkElements, on: WalkEvents) {
+export function startWalk({ stage, view, sky, layers, plane, actors, room, screens }: WalkElements, on: WalkEvents) {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const simulation = createSimulation({ reduced });
   let probe: ReturnType<typeof import("./probe").startProbe> | null = null;
@@ -90,7 +83,7 @@ export function startWalk({ stage, view, canvas, layers, plane, actors, room, sc
     const page = createPageActivity();
     const particles = createParticles(reduced);
     const surfaces: WalkSurface[] = [
-      createSky({ canvas, stage, art, reduced }),
+      createSky({ canvas: sky, stage, art, reduced }),
       createParallax(layers, art),
       createPlane({ canvas: plane, art, reduced }),
       createActors({ canvas: actors, art, particles }),
@@ -104,7 +97,7 @@ export function startWalk({ stage, view, canvas, layers, plane, actors, room, sc
       gameScreen: () => doom.running()?.screen(),
       reduced,
       page,
-      holeBounds: wipe.paintedBounds,
+      holeBounds: wipe.paintedHoleCssBounds,
       unavailable: on.unavailable,
     });
     stokeFire = roomView.stokeFire;
@@ -202,8 +195,8 @@ export function startWalk({ stage, view, canvas, layers, plane, actors, room, sc
       probe?.frame(now, camera * viewport.scale * window.devicePixelRatio, finger.touchAge(now), finger.gliding());
       roomView.follow(walk.finale, t);
       const plan = wipe.plan(iris, camX);
-      if (plan === "widen") wipe.open(iris, camera);
-      if (plan !== "full") return roomView.paint(iris, t);
+      if (plan === "widen-hole") wipe.open(iris, camera);
+      if (plan !== "repaint-walk") return roomView.paint(iris, t);
       const tod = progressAt(walk.dan.x);
       const frame = { t, camera, camX, tod, sky: skyAt(tod), walk };
       for (const surface of surfaces) surface.paint(frame);

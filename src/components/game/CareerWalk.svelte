@@ -14,7 +14,7 @@
 
   let stage: HTMLElement;
   let view: HTMLElement;
-  let canvas: HTMLCanvasElement;
+  let skyCanvas: HTMLCanvasElement;
   let layers: HTMLCanvasElement[] = [];
   let plane: HTMLCanvasElement;
   let actors: HTMLCanvasElement;
@@ -45,7 +45,7 @@
 
   onMount(() => {
     walk = startWalk(
-      { stage, view, canvas, layers, plane, actors, room, screens: { main: mainScreen, side: sideScreen } },
+      { stage, view, sky: skyCanvas, layers, plane, actors, room, screens: { main: mainScreen, side: sideScreen } },
       {
         zone: (next) => (zone = next),
         inside: (next) => (inside = next),
@@ -75,7 +75,7 @@
     <canvas bind:this={mainScreen} class="walk-screen" aria-hidden="true" hidden></canvas>
     <canvas bind:this={sideScreen} class="walk-screen" aria-hidden="true" hidden></canvas>
     <canvas
-      bind:this={canvas}
+      bind:this={skyCanvas}
       class="walk-canvas"
       role="img"
       aria-label="A pixel-art walk through Dan’s career: Dan and his Samoyed, Mishka, walk from a research lab past the Chewy office and a tower to the present, then into a cabin under Mount Rainier."
