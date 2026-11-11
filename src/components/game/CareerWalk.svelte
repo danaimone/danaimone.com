@@ -101,9 +101,9 @@
     <div class="walk-intro" class:is-shown={zone === "intro"}>
       <img class="walk-title" src={gameUrl("title")} alt="" width="286" height="112" />
       <p class="walk-lede">
-        AI-native software engineer at Vannevar, building agentic products
-        end to end, from the harness to the interface. Previously Atlassian
-        and Chewy.
+        Software engineer at Vannevar. I build agentic AI products end to
+        end, from harness to interface. Before that, Atlassian, Chewy, and
+        four years at a national lab.
       </p>
       <div class="walk-actions">
         <a class="button" href={`mailto:${EMAIL}`}>Email me</a>
