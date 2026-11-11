@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { EMAIL, elsewhere, experience } from "../../data/resume";
+  import { EMAIL, elsewhere, experience, type StopId } from "../../data/resume";
   import { gameUrl } from "./art-url";
   import { PARALLAX_LAYERS, startWalk } from "./engine";
   import type { Zone } from "./simulation";
@@ -33,7 +33,7 @@
   let nextToast = 0;
 
   const stop = $derived(experience.find((s) => s.id === zone));
-  const cardSide = (id: string) => STOPS.find((s) => s.id === id)?.cardSide;
+  const cardSide = (id: StopId) => STOPS.find((s) => s.id === id)?.cardSide;
 
   function cssProps(node: HTMLElement, props: Record<string, string | number>) {
     const apply = (next: Record<string, string | number>) => {

@@ -8,7 +8,7 @@ export const contact = {
 
 export const EMAIL = contact.email;
 
-export const elsewhere = [
+export const elsewhere: [label: string, href: string][] = [
   ["GitHub", contact.github.url],
   ["LinkedIn", contact.linkedin.url],
   ["Instagram", "https://instagram.com/danaimone"],

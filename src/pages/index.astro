@@ -161,7 +161,7 @@ const description =
                     <Card class="project" href={href} rel={href && "me noopener"}>
                       {shot && <img class="project-shot" src={shot.src} alt={shot.alt} width={shot.width} height={shot.height} loading="lazy" />}
                       {sessions && (
-                        <div class="project-shot project-sessions" role="img" aria-label={`The picker: ${sessions.length} agent sessions on three machines, sorted by state.`}>
+                        <div class="project-shot project-sessions" role="img" aria-label={`The picker: ${sessions.length} agent sessions on ${new Set(sessions.map(({ host }) => host)).size} machines, sorted by state.`}>
                           <div aria-hidden="true">
                             <p class="sessions-query"><span>/</span><span>{sessions.length}/{sessions.length}</span></p>
                             <p class="sessions-keys">↵ <span>open</span> j/k <span>move</span> / <span>search</span> tab <span>live/past</span></p>
@@ -245,7 +245,7 @@ const description =
                   {elsewhere.map(([label, href]) => (
                     <li>
                       <a href={href} rel="me noopener" aria-label={label} title={label}>
-                        <img src={gameUrl(`icons/${label === "X" ? "x" : label.toLowerCase()}`)} alt="" width="36" height="36" loading="lazy" />
+                        <img src={gameUrl(`icons/${label.toLowerCase()}`)} alt="" width="36" height="36" loading="lazy" />
                       </a>
                     </li>
                   ))}
