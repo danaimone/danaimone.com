@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { EMAIL, elsewhere, experience, type StopId } from "../../data/resume";
+  import { goTo } from "../../scripts/pixel-wipe";
   import { gameUrl } from "./art-url";
   import { PARALLAX_LAYERS, startWalk } from "./engine";
   import type { Zone } from "./simulation";
@@ -18,7 +19,6 @@
   let plane: HTMLCanvasElement;
   let actors: HTMLCanvasElement;
   let room: HTMLCanvasElement;
-  let skip: HTMLAnchorElement;
   let mainScreen: HTMLCanvasElement;
   let sideScreen: HTMLCanvasElement;
   let walk: ReturnType<typeof startWalk> | undefined;
@@ -52,8 +52,7 @@
         unavailable: () => (unavailable = true),
         open(place) {
           if (place === "pdf") window.open("/resume.pdf", "_blank", "noopener");
-          else if (place === "resume") skip.click();
-          else document.querySelector<HTMLAnchorElement>(`.masthead a[href="#${place}"]`)?.click();
+          else goTo(`#${place}`);
         },
         collected: (labels) => (collected = labels),
         progress: (next) => (progress = next),
@@ -117,7 +116,7 @@
       </div>
     </div>
 
-    <a bind:this={skip} class="walk-skip" class:is-shown={zone !== "intro" && !inside} href="#resume">Skip to résumé</a>
+    <a class="walk-skip" class:is-shown={zone !== "intro" && !inside} href="#resume">Skip to résumé</a>
 
     <div class="walk-toolkit" class:is-shown={zone !== "intro"} aria-live="polite">
       <span class="walk-toolkit-count">Toolkit {collected.length}/{GEMS.length}</span>

@@ -52,14 +52,9 @@ function pixelWipe(clientX: number, clientY: number, atCover: () => void) {
 
 const TAP_SLOP_PX = 10;
 
-function sectionLink(target: EventTarget | null) {
-  const link = target instanceof Element ? target.closest<HTMLAnchorElement>('a[href^="#"]') : null;
-  const hash = link?.getAttribute("href");
-  const section = hash ? document.querySelector<HTMLElement>(hash) : null;
-  return hash && section ? { hash, section } : null;
-}
-
-function goTo({ hash, section }: { hash: string; section: HTMLElement }, clientX: number, clientY: number) {
+export function goTo(hash: string, clientX = 0, clientY = 0) {
+  const section = document.querySelector<HTMLElement>(hash);
+  if (!section) return false;
   const jump = () => {
     history.pushState(null, "", hash);
     section.scrollIntoView();
@@ -67,38 +62,41 @@ function goTo({ hash, section }: { hash: string; section: HTMLElement }, clientX
   };
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) jump();
   else pixelWipe(clientX, clientY, jump);
+  return true;
 }
 
-document.addEventListener("click", (event) => {
-  if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
-  const link = sectionLink(event.target);
-  if (!link) return;
-  event.preventDefault();
-  goTo(link, event.clientX, event.clientY);
-});
+const linkedHash = (target: EventTarget | null) =>
+  target instanceof Element ? target.closest<HTMLAnchorElement>('a[href^="#"]')?.getAttribute("href") : null;
 
-// iOS Safari can treat the first tap on a link as a hover and send no click
-// (https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/HandlingEvents/HandlingEvents.html).
-// A tap on a section link is followed from the touch itself, and its click is cancelled.
-let touchedAt: { x: number; y: number } | null = null;
-document.addEventListener(
-  "touchstart",
-  (event) => {
-    const touch = event.touches.length === 1 ? event.touches[0] : null;
-    touchedAt = touch && sectionLink(event.target) ? { x: touch.clientX, y: touch.clientY } : null;
-  },
-  { passive: true },
-);
-document.addEventListener(
-  "touchend",
-  (event) => {
-    const start = touchedAt;
-    touchedAt = null;
-    const touch = event.changedTouches[0];
-    const link = sectionLink(event.target);
-    if (!start || !link || !event.cancelable || Math.hypot(touch.clientX - start.x, touch.clientY - start.y) > TAP_SLOP_PX) return;
-    event.preventDefault();
-    goTo(link, touch.clientX, touch.clientY);
-  },
-  { passive: false },
-);
+export function followSectionLinks() {
+  document.addEventListener("click", (event) => {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+    const hash = linkedHash(event.target);
+    if (hash && goTo(hash, event.clientX, event.clientY)) event.preventDefault();
+  });
+
+  // iOS Safari can treat the first tap on a link as a hover and send no click
+  // (https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/HandlingEvents/HandlingEvents.html).
+  // A tap on a section link is followed from the touch itself, and its click is cancelled.
+  let touchedAt: { x: number; y: number } | null = null;
+  document.addEventListener(
+    "touchstart",
+    (event) => {
+      const touch = event.touches.length === 1 ? event.touches[0] : null;
+      touchedAt = touch && linkedHash(event.target) ? { x: touch.clientX, y: touch.clientY } : null;
+    },
+    { passive: true },
+  );
+  document.addEventListener(
+    "touchend",
+    (event) => {
+      const start = touchedAt;
+      touchedAt = null;
+      const touch = event.changedTouches[0];
+      const hash = linkedHash(event.target);
+      if (!start || !hash || !event.cancelable || Math.hypot(touch.clientX - start.x, touch.clientY - start.y) > TAP_SLOP_PX) return;
+      if (goTo(hash, touch.clientX, touch.clientY)) event.preventDefault();
+    },
+    { passive: false },
+  );
+}

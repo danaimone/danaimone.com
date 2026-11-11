@@ -263,7 +263,9 @@ const description =
     </footer>
 
     <script>
-      import "../scripts/pixel-wipe";
+      import { followSectionLinks } from "../scripts/pixel-wipe";
+
+      followSectionLinks();
 
       const clock = document.querySelector<HTMLElement>("[data-seattle-time]");
       const format = new Intl.DateTimeFormat("en-US", {
