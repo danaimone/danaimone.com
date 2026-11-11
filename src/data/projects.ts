@@ -5,6 +5,7 @@ type Project = {
   summary: string;
   detail: string;
   stack: string[];
+  areas?: [label: string, text: string][];
 };
 
 export const projects: Project[] = [
@@ -42,17 +43,18 @@ export const projects: Project[] = [
   },
   {
     name: "Homelab",
-    summary: "A Proxmox server at home running a few dozen services, with the monitoring I wrote for it.",
+    summary: "The server at home that runs my house, my media, my backups, and my agents.",
     detail:
-      "Dashboards said everything was fine when it wasn't, so I wrote an audit for what they miss: stale backups, dead tunnels, dropped recordings. A daily job checks every installed version against new CVEs.",
-    stack: ["Proxmox", "ZFS", "Caddy", "Python", "Bash"],
-  },
-  {
-    name: "keylight-camera-switch",
-    href: "https://github.com/danaimone/keylight-camera-switch",
-    summary: "Turns my desk light on when a call starts and off when it ends.",
-    detail:
-      "A small Swift helper reads the same CoreMediaIO signal that drives the macOS camera indicator, so it works with any app. A launch agent polls it and calls the Elgato Key Light's local HTTP API.",
-    stack: ["Swift", "Shell", "launchd"],
+      "I treat it like production: changes are scripted and reversible, every incident gets a written report, and nothing is allowed to fail quietly.",
+    areas: [
+      ["Platform", "Proxmox on an EPYC server with ZFS, dozens of containers and VMs, and two GPUs shared between transcoding, camera detection, and local models"],
+      ["Network", "Segmented VLANs for IoT, guests, and a DMZ, separate public and private reverse proxies behind Cloudflare, and Tailscale and WireGuard for remote access"],
+      ["Backups", "Three tiers: weekly snapshots, an offsite copy, and daily encrypted backups, with a written recovery plan and a UPS that shuts everything down cleanly"],
+      ["Security", "A daily CVE digest across OS packages, apps, and container images, sign-in bans at the proxy, and regular patch sweeps and audits"],
+      ["Monitoring", "An audit every six hours for what dashboards miss, such as stale backups, dead tunnels, and dropped recordings, with alerts that page me only when it matters"],
+      ["Smart home", "Home Assistant with local Zigbee and Z-Wave, a camera recorder with GPU object detection, and anomaly rules that hand off to Onyx to investigate"],
+      ["Apps", "Self-hosted photos, books, git, notes, and media, local speech and language models, and a dashboard app I wrote"],
+    ],
+    stack: ["Proxmox", "ZFS", "Caddy", "UniFi", "Home Assistant", "Python", "Bash"],
   },
 ];

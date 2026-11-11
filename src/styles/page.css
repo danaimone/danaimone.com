@@ -293,7 +293,8 @@
   --px: 4px;
   position: relative;
   display: grid;
-  grid-template-rows: auto auto 1fr auto;
+  grid-template-rows: auto auto 1fr;
+  grid-auto-rows: auto;
   gap: 0.5rem;
   height: 100%;
   padding: 1.5rem;
@@ -325,6 +326,14 @@ a.project:hover {
 .project-detail {
   color: var(--subtext1);
   text-wrap: pretty;
+}
+
+.project-list .is-wide {
+  grid-column: 1 / -1;
+}
+
+.project-areas {
+  margin-top: 0.5rem;
 }
 
 .project-stack {
