@@ -1,8 +1,7 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { build } from "esbuild";
 import { chromium } from "playwright";
 import { fonts as privateFonts, phone } from "../resume/private.mjs";
 
@@ -10,7 +9,6 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const fonts = join(root, "node_modules/@fontsource");
 const licensedFonts = process.env.RESUME_FONTS ?? privateFonts;
 const name = process.argv[2] ?? "main";
-const entry = name === "main" ? "resume/main-entry.ts" : `resume/versions/${name}.ts`;
 
 const escape = (text) =>
   text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -86,14 +84,6 @@ ${r.jobs.map(job).join("")}
 <h2>Skills</h2>
 <div class="skills">${r.skills.map(([label, items]) => `<b>${escape(label)}</b><span>${escape(items)}</span>`).join("")}</div>`;
 
-async function loadVersion() {
-  const outfile = join(root, "resume/out/.version.mjs");
-  await build({ entryPoints: [join(root, entry)], bundle: true, format: "esm", platform: "node", outfile, logLevel: "error" });
-  const { default: version } = await import(`${pathToFileURL(outfile)}?${Date.now()}`);
-  await rm(outfile);
-  return version;
-}
-
 async function render(page, resume, contactPhone, path) {
   const htmlPath = join(root, "resume/out/.page.html");
   await writeFile(htmlPath, html(resume, contactPhone));
@@ -109,7 +99,7 @@ async function render(page, resume, contactPhone, path) {
 }
 
 await mkdir(join(root, "resume/out"), { recursive: true });
-const version = await loadVersion();
+const version = name === "main" ? (await import("../src/data/resume.ts")).resume : (await import(`../resume/versions/${name}.ts`)).default;
 const browser = await chromium.launch();
 const page = await browser.newPage();
 try {
