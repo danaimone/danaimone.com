@@ -44,7 +44,7 @@ export const projects: Project[] = [
     name: "Homelab",
     summary: "A Proxmox server at home running a few dozen services, with the monitoring I wrote for it.",
     detail:
-      "After backups failed silently for 12 days, I wrote an audit for what dashboards miss: snapshot freshness, dead tunnels, dropped recordings. A daily job checks every installed version against new CVEs.",
+      "Dashboards said everything was fine when it wasn't, so I wrote an audit for what they miss: stale backups, dead tunnels, dropped recordings. A daily job checks every installed version against new CVEs.",
     stack: ["Proxmox", "ZFS", "Caddy", "Python", "Bash"],
   },
   {
