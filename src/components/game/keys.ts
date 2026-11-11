@@ -9,6 +9,7 @@ export type KeyTargets = {
   pinned(): boolean;
   type(key: string): boolean;
   jump(): void;
+  steered(): void;
 };
 
 // The keyboard: arrows walk, space, up or w jump, typing reaches the terminal at
@@ -25,12 +26,14 @@ export function listenForKeys(targets: KeyTargets) {
     const inControl = event.target instanceof Element && event.target.closest("a, button, input, textarea");
     if (targets.atDesk() && targets.pinned() && !inControl && !event.metaKey && !event.ctrlKey && !event.altKey && targets.type(event.key)) {
       event.preventDefault();
+      targets.steered();
       return;
     }
     if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
       if (!targets.pinned()) return;
       event.preventDefault();
       held.add(event.key);
+      targets.steered();
       return;
     }
     if (event.key !== " " && event.key !== "ArrowUp" && event.key !== "w") return;

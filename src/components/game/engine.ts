@@ -240,6 +240,9 @@ export function startWalk({ stage, view, canvas, layers, plane, actors, room, sc
       pinned: () => measureTrack().pinned,
       type: (key) => terminal.press(key),
       jump: () => simulation.jump(),
+      steered() {
+        if (!stage.contains(document.activeElement)) stage.focus({ preventScroll: true });
+      },
     });
     const finger = driveWithFinger(view, {
       pinned: () => !doom.running() && measureTrack().pinned,

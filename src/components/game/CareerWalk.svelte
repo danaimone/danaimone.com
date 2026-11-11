@@ -69,7 +69,7 @@
   });
 </script>
 
-<section class="walk" class:is-unavailable={unavailable} bind:this={stage} aria-label="Career walk">
+<section class="walk" class:is-unavailable={unavailable} bind:this={stage} aria-label="Career walk" tabindex="-1">
   <div class="walk-view" bind:this={view}>
     <canvas bind:this={room} class="walk-room" aria-hidden="true" hidden></canvas>
     <canvas bind:this={mainScreen} class="walk-screen" aria-hidden="true" hidden></canvas>
