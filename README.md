@@ -2,6 +2,12 @@
 
 [![CI](https://github.com/danaimone/danaimone.com/actions/workflows/ci.yml/badge.svg)](https://github.com/danaimone/danaimone.com/actions/workflows/ci.yml)
 
+<p>
+  <img src="docs/readme/walk.png" alt="The walk passing the Seattle skyline by day" width="32%" />
+  <img src="docs/readme/rainier.png" alt="Mount Rainier at night, with the cabin below it" width="32%" />
+  <img src="docs/readme/cabin.png" alt="The cabin interior, with the desk, the terminal and the fire" width="32%" />
+</p>
+
 My personal site, live at https://danaimone.com. The top of the page is a scroll-driven pixel-art career walk: my Samoyed, Mishka, and I walk through Washington from a research lab (PNNL, 2017) past Chewy and Atlassian to Vannevar, with the Seattle skyline in the distance. The sky moves from dawn to night, Mount Rainier rises for the final reveal, and the walk ends inside a cabin with contact details. Below the walk is a résumé in Catppuccin Mocha, built from the same data as the downloadable PDF.
 
 Built with Bun, Astro 7, Svelte 5, TypeScript, and canvas. The page is static HTML. The walk is one island: a framework-free game engine and a small Svelte overlay. UI text is Instrument Sans, with Jersey 15 for headings and buttons, sized in multiples of 7.5 px where it can be, so its pixels land on a 2x screen's; both are self-hosted. Characters, landmarks, scenery, icons, and the title logo are pixel-art sprites in `public/game/`. The sky and the era-by-era path are drawn in code.
@@ -74,7 +80,7 @@ Pushing to `main` does not deploy.
 - `src/data/projects.ts`: the projects listed under the résumé.
 - `src/components/game/room-scene.ts`: the cabin's live scene: the fire (simulated in `fire.ts`), hand frames, candles, steam, Mishka, and window lights.
 - `src/components/game/room-screens.ts`: the two monitors, the Rex terminal and Neovim showing `simulation.ts`. They are drawn on their own canvases at the display's resolution, in Departure Mono (SIL Open Font License, `src/fonts/`), sized to the font's 11 px grid where it fits. A monitor too small for readable type shows a minimap of the code instead.
-- `src/components/game/terminal.ts`: the toy terminal on the monitor, styled after my own shell. Its replies are canned; a few commands act on the page (`resume`, `open resume.pdf`, `stoke`, `doom`).
+- `src/components/game/terminal.ts`: the toy terminal on the monitor, styled after my own shell. Its replies are canned; a few commands act on the page (`resume`, `projects`, `open resume.pdf`, `stoke`, `doom`).
 - `src/components/game/engine.ts`: the conductor. It feeds the simulation scroll and keys, turns its effects into page events, and decides the order of each frame. It draws nothing itself.
 - `src/components/game/surface.ts`: the contract every canvas of the walk implements (`resize`, `paint`, `cut`), and the layout they share. `sky.ts`, `parallax.ts`, `plane.ts`, and `actors.ts` each own one canvas, or one set that moves together: its pixels, size, and transform. To add a canvas, write one surface and add it to the list in `engine.ts`.
 - `src/components/game/wipe.ts` and `room-view.ts`: the iris from the cabin door onto the room, and where the room sits and how much of it a frame repaints. `wipe.plan()` says whether a frame is covered by the room, only needs the hole cut wider, or must repaint the walk.
