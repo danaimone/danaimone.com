@@ -17,14 +17,21 @@ export const elsewhere = [
 
 export type StopId = "vannevar" | "atlassian" | "chewy" | "pnnl";
 
+type Years = { from: number; to: number | "present" };
+
 type Job = {
   id: "vannevar" | "atlassian-2" | "atlassian-1" | "chewy" | "pnnl";
   stop: StopId;
   company: string;
   title: string;
+  dates: Years;
   years: string;
   bullets: string[];
 };
+
+const yearsText = ({ from, to }: Years) => (from === to ? `${from}` : `${from} – ${to === "present" ? "Present" : to}`);
+
+const withYears = (jobs: Omit<Job, "years">[]): Job[] => jobs.map((job) => ({ ...job, years: yearsText(job.dates) }));
 
 type Resume = {
   contact: typeof contact;
@@ -35,13 +42,13 @@ type Resume = {
 
 export const resume: Resume = {
   contact,
-  jobs: [
+  jobs: withYears([
     {
       id: "vannevar",
       stop: "vannevar",
       company: "Vannevar",
       title: "Software Engineer",
-      years: "2025 – Present",
+      dates: { from: 2025, to: "present" },
       bullets: [
         "Built agentic AI products end to end, from the agent harness and prompts to the backend and interface, shipping per-agent tool selection, stop/rejoin for running chats, and chat sharing",
         "Led Dashboards from RFC to usable product in about six weeks: wrote the spec, sequenced the team’s work, and built on existing data API content types so sharing and permissions came built in",
@@ -56,7 +63,7 @@ export const resume: Resume = {
       stop: "atlassian",
       company: "Atlassian",
       title: "Full-Stack Software Engineer 2",
-      years: "2024 – 2025",
+      dates: { from: 2024, to: 2025 },
       bullets: [
         "Raised feature adoption 90.7% and cut legacy system usage 31.3% by shipping 10+ Objective Creation features behind a progressive Statsig rollout, affecting $8M+ ARR from enterprise customers",
         "Took Sentry error alerts from 192 to 0 by adding error handling, validation, and monitoring across the React/TypeScript frontend and Node.js backend services",
@@ -68,7 +75,7 @@ export const resume: Resume = {
       stop: "atlassian",
       company: "Atlassian",
       title: "Full-Stack Software Engineer 1",
-      years: "2022 – 2024",
+      dates: { from: 2022, to: 2024 },
       bullets: [
         "Delivered the Grid Column Configurations API for 12+ enterprise customers ($8M+ ARR), with repository and service layers covered by SpecFlow integration tests",
         "Served as release manager for 15+ releases, mentored 2 engineers, and led a “Joy of React” course for 7+ engineers",
@@ -79,7 +86,7 @@ export const resume: Resume = {
       stop: "chewy",
       company: "Chewy",
       title: "Software Engineer",
-      years: "2022",
+      dates: { from: 2022, to: 2022 },
       bullets: [
         "Built the dynamic pricing backend features behind a 20% revenue increase across 4,000 SKUs",
         "Raised bundle sales 90% by standardizing product bundles as a component library across product pages",
@@ -90,14 +97,14 @@ export const resume: Resume = {
       stop: "pnnl",
       company: "Pacific Northwest National Lab",
       title: "Software Engineer",
-      years: "2017 – 2021",
+      dates: { from: 2017, to: 2021 },
       bullets: [
         "Built full-stack React and C# ASP.NET applications used by 100+ analysts for real-time cybersecurity analysis",
         "Sped up data analysis workflows 30% with algorithmic improvements and visualization tools in D3.js and Java",
         "Co-authored a peer-reviewed paper on modeling adversarial activity, presented at a DARPA conference",
       ],
     },
-  ],
+  ]),
   education: {
     school: "Western Washington University",
     place: "Bellingham, WA",
@@ -126,17 +133,13 @@ export function tailored({ bullets, skills }: { bullets: TailoredBullets; skills
 type Stop = {
   id: StopId;
   company: string;
+  dates: Years;
   span: string;
   roles: Job[];
 };
 
-export const experience: Stop[] = resume.jobs.reduce<Stop[]>((stops, job) => {
-  const stop = stops.find((s) => s.id === job.stop);
-  if (stop) {
-    stop.roles.push(job);
-    stop.span = `${job.years.split(" – ")[0]} – ${stop.span.split(" – ").pop()}`;
-  } else {
-    stops.push({ id: job.stop, company: job.company, span: job.years, roles: [job] });
-  }
-  return stops;
-}, []);
+export const experience: Stop[] = [...new Set(resume.jobs.map((job) => job.stop))].map((id) => {
+  const roles = resume.jobs.filter((job) => job.stop === id);
+  const dates = { from: roles[roles.length - 1].dates.from, to: roles[0].dates.to };
+  return { id, company: roles[0].company, dates, span: yearsText(dates), roles };
+});

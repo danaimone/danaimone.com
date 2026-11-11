@@ -99,7 +99,7 @@ const DAILY_TOOLS: Gem[] = [
 export const STOPS = [...experience].reverse().map((stop) => ({
   ...PLACES[stop.id],
   id: stop.id,
-  firstYear: stop.span.split(" – ")[0],
+  firstYear: `${stop.dates.from}`,
 }));
 
 export const GEMS = [...STOPS.flatMap((stop) => stop.gems), ...DAILY_TOOLS];
