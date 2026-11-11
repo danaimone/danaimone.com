@@ -190,8 +190,6 @@ export function createSimulation({ reduced, random = Math.random }: { reduced: b
     trickRest = TRICK_REST_TICKS;
   }
 
-  // The circle starts and ends at her resting spot behind Dan, passing behind
-  // him going out and in front of him coming back.
   const circleAngle = ({ tick }: Trick) => (tick / CIRCLE_TICKS) * Math.PI * 2;
 
   function performTrick(current: Trick) {
@@ -222,9 +220,9 @@ export function createSimulation({ reduced, random = Math.random }: { reduced: b
     }
   }
 
-  // A span of 0 means the card sits above the scene, clear of every landmark.
   function cardCoversFocus({ cardSide, landmark }: (typeof STOPS)[number], { viewWidth, cardSpan }: WalkInput) {
-    if (cardSpan === 0) return false;
+    const cardAboveScene = cardSpan === 0;
+    if (cardAboveScene) return false;
     const left = landmark.x + landmark.focus.x - cameraAt(dan.x, viewWidth);
     const right = left + landmark.focus.width;
     return cardSide === "left" ? right > 0 && left < cardSpan : left < viewWidth && right > viewWidth - cardSpan;
@@ -304,8 +302,6 @@ export function createSimulation({ reduced, random = Math.random }: { reduced: b
       if (reduced) pendingScroll = fraction;
       else warp = { tick: 0, fraction, moved: false };
     },
-    // A followed finger moves the page every frame, between ticks too, so Dan is
-    // drawn where the page is now rather than eased between the last two ticks.
     view(blend = 1, fraction?: number) {
       const moving = Math.abs(dan.vx) > STILL_SPEED || fingerStrideHold > 0;
       const resting = !trick && finale === 0 && idleTicks > RESTING_AFTER_TICKS && besideDan();
