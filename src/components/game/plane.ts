@@ -7,6 +7,8 @@ import { clamp } from "./track";
 import { BEACON, DOOR, GEMS, WORLD_WIDTH, spriteTop } from "./world";
 
 const PROP_ROOT_ROW = 2;
+const DOOR_OPEN_BY_FINALE = 0.12;
+const GEM_FLOAT_HEIGHT = 28;
 
 function drawGem(ctx: CanvasRenderingContext2D, x: number, y: number, color: string) {
   const p = 2;
@@ -81,7 +83,7 @@ export function createPlane({ canvas, art, reduced }: { canvas: HTMLCanvasElemen
         const { size } = landmark.sign;
         const sx = landmark.x - left + landmark.sign.x;
         const sy = ground + spriteTop(landmark) + landmark.sign.y;
-        if (sx < -40 || sx > width) continue;
+        if (sx < -size || sx > width) continue;
         ctx.drawImage(logo, sx, sy, size, size);
       }
       if (Math.sin(t * 3) > 0.2) {
@@ -89,7 +91,7 @@ export function createPlane({ canvas, art, reduced }: { canvas: HTMLCanvasElemen
         ctx.fillRect(BEACON.x - left - 1, ground + BEACON.y, 3, 2);
       }
 
-      const doorOpen = clamp(walk.finale / 0.12, 0, 1);
+      const doorOpen = clamp(walk.finale / DOOR_OPEN_BY_FINALE, 0, 1);
       if (doorOpen > 0) {
         const doorX = DOOR.x - left;
         const doorY = ground + DOOR.y;
@@ -106,7 +108,7 @@ export function createPlane({ canvas, art, reduced }: { canvas: HTMLCanvasElemen
         const sx = gem.x - left;
         if (sx < -10 || sx > width + 10) continue;
         const bob = reduced ? 0 : Math.round(Math.sin(t * 3 + gem.x) * 2);
-        drawGem(ctx, sx, ground - 28 + bob, gem.color);
+        drawGem(ctx, sx, ground - GEM_FLOAT_HEIGHT + bob, gem.color);
       }
     },
     cut(hole) {

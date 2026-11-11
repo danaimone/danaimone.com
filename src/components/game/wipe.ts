@@ -5,10 +5,12 @@ import { clamp } from "./track";
 import { DOOR } from "./world";
 
 export const IRIS_FROM_FINALE = 0.34;
+const IRIS_FINALE_SPAN = 0.5;
+const OPEN_IRIS_DIAGONALS = 1.15;
 const IRIS_HOLE_MARGIN = 1.3;
 const WIPE_WALK_REPAINT_EVERY = 2;
 
-export const irisAt = (finale: number) => clamp((finale - IRIS_FROM_FINALE) / 0.5, 0, 1);
+export const irisAt = (finale: number) => clamp((finale - IRIS_FROM_FINALE) / IRIS_FINALE_SPAN, 0, 1);
 
 // covered: the hole is past every corner, so only the room paints.
 // widen:   the walk behind the hole has not moved, so the hole is just cut wider.
@@ -27,7 +29,7 @@ export function createWipe({ view, page, surfaces }: { view: HTMLElement; page: 
   let paintedCamX = 0;
   let widenedFrames = 0;
 
-  const cssRadius = (iris: number) => smoothstep(iris) * Math.hypot(view.clientWidth, view.clientHeight) * 1.15;
+  const cssRadius = (iris: number) => smoothstep(iris) * Math.hypot(view.clientWidth, view.clientHeight) * OPEN_IRIS_DIAGONALS;
   const radius = (iris: number) => cssRadius(iris) / viewport.scale;
   const centre = (camera: number) => ({ x: DOOR.x + DOOR.width / 2 - camera, y: viewport.ground + DOOR.y + DOOR.height / 2 });
 

@@ -20,6 +20,8 @@ import { createWipe, irisAt } from "./wipe";
 
 export { PARALLAX_LAYERS } from "./parallax";
 
+const GEM_BURST_HEIGHT = 30;
+
 export type WalkEvents = {
   zone(zone: Zone): void;
   inside(inside: boolean): void;
@@ -162,7 +164,7 @@ export function startWalk({ stage, view, canvas, layers, plane, actors, room, sc
             on.progress(effect.progress);
             break;
           case "gem":
-            particles.burst(effect.gem.x, ground - 30, [effect.gem.color, "#ffffff"], 16, 2.2);
+            particles.burst(effect.gem.x, ground - GEM_BURST_HEIGHT, [effect.gem.color, "#ffffff"], 16, 2.2);
             on.toast(effect.gem.label, effect.gem.x, "gem");
             break;
           case "promoted":

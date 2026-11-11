@@ -17,7 +17,7 @@ const ROOMS = {
   },
   tall: {
     ...layouts.tall,
-    keep: [30, 335] as const,
+    keep: { dansBack: 30, fireboxEnd: 335 },
     focusY: 0.58,
     anchorY: 0.55,
     subjectSpan: 0.85,
@@ -41,9 +41,9 @@ const SNORE_BOX = { left: 8, top: 40, width: 16, height: 48 };
 // span fits, otherwise the firebox end wins and the chair back is what gets cut.
 function roomLeft(room: Room, pixel: number, viewW: number) {
   if (!("keep" in room)) return viewW / 2 - room.focusX * room.width * pixel;
-  const [from, to] = room.keep;
-  if ((to - from) * pixel > viewW) return viewW - to * pixel;
-  return viewW / 2 - ((from + to) / 2) * pixel;
+  const { dansBack, fireboxEnd } = room.keep;
+  if ((fireboxEnd - dansBack) * pixel > viewW) return viewW - fireboxEnd * pixel;
+  return viewW / 2 - ((dansBack + fireboxEnd) / 2) * pixel;
 }
 
 function movingBoxes(room: Room) {
