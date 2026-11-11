@@ -1,4 +1,5 @@
 export const contact = {
+  location: "Seattle, WA",
   email: "hello@danaimone.com",
   site: "https://danaimone.com",
   linkedin: { handle: "in/danaimone", url: "https://linkedin.com/in/danaimone" },
