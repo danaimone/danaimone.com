@@ -619,6 +619,29 @@ kbd {
   }
 }
 
+@media (max-width: 23.75rem) {
+  .walk-timeline button {
+    padding-inline: 0;
+    font-size: 0.6875rem;
+  }
+
+  .walk-timeline li:nth-last-child(3) {
+    transform: translate(-70%, -1.0625rem);
+  }
+
+  .walk-timeline li:nth-last-child(3) button::before {
+    left: calc(70% - 4px);
+  }
+
+  .walk-timeline li:nth-last-child(2) {
+    transform: translate(-84%, -1.0625rem);
+  }
+
+  .walk-timeline li:not(:first-child):nth-last-child(2) button::before {
+    left: calc(84% - 4px);
+  }
+}
+
 @media (max-width: 44rem) and (max-height: 40rem) {
   .walk-role ul,
   .walk-role .walk-role-years {

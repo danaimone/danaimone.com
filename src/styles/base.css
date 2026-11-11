@@ -241,6 +241,23 @@ a:hover {
   text-decoration: none;
 }
 
+@media (max-width: 23.75rem) {
+  .wordmark {
+    display: none;
+  }
+
+  .masthead nav {
+    flex: 1;
+    justify-content: space-between;
+  }
+
+  .masthead nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+}
+
 .lost {
   display: grid;
   place-content: center;
