@@ -36,7 +36,7 @@ export const projects: Project[] = [
       "I run Claude Code, Codex, opencode, and pi across a laptop, a Mac mini, and a homelab, and kept losing track of them. One key lists every live and past session by state, then jumps to the pane or resumes it beside me.",
     sessions: [
       ["working", "Fix the login redirect", "pve · now"],
-      ["waiting", "CAPTCHA solver comparison", "mac · 4m"],
+      ["waiting", "Review the billing migration", "mac · 4m"],
       ["past", "Write primes.py", "pve · 27m"],
       ["past", "Morning brief", "mini · 3h"],
     ],
