@@ -23,8 +23,7 @@
   }
 
   .walk .walk-view {
-    background: #2c3a72 url("/images/hero-wide.png") no-repeat left bottom;
-    background-size: auto max(round(down, 100%, 300px), 100vw * 300 / 640);
+    background: #2c3a72 url("/images/hero-wide.png") no-repeat left bottom / cover;
     image-rendering: pixelated;
   }
 }
@@ -32,7 +31,6 @@
 @media (scripting: none) and (orientation: portrait) {
   .walk .walk-view {
     background-image: url("/images/hero-tall.png");
-    background-size: 100% auto;
   }
 }
 

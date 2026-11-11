@@ -14,8 +14,8 @@ const url = process.env.WALK_URL ?? "http://127.0.0.1:4321/";
 const out = process.argv[2] ?? "public/images";
 
 const STILLS = [
-  ["hero-wide", { width: 1920, height: 900 }, 1],
-  ["hero-tall", { width: 392, height: 844 }, 3],
+  ["hero-wide", { width: 2880, height: 1035 }, 1],
+  ["hero-tall", { width: 392, height: 1040 }, 3],
 ];
 
 function controlTime() {
@@ -112,15 +112,25 @@ for (const [name, viewport, deviceScaleFactor] of STILLS) {
   await page.waitForFunction(() => document.querySelector(".walk-view")?.classList.contains("is-laid-out"), null, { polling: 100 });
   await page.evaluate(() => document.fonts.ready);
   await new Promise((done) => setTimeout(done, 1500));
-  await page.evaluate(() => window.advanceFrames(4000));
+  await page.evaluate(() => {
+    const marks = document.querySelectorAll(".walk-timeline button");
+    marks[marks.length - 1].click();
+    window.advanceFrames(8000);
+    marks[0].click();
+    window.advanceFrames(8000);
+  });
+  const [found, total] = (await page.textContent(".walk-toolkit-count")).match(/\d+/g).map(Number);
+  if (found !== total) throw new Error(`the walk to the cabin collected ${found} of ${total} gems`);
   const still = await page.evaluate(() => {
     const view = document.querySelector(".walk-view");
     const scale = Number(getComputedStyle(view).getPropertyValue("--scale"));
+    const soil = Number(view.style.getPropertyValue("--soil"));
+    if (!soil) throw new Error("the walk set no --soil");
     const [sky, ...rest] = view.querySelectorAll(".walk-canvas");
-    const scene = new OffscreenCanvas(sky.width, sky.height);
+    const scene = new OffscreenCanvas(sky.width, sky.height - soil);
     const c = scene.getContext("2d");
     const frame = view.getBoundingClientRect();
-    const top = frame.bottom - scene.height * scale;
+    const top = frame.bottom - sky.height * scale;
     for (const canvas of [sky, ...rest]) {
       const box = canvas.getBoundingClientRect();
       const [x, y] = [(box.left - frame.left) / scale, (box.top - top) / scale];
@@ -130,10 +140,10 @@ for (const [name, viewport, deviceScaleFactor] of STILLS) {
     const data = c.getImageData(0, 0, scene.width, scene.height).data;
     const art = [];
     for (let i = 0; i < data.length; i += 4) art.push(data.slice(i, i + 4).join());
-    return { width: scene.width, height: scene.height, scale, art };
+    return { width: scene.width, height: scene.height, scale, soil, art };
   });
   await context.close();
   writeFileSync(`${out}/${name}.png`, indexedPng(still));
-  console.log(`${name}.png: ${still.width}x${still.height} art pixels at scale ${still.scale}, top row ${still.art[0]}`);
+  console.log(`${name}.png: ${still.width}x${still.height} art pixels at scale ${still.scale} without ${still.soil} rows of soil, top row ${still.art[0]}`);
 }
 await browser.close();
