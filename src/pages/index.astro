@@ -1,5 +1,6 @@
 ---
 import { gameUrl } from "../components/game/art-url";
+import { walkArtUrls } from "../components/game/assets";
 import CareerWalk from "../components/game/CareerWalk.svelte";
 import { projects } from "../data/projects";
 import { EMAIL, contact, elsewhere, experience, resume } from "../data/resume";
@@ -36,6 +37,9 @@ const person = {
 const collapseOnPhones = `if (matchMedia("(max-width: 44rem)").matches) for (const more of document.querySelectorAll(".project-more")) more.open = false;`;
 Astro.csp?.insertScriptHash(`sha256-${createHash("sha256").update(collapseOnPhones).digest("base64")}`);
 
+const preloadWalkArtAfterFonts = `Promise.all([...document.querySelectorAll('link[as="font"]')].map((font) => new Promise((done) => (font.onload = font.onerror = done)))).then(() => { for (const href of ${JSON.stringify(walkArtUrls())}) { const link = document.createElement("link"); link.rel = "preload"; link.as = "image"; link.href = href; document.head.append(link); } });`;
+Astro.csp?.insertScriptHash(`sha256-${createHash("sha256").update(preloadWalkArtAfterFonts).digest("base64")}`);
+
 const title = "Dan Aimone | Software Engineer";
 const description =
   "Dan Aimone is a software engineer in Seattle, building agentic AI products at Vannevar. Previously Atlassian, Chewy, and Pacific Northwest National Laboratory.";
@@ -61,6 +65,7 @@ const description =
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="preload" as="font" type="font/woff2" href={instrumentSans} crossorigin />
     <link rel="preload" as="font" type="font/woff2" href={jersey} crossorigin />
+    <script is:inline set:html={preloadWalkArtAfterFonts} />
     <link rel="canonical" href="https://danaimone.com/" />
     <link rel="icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" href="/favicon-192.png" />

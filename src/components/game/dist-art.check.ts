@@ -13,16 +13,24 @@ function filesUnder(dir: string): string[] {
 }
 
 async function namesTheWalkRequests() {
-  const names: string[] = [];
+  let names: string[] = [];
   mock.module("./art-url", () => ({ gameUrl: (name: string) => (names.push(name), name) }));
   globalThis.Image = class {
     src = "";
     decode = async () => {};
   } as unknown as typeof Image;
   const { loadArt, loadRoom } = await import("./assets");
-  await Promise.all([loadArt(), loadRoom("wide"), loadRoom("tall")]);
-  return names;
+  await loadArt();
+  const walk = names;
+  names = [];
+  await Promise.all([loadRoom("wide"), loadRoom("tall")]);
+  return { walk, room: names };
 }
+
+let requested: ReturnType<typeof namesTheWalkRequests> | undefined;
+const walkRequests = () => (requested ??= namesTheWalkRequests());
+
+const hashedByContent = () => new Map(filesUnder(join(DIST, "_astro")).filter((file) => file.endsWith(".png")).map((file) => [sha(file), file]));
 
 describe("built game art", () => {
   test("dist is built from the current art", () => {
@@ -33,10 +41,10 @@ describe("built game art", () => {
   });
 
   test("every image the walk requests is a hashed file the bundle points at", async () => {
-    const names = await namesTheWalkRequests();
+    const { walk, room } = await walkRequests();
+    const names = [...walk, ...room];
     expect(names.length).toBeGreaterThan(30);
-    const hashed = filesUnder(join(DIST, "_astro")).filter((file) => file.endsWith(".png"));
-    const byContent = new Map(hashed.map((file) => [sha(file), file]));
+    const byContent = hashedByContent();
     const bundle = filesUnder(join(DIST, "_astro"))
       .filter((file) => file.endsWith(".js"))
       .map((file) => readFileSync(file, "utf8"))
@@ -46,6 +54,15 @@ describe("built game art", () => {
       return !file || !/\.[\w-]{8}\.png$/.test(file) || !bundle.includes(`/_astro/${file.split("/").pop()}`);
     });
     expect(missing).toEqual([]);
+  });
+
+  test("the page head preloads exactly the art the walk waits for before its first frame", async () => {
+    const { walk } = await walkRequests();
+    const byContent = hashedByContent();
+    const expected = walk.map((name) => `/_astro/${byContent.get(sha(`public/game/${name}.png`))?.split("/").pop()}`);
+    const head = readFileSync(join(DIST, "index.html"), "utf8").split("</head>")[0];
+    const preloaded = [...head.matchAll(/\/_astro\/[\w.-]+\.png/g)].map(([url]) => url);
+    expect(preloaded.sort()).toEqual(expected.sort());
   });
 
   test("no page or script points at a fixed-name /game/ image", () => {
