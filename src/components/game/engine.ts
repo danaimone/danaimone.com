@@ -129,14 +129,12 @@ export function startWalk({ stage, view, canvas, layers, plane, actors, room, sc
       applyViewport();
     }
 
-    // The page reports its scroll in whole pixels. While a finger drives it, the
-    // finger's own position is exact, and the walk follows that.
     function measureTrack() {
       const pinnedHeight = view.offsetHeight;
       const span = { top: stage.getBoundingClientRect().top + window.scrollY, travel: stage.offsetHeight - pinnedHeight };
       const kept = measured && scrollKeepingPlace(measured.scroll, measured, span);
       if (kept !== null) finger.scrollTo(kept);
-      const scroll = finger.scroll() ?? window.scrollY;
+      const scroll = finger.exactScroll() ?? window.scrollY;
       const rect = stage.getBoundingClientRect();
       measured = { ...span, scroll };
       return {
@@ -238,7 +236,7 @@ export function startWalk({ stage, view, canvas, layers, plane, actors, room, sc
       doom: doom.running,
       atDesk,
       pinned: () => measureTrack().pinned,
-      type: (key) => terminal.press(key),
+      typeAtTerminal: (key) => terminal.press(key),
       jump: () => simulation.jump(),
       steered() {
         if (!stage.contains(document.activeElement)) stage.focus({ preventScroll: true });

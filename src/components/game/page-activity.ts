@@ -1,7 +1,5 @@
 const SCROLL_SETTLE_MS = 500;
 
-// What the page is doing around the walk: whether it is scrolling, and whether
-// something restyled it this frame. Heavy paints are kept clear of both.
 export function createPageActivity() {
   let restyled = false;
   let scrolling = false;
@@ -24,7 +22,6 @@ export function createPageActivity() {
       restyled = true;
     },
     restyled: () => restyled,
-    // A paint that would share a task with a restyle waits a frame instead.
     yieldToRestyle() {
       if (!restyled) return false;
       restyled = false;

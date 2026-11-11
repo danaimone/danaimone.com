@@ -1,6 +1,3 @@
-// Toasts track world positions, so their layer takes the camera as a plain
-// transform. The camera is also published as --cam for tooling, but not while
-// a toast is scrolling past: it inherits, and would restyle the toast each frame.
 export function createToastLayer(view: HTMLElement) {
   const layer = view.querySelector<HTMLElement>(".walk-toasts")!;
   let transformed: number | null = null;
@@ -9,11 +6,12 @@ export function createToastLayer(view: HTMLElement) {
   return {
     follow(camera: number, scale: number, scrolling: boolean) {
       const hasToasts = layer.childElementCount > 0;
+      const camVarWouldRestyleToasts = hasToasts && scrolling;
       if (hasToasts && camera !== transformed) {
         transformed = camera;
         layer.style.transform = `translateX(${-camera * scale}px)`;
       }
-      if (camera !== published && !(hasToasts && scrolling)) {
+      if (camera !== published && !camVarWouldRestyleToasts) {
         published = camera;
         layer.style.setProperty("--cam", `${camera}`);
       }

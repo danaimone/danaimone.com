@@ -3,7 +3,8 @@ const FOLLOW = 0.1;
 const LEARN = 0.02;
 const SANE_PERIOD_MS = { least: 4, most: 40 };
 
-// Safari reports frame and touch times in whole milliseconds, so a steady 16.67 ms
+// Safari reports frame and touch times in whole milliseconds
+// (https://developer.mozilla.org/en-US/docs/Web/API/Event/timeStamp#reduced_time_precision), so a steady 16.67 ms
 // beat reads as 16, 17, 17. Anything placed by those times lands up to half a
 // millisecond off, which at swipe speed is a visible wobble. This follows the beat
 // behind the rounding: a time that falls on the beat is moved onto it, and one

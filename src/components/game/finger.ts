@@ -16,7 +16,6 @@ type FingerSample = { y: number; at: number };
 type Glide = { speed: number; ms: number };
 type Take = { pinned: boolean; scrollY: number; drag: number; cardScrolls: boolean };
 
-// Finger pixels per ms at the moment of lifting, positive for a swipe up; a finger that paused first has none.
 export function releaseSpeed(samples: FingerSample[], liftedAt: number) {
   const last = samples.at(-1);
   if (!last || liftedAt - last.at > HELD_STILL_MS) return 0;
@@ -41,8 +40,6 @@ export function glideOffset({ speed, ms }: Glide, elapsedMs: number) {
   return (speed / (1 - floor)) * ((1 - Math.exp(-decay * t)) / decay - t * floor);
 }
 
-// Where the finger was at `at`, between the samples around it. Touch events do
-// not arrive once per frame, so reading the latest one makes uneven steps.
 export function fingerAt(samples: FingerSample[], at: number) {
   const after = samples.findIndex((sample) => sample.at > at);
   if (after === -1) return samples.at(-1)!.y;
@@ -52,18 +49,12 @@ export function fingerAt(samples: FingerSample[], at: number) {
   return a.y + ((b.y - a.y) * (at - a.at)) / (b.at - a.at);
 }
 
-// Only a walk pinned on screen is driven; a card with its own overflow keeps its
-// scroll, and pulling down at the very top stays the browser's refresh.
 export const fingerTakes = ({ pinned, scrollY, drag, cardScrolls }: Take) =>
   pinned && !cardScrolls && !(scrollY <= 0 && drag > 0);
 
 type Lift = { at: number; glide: Glide | null };
 type Drive = { startY: number; startScroll: number; ratio: number; samples: FingerSample[]; lift: Lift | null };
 
-// How far the finger has dragged by `at`, and after it lifts, how far the glide has
-// carried on from there. A lift is dated at the last place the finger was seen:
-// touchend arrives a few ms later, and waiting out that gap would stall the walk
-// for a frame before the glide.
 export function travelAt({ startY, samples, lift }: Pick<Drive, "startY" | "samples" | "lift">, at: number) {
   if (!lift || at <= lift.at) return startY - fingerAt(samples, at);
   return startY - samples.at(-1)!.y + (lift.glide ? glideOffset(lift.glide, at - lift.at) : 0);
@@ -75,7 +66,8 @@ export const liftOff = (samples: FingerSample[], liftedAt: number, glides: boole
 });
 
 // iOS momentum cannot be shortened, only never started: the first touchmove has
-// to be cancelled, so a drag inside the pinned walk scrolls the page from here.
+// to be cancelled (https://w3c.github.io/touch-events/#cancelability), so a drag
+// inside the pinned walk scrolls the page from here.
 // The caller runs frame() at the top of each animation frame.
 export function driveWithFinger(
   surface: HTMLElement,
@@ -94,8 +86,8 @@ export function driveWithFinger(
   };
 
   // The page rounds the scroll it was given. Until something else moves the page,
-  // the position the walk asked for (a drag, a teleport, an arrow key) is the true one: taking the rounded value
-  // when the finger lifts, or when it lands again, would step the walk backwards.
+  // the position the walk asked for (a drag, a teleport, an arrow key) is the true one:
+  // taking the rounded value when the finger lifts, or lands again, steps the walk backwards.
   function exactScroll() {
     if (driven && window.scrollY !== driven.reported) driven = null;
     return driven?.exact ?? null;
@@ -176,7 +168,7 @@ export function driveWithFinger(
   return {
     frame,
     touched: () => touched,
-    scroll: exactScroll,
+    exactScroll,
     scrollTo,
     touchAge: (now: number) => (state === "driving" && drive ? now - drive.samples.at(-1)!.at : null),
     gliding: () => drive?.lift != null,

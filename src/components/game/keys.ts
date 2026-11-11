@@ -1,19 +1,15 @@
 import type { Doom } from "./doom";
 import type { WalkDirection } from "./simulation";
 
-// Asked in this order, and only when needed: `pinned` measures layout, and `type`
-// prints to the terminal.
 export type KeyTargets = {
   doom(): Doom | null;
   atDesk(): boolean;
   pinned(): boolean;
-  type(key: string): boolean;
+  typeAtTerminal(key: string): boolean;
   jump(): void;
   steered(): void;
 };
 
-// The keyboard: arrows walk, space, up or w jump, typing reaches the terminal at
-// the desk, and every key goes to Doom while it runs.
 export function listenForKeys(targets: KeyTargets) {
   const held = new Set<string>();
 
@@ -24,7 +20,7 @@ export function listenForKeys(targets: KeyTargets) {
       return;
     }
     const inControl = event.target instanceof Element && event.target.closest("a, button, input, textarea");
-    if (targets.atDesk() && targets.pinned() && !inControl && !event.metaKey && !event.ctrlKey && !event.altKey && targets.type(event.key)) {
+    if (targets.atDesk() && targets.pinned() && !inControl && !event.metaKey && !event.ctrlKey && !event.altKey && targets.typeAtTerminal(event.key)) {
       event.preventDefault();
       targets.steered();
       return;

@@ -1,7 +1,5 @@
 import type { Doom, DoomEnd } from "./doom";
 
-// Doom is loaded only when someone types `doom` at the cabin's terminal. A launch
-// that resolves after stop() never starts.
 export function createDoomLauncher(host: HTMLElement, print: (line: string) => void) {
   let doom: Doom | null = null;
   let requested = false;
