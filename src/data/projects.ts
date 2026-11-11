@@ -1,6 +1,7 @@
 type Project = {
   name: string;
   href?: string;
+  privateSource?: true;
   summary: string;
   detail: string;
   stack: string[];
@@ -25,10 +26,26 @@ export const projects: Project[] = [
   },
   {
     name: "Onyx",
+    privateSource: true,
     summary: "A personal AI agent that runs on my homelab and answers over iMessage.",
     detail:
       "It looks into smart-home anomalies, audits the servers every few hours, files recipes and reminders, and texts me only when something needs me. I built the bridges, skills, and checks around it.",
     stack: ["Claude", "Python", "TypeScript", "Home Assistant", "Proxmox"],
+  },
+  {
+    name: "Tablescale",
+    privateSource: true,
+    summary: "An iPhone app that weighs restaurant meals with a coffee scale under the plate.",
+    detail:
+      "It speaks the Acaia Lunar's Bluetooth protocol, written from reverse-engineered sources and pinned by byte-exact tests. On-device models label the food from a photo and write the meal summary. It also has Siri intents, a Live Activity, and a Watch app.",
+    stack: ["Swift", "SwiftUI", "CoreBluetooth", "Foundation Models", "SwiftData"],
+  },
+  {
+    name: "Homelab",
+    summary: "A Proxmox server at home running a few dozen services, with the monitoring I wrote for it.",
+    detail:
+      "After backups failed silently for 12 days, I wrote an audit for what dashboards miss: snapshot freshness, dead tunnels, dropped recordings. A daily job checks every installed version against new CVEs.",
+    stack: ["Proxmox", "ZFS", "Caddy", "Python", "Bash"],
   },
   {
     name: "keylight-camera-switch",
