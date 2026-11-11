@@ -88,7 +88,7 @@ Pushing to `main` does not deploy.
 - `src/components/game/finger.ts`, `keys.ts`, `page-activity.ts`, `particles.ts`, `toast-layer.ts`, `doom-launcher.ts`: touch, keyboard, what the page is doing around the walk, sparks and smoke, toast positions, and loading Doom on demand.
 - `scripts/walk-frames.mjs`: captures the walk frame by frame under a fake clock and seeded randomness, at four screen sizes, and compares the result with an earlier capture. Run it before and after any change that should not move a pixel.
 - `src/components/game/CareerWalk.svelte`: the overlay: intro, cards, toolkit, toasts, timeline.
-- `src/components/game/art.ts`: sky palettes and dithering, the sun, smoke, tiled scenery, soil, gems.
+- `src/components/game/math.ts`: the seeded random numbers, ordered dithering, and smoothstep the drawing code shares.
 - `src/components/game/path.ts`: the ground under the walk, stretch by stretch: its texture, what grows beside it, and where the trees stand.
 - `src/components/game/doom.ts`: Doom on the cabin's monitor, loaded only when asked for. `scripts/build-doom.sh` builds it from pinned sources into `public/doom/`, with the platform layer and the worker from `scripts/doom/`, and writes the manifest `doom-files.json`. `public/doom/` also holds its licences.
 - `src/components/game/steady-clock.ts`, `probe.ts`: frame and touch times with the browser's rounding removed, and the `?probe` overlay that measures a swipe on a real phone.
