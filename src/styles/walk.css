@@ -94,7 +94,7 @@
   pointer-events: none;
 }
 
-.walk-intro h1 img {
+.walk-title {
   display: block;
   width: min(32rem, 78vw);
   height: auto;
