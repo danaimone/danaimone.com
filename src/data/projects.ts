@@ -20,7 +20,7 @@ export const projects: Project[] = [
       ["Memory", "Long-term memory that is isolated per person, so someone else texting it never gets my context. I compared backends before choosing one and added a weekly check for leaks between people"],
       ["House", "Home Assistant calls it when something looks wrong, like a frozen camera or a flapping sensor. It investigates and texts me what it found, within rate limits and quiet hours"],
       ["Ops", "It receives the homelab's audit results, drops repeats, and decides what is worth waking me for"],
-      ["Errands", "It files reminders, imports recipes into my recipe app through a file format I reverse-engineered, sends books to our Kindles, and warns me before an account runs short"],
+      ["Errands", "It files reminders to my phone and watch, and imports recipes into a recipe app that has no import API"],
       ["Guardrails", "Skills, scripts, and memory are versioned with signed commits, upgrades go through a preflight and test run, and each bridge to my Mac is a single-purpose SSH key with an allow-list"],
     ],
     stack: ["Claude", "Python", "TypeScript", "Swift", "Home Assistant", "MCP"],
