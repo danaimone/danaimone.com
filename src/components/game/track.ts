@@ -17,6 +17,14 @@ export const finaleAt = (fraction: number) => clamp((fraction - WALK_SHARE) / (1
 
 export const progressAt = (worldX: number) => clamp((worldX - WALK_START) / WALK_RANGE, 0, 1);
 
+export type TrackSpan = { top: number; travel: number };
+
+export function scrollKeepingPlace(scroll: number, was: TrackSpan, now: TrackSpan) {
+  const offset = scroll - was.top;
+  if (now.travel === was.travel || offset < 0 || offset > was.travel) return null;
+  return now.top + (offset / Math.max(1, was.travel)) * now.travel;
+}
+
 export function fractionOf(destination: Destination) {
   switch (destination.kind) {
     case "world":

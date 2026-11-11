@@ -15,7 +15,7 @@ import { createSteadyClock } from "./steady-clock";
 import { measureViewport, sizeKey, type WalkSurface } from "./surface";
 import { createTerminal } from "./terminal";
 import { createToastLayer } from "./toast-layer";
-import { FRACTION_PER_WORLD_PX, clamp, progressAt, type Destination } from "./track";
+import { FRACTION_PER_WORLD_PX, clamp, progressAt, scrollKeepingPlace, type Destination, type TrackSpan } from "./track";
 import { createWipe, irisAt } from "./wipe";
 
 export { PARALLAX_LAYERS } from "./parallax";
@@ -113,6 +113,7 @@ export function startWalk({ stage, view, canvas, layers, plane, actors, room, sc
     let inside = false;
     let request = 0;
     let visible = true;
+    let measured: (TrackSpan & { scroll: number }) | null = null;
 
     function applyViewport() {
       for (const surface of surfaces) surface.resize(viewport);
@@ -122,6 +123,7 @@ export function startWalk({ stage, view, canvas, layers, plane, actors, room, sc
     }
 
     function layout() {
+      measureTrack();
       if (sizeKey(view) === viewport.key) return;
       viewport = measureViewport(view);
       applyViewport();
@@ -130,15 +132,18 @@ export function startWalk({ stage, view, canvas, layers, plane, actors, room, sc
     // The page reports its scroll in whole pixels. While a finger drives it, the
     // finger's own position is exact, and the walk follows that.
     function measureTrack() {
-      const rect = stage.getBoundingClientRect();
       const pinnedHeight = view.offsetHeight;
-      const travel = stage.offsetHeight - pinnedHeight;
-      const top = rect.top + window.scrollY;
+      const span = { top: stage.getBoundingClientRect().top + window.scrollY, travel: stage.offsetHeight - pinnedHeight };
+      const kept = measured && scrollKeepingPlace(measured.scroll, measured, span);
+      if (kept !== null) finger.scrollTo(kept);
+      const scroll = finger.scroll() ?? window.scrollY;
+      const rect = stage.getBoundingClientRect();
+      measured = { ...span, scroll };
       return {
-        fraction: clamp(((finger.scroll() ?? window.scrollY) - top) / Math.max(1, travel), 0, 1),
+        fraction: clamp((scroll - span.top) / Math.max(1, span.travel), 0, 1),
         pinned: rect.top <= 1 && rect.bottom >= pinnedHeight - 1,
-        top,
-        travel,
+        top: span.top,
+        travel: span.travel,
       };
     }
 
@@ -243,6 +248,7 @@ export function startWalk({ stage, view, canvas, layers, plane, actors, room, sc
     });
     const resized = new ResizeObserver(layout);
     resized.observe(view);
+    window.addEventListener("scroll", measureTrack, { passive: true });
     applyViewport();
     const onScreen = new IntersectionObserver(([entry]) => {
       visible = entry.isIntersecting;
@@ -254,6 +260,7 @@ export function startWalk({ stage, view, canvas, layers, plane, actors, room, sc
       finger.stop();
       keys.stop();
       resized.disconnect();
+      window.removeEventListener("scroll", measureTrack);
       onScreen.disconnect();
       cancelAnimationFrame(request);
     };

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { WALK_END, WALK_START, finaleAt, fractionOf, progressAt, worldAt } from "./track";
+import { WALK_END, WALK_START, finaleAt, fractionOf, progressAt, scrollKeepingPlace, worldAt } from "./track";
 import { TIMELINE } from "./world";
 
 describe("scroll track", () => {
@@ -28,5 +28,27 @@ describe("scroll track", () => {
     for (const mark of TIMELINE) {
       expect(progressAt(worldAt(fractionOf(mark.destination)))).toBeCloseTo(mark.at);
     }
+  });
+});
+
+describe("keeping the visitor's place when the walk changes length", () => {
+  const portrait = { top: 0, travel: 4980 };
+  const landscape = { top: 0, travel: 2301 };
+
+  test("a visitor in the walk stays at the same fraction of it, ends included", () => {
+    for (const fraction of [0, 0.35, 0.5, 1]) {
+      const kept = scrollKeepingPlace(fraction * portrait.travel, portrait, landscape)!;
+      expect(kept / landscape.travel).toBeCloseTo(fraction);
+      expect(scrollKeepingPlace(kept, landscape, portrait)! / portrait.travel).toBeCloseTo(fraction);
+    }
+  });
+
+  test("the page is not scrolled for a reader above or below the walk", () => {
+    expect(scrollKeepingPlace(-40, portrait, landscape)).toBeNull();
+    expect(scrollKeepingPlace(portrait.travel + 900, portrait, landscape)).toBeNull();
+  });
+
+  test("the page is not scrolled when the walk keeps its length", () => {
+    expect(scrollKeepingPlace(1743, portrait, { ...portrait })).toBeNull();
   });
 });
