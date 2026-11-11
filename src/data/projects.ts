@@ -7,7 +7,7 @@ type Project = {
   stack: string[];
   areas?: [label: string, text: string][];
   shot?: { src: string; alt: string; width: number; height: number };
-  sessions?: [state: "working" | "waiting" | "past", title: string, where: string][];
+  sessions?: { state: "working" | "waiting" | "past"; agent: "claude" | "codex" | "pi"; title: string; age: string; dir: string; host: string }[];
 };
 
 export const projects: Project[] = [
@@ -35,10 +35,11 @@ export const projects: Project[] = [
     detail:
       "I run Claude Code, Codex, opencode, and pi across a laptop, a Mac mini, and a homelab, and kept losing track of them. One key lists every live and past session by state, then jumps to the pane or resumes it beside me.",
     sessions: [
-      ["working", "Fix the login redirect", "pve · now"],
-      ["waiting", "Review the billing migration", "mac · 4m"],
-      ["past", "Write primes.py", "pve · 27m"],
-      ["past", "Morning brief", "mini · 3h"],
+      { state: "waiting", agent: "claude", title: "Fix the login redirect", age: "now", dir: "app", host: "pve" },
+      { state: "waiting", agent: "codex", title: "Review the billing migration", age: "4m", dir: "billing", host: "mac" },
+      { state: "working", agent: "claude", title: "Add CSV export", age: "12m", dir: "api", host: "mini" },
+      { state: "past", agent: "claude", title: "Write primes.py", age: "27m", dir: "~", host: "pve" },
+      { state: "past", agent: "pi", title: "Morning brief", age: "3h", dir: "~", host: "pve" },
     ],
     stack: ["Go", "Lua", "fzf", "GoReleaser"],
   },

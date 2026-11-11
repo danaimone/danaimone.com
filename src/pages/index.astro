@@ -157,16 +157,23 @@ const description =
                     <Card class="project" href={href} rel={href && "me noopener"}>
                       {shot && <img class="project-shot" src={shot.src} alt={shot.alt} width={shot.width} height={shot.height} loading="lazy" />}
                       {sessions && (
-                        <div class="project-shot project-sessions" role="img" aria-label="The picker listing four agent sessions by state.">
-                          <p aria-hidden="true">Agent Sessions <span>{sessions.length}/{sessions.length}</span></p>
-                          <ul aria-hidden="true">
-                            {sessions.map(([state, title, where]) => (
-                              <li class={`is-${state}`}>
-                                <span class="session-title">{title}</span>
-                                <span class="session-where">{where}</span>
-                              </li>
-                            ))}
-                          </ul>
+                        <div class="project-shot project-sessions" role="img" aria-label={`The picker: ${sessions.length} agent sessions on three machines, sorted by state.`}>
+                          <div aria-hidden="true">
+                            <p class="sessions-query"><span>/</span><span>{sessions.length}/{sessions.length}</span></p>
+                            <p class="sessions-keys">↵ <span>open</span> j/k <span>move</span> / <span>search</span> tab <span>live/past</span></p>
+                            <p class="sessions-heading">─ Sessions</p>
+                            <ul>
+                              {sessions.map(({ state, agent, title, age, dir, host }) => (
+                                <li class={`is-${state}`}>
+                                  <span class={`session-agent is-${agent}`}>{agent === "pi" ? "π" : agent === "claude" ? "*" : ""}</span>
+                                  <span class="session-title">{title}</span>
+                                  <span class="session-age">{age}</span>
+                                  <span class="session-dir">{dir}</span>
+                                  <span>{host}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
                         </div>
                       )}
                       <div class="project-head">

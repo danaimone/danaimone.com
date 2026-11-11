@@ -325,8 +325,9 @@ a.project:hover {
   padding: 0.75rem 0.875rem;
   font-family: "Departure Mono", ui-monospace, monospace;
   font-size: 0.8125rem;
-  line-height: 1.7;
-  color: var(--subtext1);
+  line-height: 1.55;
+  color: var(--overlay);
+  white-space: nowrap;
 }
 
 @media (min-width: 60rem) {
@@ -338,52 +339,95 @@ a.project:hover {
   }
 }
 
-.project-sessions p {
+.sessions-query {
   display: flex;
   justify-content: space-between;
-  padding-bottom: 0.25rem;
-  color: var(--mauve);
 }
 
-.project-sessions p span,
-.session-where {
+.sessions-keys {
+  overflow: hidden;
+  color: var(--subtext1);
+  word-spacing: 0.25ch;
+}
+
+.sessions-keys span {
+  margin-right: 1.5ch;
   color: var(--overlay);
 }
 
+.sessions-heading {
+  color: var(--text);
+}
+
 .project-sessions li {
-  display: flex;
-  gap: 0.75rem;
+  display: grid;
+  grid-template-columns: 0.4375rem 1ch minmax(0, 1fr) 3ch 7ch 4ch;
+  gap: 1ch;
+  align-items: center;
   padding-inline: 0.5rem;
-  white-space: nowrap;
+  border-left: 3px solid transparent;
 }
 
 .project-sessions li:first-child {
+  border-left-color: #89b4fa;
   background: var(--surface0);
-  color: var(--text);
 }
 
 .project-sessions li::before {
   content: "";
-  flex: none;
-  align-self: center;
   width: 0.4375rem;
   height: 0.4375rem;
-  background: var(--overlay);
-}
-
-.project-sessions .is-working::before {
-  background: #a6e3a1;
+  border-radius: 50%;
 }
 
 .project-sessions .is-waiting::before {
   background: var(--amber-soft);
 }
 
+.project-sessions .is-working::before {
+  background: #89b4fa;
+}
+
+.session-agent {
+  color: var(--amber-soft);
+}
+
+.session-agent.is-pi {
+  color: #94e2d5;
+}
+
+.session-agent.is-codex::before {
+  content: "";
+  display: block;
+  width: 0.375rem;
+  height: 0.375rem;
+  margin-inline: auto;
+  border: 1px solid #a6e3a1;
+  transform: rotate(45deg);
+}
+
 .session-title {
-  flex: 1;
-  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: var(--subtext1);
+}
+
+.project-sessions li:not(.is-past) .session-title {
+  color: var(--text);
+}
+
+.session-age {
+  text-align: right;
+}
+
+@media (max-width: 44rem) {
+  .project-sessions li {
+    grid-template-columns: 0.4375rem 1ch minmax(0, 1fr) 3ch 4ch;
+  }
+
+  .session-dir {
+    display: none;
+  }
 }
 
 .project-head {
