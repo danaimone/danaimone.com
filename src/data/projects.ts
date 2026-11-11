@@ -22,6 +22,7 @@ export const projects: Project[] = [
       ["Ops", "It receives the homelab's audit results, drops repeats, and decides what is worth waking me for"],
       ["Errands", "It files reminders to my phone and watch, and imports recipes into a recipe app that has no import API"],
       ["Guardrails", "Skills, scripts, and memory are versioned with signed commits, upgrades go through a preflight and test run, and each bridge to my Mac is a single-purpose SSH key with an allow-list"],
+      ["Version one", "I first wrote my own framework on the Claude Agent SDK: an orchestrator that plans a request and dispatches parallel workers, with retries, a verify step, vector memory, scheduled jobs, and an approval gate. Then I moved to an open-source runtime and kept what I learned"],
     ],
     stack: ["Claude", "Python", "TypeScript", "Swift", "Home Assistant", "MCP"],
   },
