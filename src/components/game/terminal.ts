@@ -17,14 +17,17 @@ const DEMO_RESUMES_AFTER_TICKS = 900;
 const DEMO_COMMANDS = ["whoami", "neofetch", "mishka", "top"];
 
 export const RESPONSES: Record<string, string[]> = {
-  help: ["whoami ls hire top", "neofetch mishka pwd", "resume stoke git log", "The rest is hidden."],
+  help: ["whoami ls hire top", "resume projects pwd", "stoke mishka git log", "The rest is hidden."],
   whoami: ["Dan Aimone", "Software Engineer", "Seattle, WA"],
   pwd: ["~/cabin", "Under Rainier."],
-  ls: ["resume.pdf rainier/", "mishka/ guitars/"],
+  ls: ["resume.pdf projects/", "rainier/ mishka/", "guitars/"],
+  "ls projects": ["onyx/ rex-rollcall/", "tablescale/ homelab/", "keylight/ site/"],
   "ls -a": [".mishka-treats", ".fire-is-on", "resume.pdf"],
   "cat resume.pdf": ["It is a PDF. Try:", "open resume.pdf"],
   "cat .mishka-treats": ["Empty.", "She knows."],
   resume: ["Heading down."],
+  projects: ["Heading down."],
+  "cd projects": ["Heading down."],
   "open resume.pdf": ["Opening the PDF."],
   hire: [EMAIL],
   "sudo hire dan": ["Granted.", EMAIL],

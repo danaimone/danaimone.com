@@ -52,7 +52,8 @@
         unavailable: () => (unavailable = true),
         open(place) {
           if (place === "pdf") window.open("/resume.pdf", "_blank", "noopener");
-          else skip.click();
+          else if (place === "resume") skip.click();
+          else document.querySelector<HTMLAnchorElement>(`.masthead a[href="#${place}"]`)?.click();
         },
         collected: (labels) => (collected = labels),
         progress: (next) => (progress = next),

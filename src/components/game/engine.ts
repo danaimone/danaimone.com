@@ -28,7 +28,7 @@ export type WalkEvents = {
   toast(text: string, worldX: number, tone: "gem" | "level"): void;
   progress(progress: number): void;
   unavailable(): void;
-  open(place: "resume" | "pdf"): void;
+  open(place: "resume" | "projects" | "pdf"): void;
 };
 
 // The walk is a stack of canvases at art resolution. `canvas` holds the sky. Each
@@ -59,6 +59,7 @@ export function startWalk({ stage, view, canvas, layers, plane, actors, room, sc
     if (command === "doom") doom.launch();
     if (command === "stoke") stokeFire();
     if (command === "resume") on.open("resume");
+    if (command === "projects" || command === "cd projects") on.open("projects");
     if (command === "open resume.pdf") on.open("pdf");
   });
   let cancelled = false;
