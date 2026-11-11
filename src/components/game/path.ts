@@ -245,13 +245,12 @@ export function soilFlecks(worldWidth: number) {
   return flecks;
 }
 
-export function paintGround(ctx: CanvasRenderingContext2D, path: HTMLCanvasElement, flecks: ReturnType<typeof soilFlecks>, camX: number, viewW: number, ground: number, viewH: number) {
+export function paintGround(ctx: CanvasRenderingContext2D, path: HTMLCanvasElement, flecks: ReturnType<typeof soilFlecks>, left: number, viewW: number, ground: number, viewH: number) {
   ctx.fillStyle = "#3d2f27";
   ctx.fillRect(0, ground + PATH_ROWS, viewW, viewH - ground - PATH_ROWS);
-  const left = Math.floor(camX);
-  ctx.drawImage(path, left, 0, viewW + 1, path.height, left - camX, ground - 2, viewW + 1, path.height);
+  ctx.drawImage(path, left, 0, viewW + 1, path.height, 0, ground - 2, viewW + 1, path.height);
   ctx.fillStyle = "#2f241e";
   for (const { x, row } of flecks) {
-    if (x >= left && x <= left + viewW) ctx.fillRect(x - camX, ground + row, 2, 1);
+    if (x >= left && x <= left + viewW) ctx.fillRect(x - left, ground + row, 2, 1);
   }
 }
