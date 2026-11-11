@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { RESPONSES, TERMINAL_COLUMNS, TERMINAL_LINES, createTerminal, type Line } from "./terminal";
+import { COMMANDS, TERMINAL_COLUMNS, TERMINAL_LINES, createTerminal, type Line, type TerminalAction } from "./terminal";
 
 const type = (terminal: ReturnType<typeof createTerminal>, text: string) => {
   for (const key of text) terminal.press(key);
@@ -17,11 +17,11 @@ describe("cabin terminal", () => {
   });
 
   test("answers an unknown command the way zsh does, and does nothing", () => {
-    const commands: string[] = [];
-    const terminal = createTerminal((command) => commands.push(command));
+    const actions: TerminalAction[] = [];
+    const terminal = createTerminal((action) => actions.push(action));
     type(terminal, "rm -rf /");
     expect(shown(terminal).join(" ")).toContain("zsh: command not found: rm -rf /");
-    expect(commands).toEqual(["rm -rf /"]);
+    expect(actions).toEqual([]);
   });
 
   test("a status line comes before every prompt, and reports a failed command", () => {
@@ -102,17 +102,17 @@ describe("cabin terminal", () => {
   });
 
   test("doom is hidden from help and reports itself when typed", () => {
-    const commands: string[] = [];
-    const terminal = createTerminal((command) => commands.push(command));
+    const actions: TerminalAction[] = [];
+    const terminal = createTerminal((action) => actions.push(action));
     type(terminal, "help");
     expect(shown(terminal).join(" ")).not.toContain("doom");
-    expect(commands).not.toContain("doom");
+    expect(actions).not.toContain("doom");
     type(terminal, "doom");
-    expect(commands).toContain("doom");
+    expect(actions).toContain("doom");
   });
 
   test("every reply fits the screen", () => {
-    for (const command of [...Object.keys(RESPONSES), "nope", "history", "echo one two three four five six seven", "date", "a-very-long-command-that-does-not-exist"]) {
+    for (const command of [...Object.keys(COMMANDS), "nope", "echo one two three four five six seven", "a-very-long-command-that-does-not-exist"]) {
       const terminal = createTerminal();
       type(terminal, command);
       for (const line of terminal.screen().lines) {

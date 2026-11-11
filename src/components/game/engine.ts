@@ -55,12 +55,24 @@ export function startWalk({ stage, view, canvas, layers, plane, actors, room, sc
   let probe: ReturnType<typeof import("./probe").startProbe> | null = null;
   if (new URLSearchParams(window.location.search).has("probe")) import("./probe").then(({ startProbe }) => (probe = startProbe(view)));
   const doom = createDoomLauncher(view, (line) => terminal.print(line));
-  const terminal = createTerminal((command) => {
-    if (command === "doom") doom.launch();
-    if (command === "stoke") stokeFire();
-    if (command === "resume") on.open("resume");
-    if (command === "projects" || command === "cd projects") on.open("projects");
-    if (command === "open resume.pdf") on.open("pdf");
+  const terminal = createTerminal((action) => {
+    switch (action) {
+      case "doom":
+        doom.launch();
+        break;
+      case "stoke":
+        stokeFire();
+        break;
+      case "resume":
+      case "projects":
+      case "pdf":
+        on.open(action);
+        break;
+      default: {
+        const _exhaustive: never = action;
+        return _exhaustive;
+      }
+    }
   });
   let cancelled = false;
   let cleanup = () => {};

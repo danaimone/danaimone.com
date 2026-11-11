@@ -16,51 +16,58 @@ const TICKS_AFTER_DEMO_COMMAND = 150;
 const DEMO_RESUMES_AFTER_TICKS = 900;
 const DEMO_COMMANDS = ["whoami", "neofetch", "mishka", "top"];
 
-export const RESPONSES: Record<string, string[]> = {
-  help: ["whoami ls mail top", "resume projects pwd", "stoke mishka git log", "The rest is hidden."],
-  whoami: ["Dan Aimone", "Software Engineer", "Seattle, WA"],
-  pwd: ["~/cabin", "Under Rainier."],
-  ls: ["resume.pdf projects/", "rainier/ mishka/", "guitars/"],
-  "ls projects": ["onyx/ rex-rollcall/", "tablescale/ homelab/", "keylight/ site/"],
-  "ls -a": [".mishka-treats", ".fire-is-on", "resume.pdf"],
-  "cat resume.pdf": ["It is a PDF. Try:", "open resume.pdf"],
-  "cat .mishka-treats": ["Empty.", "She knows."],
-  resume: ["Heading down."],
-  projects: ["Heading down."],
-  "cd projects": ["Heading down."],
-  "open resume.pdf": ["Opening the PDF."],
-  mail: [EMAIL],
-  neofetch: ["os: log cabin", "wm: firewood", "shell: warm", "dog: Samoyed"],
-  top: ["mishka  100% nap", "fire     12% cpu", "dan      coffee"],
-  uptime: ["up since 2017", "load: 1 Samoyed"],
-  mishka: ["zzz", "She is asleep."],
-  "pet mishka": ["tail: wag wag", "Still asleep."],
-  walk: ["One ear moved.", "She heard that."],
-  treat: ["She is awake.", "You did this."],
-  coffee: ["Brewing...", "Mug is on the right.", "Obviously."],
-  vim: ["Already open.", "Other monitor."],
-  nvim: ["Already open.", "Other monitor."],
-  ":q": ["Nice try."],
-  ":wq": ["Saved. Stay."],
-  exit: ["Nah. Stay.", "The fire is on."],
-  "cd ..": ["You just got here."],
-  "git blame": ["It was Mishka."],
-  "git log": [...STOPS].reverse().map((stop) => `* ${stop.firstYear} ${stop.label}`),
-  "man dan": ["DAN(1)", "Builds agentic AI", "products end to end.", "See also: mail"],
-  stoke: ["The fire jumps."],
-  "git status": ["nothing to commit,", "dog tree clean"],
-  "git push": ["Everything", "up-to-date"],
-  "ping rainier": ["14,411 ft", "Still out there."],
-  weather: ["PNW: yes", "Chance of rain."],
-  "play guitar": ["Martin HD-28", "In tune. Mostly."],
-  "play piano": ["Nord Stage 3", "C major. Always."],
-  rex: ["Session running."],
-  doom: ["Loading Doom..."],
-  sudo: ["Nice try."],
-  "sudo make me a sandwich": ["Okay."],
-  hello: ["Hi! Type help."],
-  hi: ["Hi! Type help."],
-  42: ["Yes."],
+export type TerminalAction = "doom" | "stoke" | "resume" | "projects" | "pdf";
+
+type Shell = { now: Date; recalled: string[] };
+type Command = { reply: string[] | ((shell: Shell) => string[]); action?: TerminalAction };
+
+export const COMMANDS: Record<string, Command> = {
+  help: { reply: ["whoami ls mail top", "resume projects pwd", "stoke mishka git log", "The rest is hidden."] },
+  whoami: { reply: ["Dan Aimone", "Software Engineer", "Seattle, WA"] },
+  pwd: { reply: ["~/cabin", "Under Rainier."] },
+  ls: { reply: ["resume.pdf projects/", "rainier/ mishka/", "guitars/"] },
+  "ls projects": { reply: ["onyx/ rex-rollcall/", "tablescale/ homelab/", "keylight/ site/"] },
+  "ls -a": { reply: [".mishka-treats", ".fire-is-on", "resume.pdf"] },
+  "cat resume.pdf": { reply: ["It is a PDF. Try:", "open resume.pdf"] },
+  "cat .mishka-treats": { reply: ["Empty.", "She knows."] },
+  resume: { reply: ["Heading down."], action: "resume" },
+  projects: { reply: ["Heading down."], action: "projects" },
+  "cd projects": { reply: ["Heading down."], action: "projects" },
+  "open resume.pdf": { reply: ["Opening the PDF."], action: "pdf" },
+  mail: { reply: [EMAIL] },
+  neofetch: { reply: ["os: log cabin", "wm: firewood", "shell: warm", "dog: Samoyed"] },
+  top: { reply: ["mishka  100% nap", "fire     12% cpu", "dan      coffee"] },
+  uptime: { reply: ["up since 2017", "load: 1 Samoyed"] },
+  mishka: { reply: ["zzz", "She is asleep."] },
+  "pet mishka": { reply: ["tail: wag wag", "Still asleep."] },
+  walk: { reply: ["One ear moved.", "She heard that."] },
+  treat: { reply: ["She is awake.", "You did this."] },
+  coffee: { reply: ["Brewing...", "Mug is on the right.", "Obviously."] },
+  vim: { reply: ["Already open.", "Other monitor."] },
+  nvim: { reply: ["Already open.", "Other monitor."] },
+  ":q": { reply: ["Nice try."] },
+  ":wq": { reply: ["Saved. Stay."] },
+  exit: { reply: ["Nah. Stay.", "The fire is on."] },
+  "cd ..": { reply: ["You just got here."] },
+  "git blame": { reply: ["It was Mishka."] },
+  "git log": { reply: [...STOPS].reverse().map((stop) => `* ${stop.firstYear} ${stop.label}`) },
+  "man dan": { reply: ["DAN(1)", "Builds agentic AI", "products end to end.", "See also: mail"] },
+  stoke: { reply: ["The fire jumps."], action: "stoke" },
+  "git status": { reply: ["nothing to commit,", "dog tree clean"] },
+  "git push": { reply: ["Everything", "up-to-date"] },
+  "ping rainier": { reply: ["14,411 ft", "Still out there."] },
+  weather: { reply: ["PNW: yes", "Chance of rain."] },
+  "play guitar": { reply: ["Martin HD-28", "In tune. Mostly."] },
+  "play piano": { reply: ["Nord Stage 3", "C major. Always."] },
+  rex: { reply: ["Session running."] },
+  doom: { reply: ["Loading Doom..."], action: "doom" },
+  sudo: { reply: ["Nice try."] },
+  "sudo make me a sandwich": { reply: ["Okay."] },
+  hello: { reply: ["Hi! Type help."] },
+  hi: { reply: ["Hi! Type help."] },
+  42: { reply: ["Yes."] },
+  date: { reply: ({ now }) => wrapWords(now.toDateString()) },
+  history: { reply: ({ recalled }) => recalled.slice(-HISTORY_SHOWN).flatMap(wrapWords) },
 };
 
 export type Line =
@@ -83,14 +90,12 @@ function wrapWords(text: string) {
 
 const clockAt = (date: Date) => `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 
-function reply(command: string, now: Date): string[] | null {
-  if (command === "date") return wrapWords(now.toDateString());
-  if (command.startsWith("echo ")) return wrapWords(command.slice(5));
-  return Object.hasOwn(RESPONSES, command) ? RESPONSES[command] : null;
+function find(command: string): Command | undefined {
+  if (command.startsWith("echo ")) return { reply: wrapWords(command.slice(5)) };
+  return Object.hasOwn(COMMANDS, command) ? COMMANDS[command] : undefined;
 }
 
-const BUILT_IN = ["clear", "date", "history"];
-const isKnown = (command: string) => BUILT_IN.includes(command) || command.startsWith("echo ") || Object.hasOwn(RESPONSES, command);
+const isKnown = (command: string) => command === "clear" || find(command) !== undefined;
 
 // The first row of a command leaves room for the prompt's arrow.
 function commandRows(input: string, known: boolean): Line[] {
@@ -101,7 +106,7 @@ function commandRows(input: string, known: boolean): Line[] {
 
 // A toy of Dan's own shell: a status line above each prompt, the arrow red after
 // a command that failed, and the command itself green once it is one that exists.
-export function createTerminal(onCommand: (command: string) => void = () => {}, now: () => Date = () => new Date()) {
+export function createTerminal(onAction: (action: TerminalAction) => void = () => {}, now: () => Date = () => new Date()) {
   let scrollback: Line[] = [{ kind: "output", text: "Type help.", hint: true }];
   let prompt: Line = { kind: "prompt", clock: clockAt(now()), failed: false };
   let input = "";
@@ -117,8 +122,9 @@ export function createTerminal(onCommand: (command: string) => void = () => {}, 
 
   function run(remember: boolean) {
     const command = typed();
-    const output = command === "history" ? recalled.slice(-HISTORY_SHOWN).flatMap(wrapWords) : reply(command, now());
-    const failed = command !== "" && command !== "clear" && output === null;
+    const found = find(command);
+    const output = typeof found?.reply === "function" ? found.reply({ now: now(), recalled }) : found?.reply;
+    const failed = command !== "" && command !== "clear" && !found;
     scrollback.push(prompt, ...commandRows(input, isKnown(command)));
     if (command === "clear") scrollback = [];
     else if (output) scrollback.push(...output.map((text): Line => ({ kind: "output", text })));
@@ -128,7 +134,7 @@ export function createTerminal(onCommand: (command: string) => void = () => {}, 
     recalling = -1;
     input = "";
     prompt = { kind: "prompt", clock: clockAt(now()), failed };
-    onCommand(command);
+    if (found?.action) onAction(found.action);
   }
 
   function recall(step: number) {
