@@ -7,9 +7,16 @@ const SPRINT_RATE = 0.06;
 const SPRINT_LAG = 90;
 const MAX_SPRINT_SPEED = 80;
 const QUIET_SPEED = 12;
+const STILL_SPEED = 0.05;
 const OPENING_WALK_SPEED = 1.6;
+const OPENING_START_BEHIND = { dan: 130, mishka: 190 };
 const MAX_STRIDE_STEP = 2.4;
 const LEAD_LENGTH = 46;
+const DAN_CATCH_UP_PER_TICK = 0.12;
+const DAN_ARRIVES_WITHIN = 0.3;
+const MISHKA_CATCH_UP_PER_TICK = 0.075;
+const MISHKA_EXTRA_SPEED = 0.5;
+const MISHKA_ARRIVES_WITHIN = 0.4;
 const CAMERA_ANCHOR = 0.36;
 const INTRO_END = 400;
 const STEP_MS = 1000 / 60;
@@ -112,12 +119,15 @@ export function createSimulation({ reduced, random = Math.random }: { reduced: b
   let trick: Trick | null = null;
   let trickRest = 0;
 
+  const leadOffset = () => (dan.facing === "right" ? -LEAD_LENGTH : LEAD_LENGTH);
+  const besideDan = () => Math.abs(mishka.x - (dan.x + leadOffset())) < 2;
+
   function moveDan(target: number, canAnimate: boolean, followsScroll: boolean, effects: WalkEffect[]) {
     const opening = first && !reduced && target <= WALK_START + 1;
     following = false;
     if (opening) {
-      dan.x = WALK_START - 130;
-      mishka.x = WALK_START - 190;
+      dan.x = WALK_START - OPENING_START_BEHIND.dan;
+      mishka.x = WALK_START - OPENING_START_BEHIND.mishka;
     }
     const distance = target - dan.x;
     const snap = !canAnimate || (first && !opening) || snapNext;
@@ -136,14 +146,14 @@ export function createSimulation({ reduced, random = Math.random }: { reduced: b
     } else {
       danFrom = dan.x;
       const topSpeed = sprintSpeed(distance);
-      dan.vx = Math.abs(distance) < 0.3 ? 0 : clamp(distance * 0.12, -topSpeed, topSpeed);
+      dan.vx = Math.abs(distance) < DAN_ARRIVES_WITHIN ? 0 : clamp(distance * DAN_CATCH_UP_PER_TICK, -topSpeed, topSpeed);
       if (dan.x < WALK_START) dan.vx = Math.min(dan.vx, OPENING_WALK_SPEED);
       dan.x += dan.vx;
     }
-    if (dan.vx > 0.05) dan.facing = "right";
-    else if (dan.vx < -0.05) dan.facing = "left";
-    if (followsScroll) fingerStrideHold = Math.abs(dan.vx) > 0.05 ? FINGER_STRIDE_HOLD_TICKS : Math.max(0, fingerStrideHold - 1);
-    if (Math.abs(dan.vx) > 0.05) {
+    if (dan.vx > STILL_SPEED) dan.facing = "right";
+    else if (dan.vx < -STILL_SPEED) dan.facing = "left";
+    if (followsScroll) fingerStrideHold = Math.abs(dan.vx) > STILL_SPEED ? FINGER_STRIDE_HOLD_TICKS : Math.max(0, fingerStrideHold - 1);
+    if (Math.abs(dan.vx) > STILL_SPEED) {
       idleTicks = 0;
       dan.stride += Math.min(Math.abs(dan.vx), MAX_STRIDE_STEP);
     } else idleTicks += 1;
@@ -152,12 +162,12 @@ export function createSimulation({ reduced, random = Math.random }: { reduced: b
 
   function moveMishka(followsScroll: boolean) {
     mishkaFrom = mishka.x;
-    const lead = dan.facing === "right" ? -LEAD_LENGTH : LEAD_LENGTH;
-    if (followsScroll) mishka.x = clamp(mishka.x, dan.x + lead - FINGER_DOG_LAG, dan.x + lead + FINGER_DOG_LAG);
-    const distance = dan.x + lead - mishka.x;
-    const topSpeed = sprintSpeed(distance) + 0.5;
-    const speed = clamp(distance * 0.075, -topSpeed, topSpeed);
-    if (Math.abs(distance) > 0.4) {
+    const restingX = dan.x + leadOffset();
+    if (followsScroll) mishka.x = clamp(mishka.x, restingX - FINGER_DOG_LAG, restingX + FINGER_DOG_LAG);
+    const distance = restingX - mishka.x;
+    const topSpeed = sprintSpeed(distance) + MISHKA_EXTRA_SPEED;
+    const speed = clamp(distance * MISHKA_CATCH_UP_PER_TICK, -topSpeed, topSpeed);
+    if (Math.abs(distance) > MISHKA_ARRIVES_WITHIN) {
       mishka.x += speed;
       mishka.stride += Math.min(Math.abs(speed), MAX_STRIDE_STEP);
       if (Math.abs(speed) > 0.1) mishka.facing = speed > 0 ? "right" : "left";
@@ -169,14 +179,12 @@ export function createSimulation({ reduced, random = Math.random }: { reduced: b
   }
 
   function standsStill() {
-    return !reduced && finale === 0 && !warp && dan.jumpHeight === 0 && mishka.jumpHeight === 0 && Math.abs(dan.vx) <= 0.05 && fingerStrideHold === 0 && dogJumpIn === 0;
+    return !reduced && finale === 0 && !warp && dan.jumpHeight === 0 && mishka.jumpHeight === 0 && Math.abs(dan.vx) <= STILL_SPEED && fingerStrideHold === 0 && dogJumpIn === 0;
   }
 
   function pickTrick() {
     trickRest = Math.max(0, trickRest - 1);
-    const lead = dan.facing === "right" ? -LEAD_LENGTH : LEAD_LENGTH;
-    const beside = Math.abs(mishka.x - (dan.x + lead)) < 2;
-    if (!standsStill() || !beside || idleTicks < TRICK_AFTER_STILL_TICKS || trickRest > 0) return;
+    if (!standsStill() || !besideDan() || idleTicks < TRICK_AFTER_STILL_TICKS || trickRest > 0) return;
     if (random() >= TRICK_CHANCE_PER_TICK) return;
     trick = { kind: random() < 0.5 ? "circle" : "bark", tick: 0 };
     trickRest = TRICK_REST_TICKS;
@@ -192,12 +200,11 @@ export function createSimulation({ reduced, random = Math.random }: { reduced: b
     if (current.kind === "bark") {
       mishka.facing = dan.facing;
     } else {
-      const lead = dan.facing === "right" ? -LEAD_LENGTH : LEAD_LENGTH;
-      const nextX = dan.x + lead * Math.cos(circleAngle(current));
+      const nextX = dan.x + leadOffset() * Math.cos(circleAngle(current));
       const moved = nextX - mishka.x;
       mishka.x = nextX;
       mishka.stride += Math.abs(moved);
-      if (Math.abs(moved) > 0.05) mishka.facing = moved > 0 ? "right" : "left";
+      if (Math.abs(moved) > STILL_SPEED) mishka.facing = moved > 0 ? "right" : "left";
     }
     if (current.tick >= (current.kind === "bark" ? BARK_TICKS : CIRCLE_TICKS)) trick = null;
   }
@@ -300,9 +307,8 @@ export function createSimulation({ reduced, random = Math.random }: { reduced: b
     // A followed finger moves the page every frame, between ticks too, so Dan is
     // drawn where the page is now rather than eased between the last two ticks.
     view(blend = 1, fraction?: number) {
-      const moving = Math.abs(dan.vx) > 0.05 || fingerStrideHold > 0;
-      const lead = dan.facing === "right" ? -LEAD_LENGTH : LEAD_LENGTH;
-      const resting = !trick && finale === 0 && idleTicks > RESTING_AFTER_TICKS && Math.abs(mishka.x - (dan.x + lead)) < 2;
+      const moving = Math.abs(dan.vx) > STILL_SPEED || fingerStrideHold > 0;
+      const resting = !trick && finale === 0 && idleTicks > RESTING_AFTER_TICKS && besideDan();
       const circling = trick?.kind === "circle" ? circleAngle(trick) : null;
       const barkBeat = trick?.kind === "bark" ? Math.floor(trick.tick / BARK_TICKS_PER_FRAME) % (MISHKA_FRAME.barkFrames + 1) : 0;
       const walkFrame = Math.floor(mishka.stride / MISHKA_STRIDE_PER_FRAME) % MISHKA_FRAME.walkCycle;
