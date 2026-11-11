@@ -37,13 +37,12 @@ const CANDLE_REACH = 26;
 const STEAM_BOX = { left: 10, top: 20, width: 20, height: 22 };
 const SNORE_BOX = { left: 8, top: 40, width: 16, height: 48 };
 
-// The tall room keeps Dan's back through the firebox in view: centred when the
-// span fits, otherwise the firebox end wins and the chair back is what gets cut.
 function roomLeft(room: Room, pixel: number, viewW: number) {
   if (!("keep" in room)) return viewW / 2 - room.focusX * room.width * pixel;
   const { dansBack, fireboxEnd } = room.keep;
-  if ((fireboxEnd - dansBack) * pixel > viewW) return viewW - fireboxEnd * pixel;
-  return viewW / 2 - ((dansBack + fireboxEnd) / 2) * pixel;
+  const keptSpanFits = (fireboxEnd - dansBack) * pixel <= viewW;
+  if (keptSpanFits) return viewW / 2 - ((dansBack + fireboxEnd) / 2) * pixel;
+  return viewW - fireboxEnd * pixel;
 }
 
 function movingBoxes(room: Room) {
@@ -71,8 +70,6 @@ type RoomViewParts = {
   unavailable: () => void;
 };
 
-// Where the room sits on screen, when its art loads, and how much of it a frame
-// repaints. room-scene.ts draws the room itself.
 export function createRoomView({ canvas, screens, view, terminal, gameScreen, reduced, page, holeBounds, unavailable }: RoomViewParts) {
   const ctx = canvas.getContext("2d", { alpha: false })!;
   const scenes: Partial<Record<RoomName, { room: ReturnType<typeof createRoomScene>; screens: RoomScreens }>> = {};
@@ -83,7 +80,6 @@ export function createRoomView({ canvas, screens, view, terminal, gameScreen, re
 
   const roomName = (): RoomName => (view.clientWidth / view.clientHeight >= WIDE_ROOM_MIN_ASPECT ? "wide" : "tall");
 
-  // Only the layout the window needs is fetched; the other waits for a resize.
   function fetchRoom(name: RoomName) {
     if (asked.has(name)) return;
     asked.add(name);
@@ -144,10 +140,10 @@ export function createRoomView({ canvas, screens, view, terminal, gameScreen, re
 
     // The plate is already on the canvas, so a scroll only repaints what moves:
     // a full repaint costs a long task, and nobody reads the room mid-swipe.
-    const quick = page.scrolling() && t - clearedAt > ROOM_CLEAR_SETTLE_SECONDS;
-    if (quick && page.yieldToRestyle()) return;
+    const movingPartsOnly = page.scrolling() && t - clearedAt > ROOM_CLEAR_SETTLE_SECONDS;
+    if (movingPartsOnly && page.yieldToRestyle()) return;
     ctx.save();
-    if (quick && iris < 1) {
+    if (movingPartsOnly && iris < 1) {
       const hole = holeBounds(iris);
       const toRoom = (cssX: number, cssY: number) => ({ x: ((cssX - left) / pixel) * ROOM_SCALE, y: ((cssY - top) / pixel) * ROOM_SCALE });
       const corner = toRoom(hole.left, hole.top);
@@ -157,7 +153,7 @@ export function createRoomView({ canvas, screens, view, terminal, gameScreen, re
       ctx.clip();
     }
     ctx.beginPath();
-    if (quick) {
+    if (movingPartsOnly) {
       for (const box of movingBoxes(room)) ctx.rect(box.x * ROOM_SCALE, box.y * ROOM_SCALE, box.width * ROOM_SCALE, box.height * ROOM_SCALE);
     } else if (reduced) {
       ctx.rect(0, 0, canvas.width, canvas.height);
@@ -165,7 +161,7 @@ export function createRoomView({ canvas, screens, view, terminal, gameScreen, re
       ctx.rect((-left / pixel) * ROOM_SCALE, (-top / pixel) * ROOM_SCALE, (viewW / pixel) * ROOM_SCALE, (viewH / pixel) * ROOM_SCALE);
     }
     ctx.clip();
-    const sceneTime = quick ? steadyScreenTime(t) : t;
+    const sceneTime = movingPartsOnly ? steadyScreenTime(t) : t;
     scene.room.draw(ctx, sceneTime, !reduced, iris < 1);
     ctx.restore();
     scene.screens.draw(sceneTime, !reduced);

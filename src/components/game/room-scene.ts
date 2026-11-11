@@ -184,8 +184,6 @@ function drawLake(ctx: Ctx, lake: number[][], t: number) {
   });
 }
 
-// The room as painted, with everything in it that moves except the two monitors,
-// which room-screens.ts draws at a finer grain on canvases of their own.
 export function createRoomScene(art: RoomArt, room: RoomLayout, terminal: Terminal) {
   let keystrokes = 0;
   let lastKeyAt = -1;

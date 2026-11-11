@@ -5,9 +5,9 @@ import { PROMPT, TERMINAL_COLUMNS, TERMINAL_LINES, type Line, type Terminal } fr
 
 type Ctx = CanvasRenderingContext2D;
 
-// Departure Mono is drawn on an 11 px grid: 7 px to a column, 8 px of capital
-// above the baseline and 3 px below it. At a whole multiple of 11 device pixels
-// every stroke lands on the screen's own pixels.
+// Departure Mono is drawn on an 11 px grid, so at whole multiples of 11 device
+// pixels every stroke lands on the screen's own pixels
+// (https://github.com/rektdeckard/departure-mono#usage).
 const FONT = "Departure Mono";
 const FONT_GRID = 11;
 const ADVANCE = 7 / FONT_GRID;
@@ -38,15 +38,14 @@ const MOCHA = {
 };
 
 const KEYWORDS = /^(const|let|function|return|if|else|for|of|type|export|import|from|new|switch|case|default)\b/;
-// Indents are halved: the monitor is nineteen columns wide.
-const EDITOR_LINES = simulationSource.split("\n").map((line) => {
+const withHalvedIndent = (line: string) => {
   const code = line.trimStart();
   return " ".repeat(Math.floor((line.length - code.length) / 2)) + code.trimEnd();
-});
+};
+const EDITOR_LINES = simulationSource.split("\n").map(withHalvedIndent);
 
 export const screenFontReady = () => document.fonts.load(`${FONT_GRID}px "${FONT}"`);
 
-// The largest type that fits, on the font's own grid when that costs little.
 function typeSize(fit: number) {
   const onGrid = Math.floor(fit / FONT_GRID) * FONT_GRID;
   return onGrid >= fit * SNAP_IF_WITHIN ? onGrid : Math.floor(fit);
@@ -58,8 +57,6 @@ function setType(ctx: Ctx, size: number) {
   return { advance: size * ADVANCE, line: Math.round(size * LINE), baseline: Math.round(size * BASELINE) };
 }
 
-// Dan's own prompt: his name, the folder and the time as three joined plates, the
-// first and last rounded off, with an arrow between each pair.
 function paintStatusLine(ctx: Ctx, x: number, y: number, clock: string, { advance, line, baseline }: ReturnType<typeof setType>) {
   const pad = Math.round(advance / 2);
   const point = Math.round(line / 2);
@@ -164,8 +161,6 @@ function tokens(line: string, columns: number) {
   return found;
 }
 
-// Type too small to read is drawn as a minimap instead: one bar for each word,
-// in the colour the word would have.
 function paintEditor(ctx: Ctx, width: number, height: number, firstLine: number) {
   const size = typeSize(width / (EDITOR_COLUMNS * ADVANCE));
   const { advance, line, baseline } = setType(ctx, size);
@@ -207,11 +202,16 @@ function keepInsideGlass(ctx: Ctx, mask: HTMLImageElement) {
   ctx.globalCompositeOperation = "source-over";
 }
 
+function drawMugSteamAcrossGlass(side: Ctx, room: RoomLayout, t: number) {
+  const scaleX = side.canvas.width / room.side.width;
+  const scaleY = side.canvas.height / room.side.height;
+  side.setTransform(scaleX, 0, 0, scaleY, -room.side.x * scaleX, -room.side.y * scaleY);
+  drawSteam(side, room.coffee, t);
+  side.setTransform(1, 0, 0, 1, 0, 0);
+}
+
 export type ScreenCanvases = { main: HTMLCanvasElement; side: HTMLCanvasElement };
 
-// The two monitors are drawn on their own canvases at the display's resolution,
-// over the room. The room's canvas is too coarse for type: a terminal row there
-// is three art pixels tall.
 export function createRoomScreens(canvases: ScreenCanvases, art: RoomArt, room: RoomLayout, terminal: Terminal, gameScreen: () => GameScreen | null | undefined) {
   const main = canvases.main.getContext("2d")!;
   const side = canvases.side.getContext("2d")!;
@@ -223,7 +223,9 @@ export function createRoomScreens(canvases: ScreenCanvases, art: RoomArt, room: 
   let paintedSide = "";
 
   return {
-    // Resizing a canvas wipes it, so whoever places the screens says so here.
+    // Resizing a canvas clears it
+    // (https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-set-bitmap-dimensions),
+    // so whoever places the screens says so here.
     wiped() {
       paintedMain = "";
       paintedGameFrame = 0;
@@ -256,20 +258,13 @@ export function createRoomScreens(canvases: ScreenCanvases, art: RoomArt, room: 
         editor.height = side.canvas.height;
         paintEditor(editorCtx, editor.width, editor.height, firstLine);
       }
-      // The mug stands in front of the second monitor, so its steam crosses the glass.
       const steam = animate ? Math.floor(t * 30) : -1;
       const sideContent = `${firstLine}|${steam}`;
       if (sideContent === paintedSide) return;
       paintedSide = sideContent;
       side.setTransform(1, 0, 0, 1, 0, 0);
       side.drawImage(editor, 0, 0);
-      if (animate) {
-        const scaleX = side.canvas.width / room.side.width;
-        const scaleY = side.canvas.height / room.side.height;
-        side.setTransform(scaleX, 0, 0, scaleY, -room.side.x * scaleX, -room.side.y * scaleY);
-        drawSteam(side, room.coffee, t);
-        side.setTransform(1, 0, 0, 1, 0, 0);
-      }
+      if (animate) drawMugSteamAcrossGlass(side, room, t);
       keepInsideGlass(side, art.side);
     },
   };
