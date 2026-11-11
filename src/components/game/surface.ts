@@ -1,7 +1,9 @@
-import { GROUND_DEPTH, SOIL_DEPTH } from "./art";
 import type { createSimulation } from "./simulation";
 import type { skyAt } from "./sky";
 
+const GROUND_DEPTH = 40;
+// Rows of soil under the path; the timeline sits here.
+const SOIL_DEPTH = 25;
 const MIN_TIMELINE_PX = 60;
 
 export type Sky = ReturnType<typeof skyAt>;

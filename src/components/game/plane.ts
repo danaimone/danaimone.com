@@ -1,13 +1,25 @@
-import { drawGem, paintGround, soilFlecks } from "./art";
 import type { Art } from "./assets";
 import { rng } from "./math";
 import { PROP_SHEET } from "./sheets";
-import { buildPath, placeProps } from "./path";
+import { buildPath, paintGround, placeProps, soilFlecks } from "./path";
 import { cutHole, fitCanvas, tintOver, type Frame, type Viewport, type WalkSurface } from "./surface";
 import { clamp } from "./track";
 import { BEACON, DOOR, GEMS, WORLD_WIDTH, spriteTop } from "./world";
 
 const PROP_ROOT_ROW = 2;
+
+function drawGem(ctx: CanvasRenderingContext2D, x: number, y: number, color: string) {
+  const p = 2;
+  const px = (dx: number, dy: number, w: number, h: number, c = color) => {
+    ctx.fillStyle = c;
+    ctx.fillRect(x + dx * p, y + dy * p, w * p, h * p);
+  };
+  px(-1, -3, 3, 1);
+  px(-2, -2, 5, 2);
+  px(-1, 0, 3, 1);
+  px(0, 1, 1, 1);
+  px(-1, -2, 1, 1, "#ffffff");
+}
 
 // The ground plane: the path, props, landmarks with their lights and signs, the
 // cabin door and the gems. Everything here is fixed to the world and slides as

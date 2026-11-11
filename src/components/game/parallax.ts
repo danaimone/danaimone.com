@@ -1,4 +1,3 @@
-import { tileThroughTurn } from "./art";
 import type { Art } from "./assets";
 import { rng } from "./math";
 import { PROP_SHEET, TREE_SHEET } from "./sheets";
@@ -30,6 +29,7 @@ const MEADOW_TURN_WORLD_X = 1180;
 const UNDERSTORY_DEPTH = 14;
 
 type Size = { width: number; height: number };
+type TurningTiles = { before: HTMLImageElement; turn: HTMLImageElement; after: HTMLImageElement };
 type Scene = { art: Art; viewport: Viewport; travel: number };
 type LayerRecipe = {
   parallax: number;
@@ -47,6 +47,12 @@ function drawSprite(c: CanvasRenderingContext2D, sheet: HTMLImageElement, kind: 
   c.scale(-1, 1);
   c.drawImage(sheet, kind * cell.width, 0, cell.width, cell.height, 0, 0, drawn.width, drawn.height);
   c.restore();
+}
+
+function tileThroughTurn(c: CanvasRenderingContext2D, { before, turn, after }: TurningTiles, turnX: number, width: number, baseY: number) {
+  for (let x = turnX - before.width; x > -before.width; x -= before.width) c.drawImage(before, x, baseY - before.height);
+  c.drawImage(turn, turnX, baseY - turn.height);
+  for (let x = turnX + turn.width; x < width; x += after.width) c.drawImage(after, x, baseY - after.height);
 }
 
 // Where a world position sits on a layer, and back. Both agree at the middle of the view.

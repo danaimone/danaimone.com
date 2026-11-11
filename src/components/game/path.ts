@@ -8,8 +8,13 @@ const LIP_ROW = 14;
 export const BLEND_WIDTH = 96;
 const FIRST_PROP_X = 260;
 
-const hash = (a: number, b = 0) => {
+const pathNoise = (a: number, b = 0) => {
   const value = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453;
+  return value - Math.floor(value);
+};
+
+const soilNoise = (n: number) => {
+  const value = Math.sin(n * 127.1 + 311.7) * 43758.5453;
   return value - Math.floor(value);
 };
 
@@ -64,10 +69,10 @@ export type Ground = {
 };
 
 const sand: Texel = (x, row) => {
-  if (row < VERGE_ROWS) return pick(["#a8a06a", "#9a9460", "#b3ab76"], hash(x, row));
+  if (row < VERGE_ROWS) return pick(["#a8a06a", "#9a9460", "#b3ab76"], pathNoise(x, row));
   if (row === LIP_ROW) return "#8f7250";
-  const noise = hash(Math.floor(x / 2), row);
-  if ((row + Math.floor(x / 26)) % 5 === 0 && hash(Math.floor(x / 9), row) > 0.55) return "#c9ab7c";
+  const noise = pathNoise(Math.floor(x / 2), row);
+  if ((row + Math.floor(x / 26)) % 5 === 0 && pathNoise(Math.floor(x / 9), row) > 0.55) return "#c9ab7c";
   if (noise > 0.94) return "#7f6547";
   return pick(["#c2a374", "#b89a6a", "#bd9e6f"], noise);
 };
@@ -84,7 +89,7 @@ const asphalt: Texel = (x, row) => {
   if (row < VERGE_ROWS) return row === 0 ? "#b4b2aa" : "#92908a";
   if (row === LIP_ROW) return "#34363b";
   if (row >= DASH.firstRow && row <= DASH.lastRow && hasCentreDash(x)) return "#e3bf45";
-  const noise = hash(x, row);
+  const noise = pathNoise(x, row);
   if (noise > 0.93) return "#6a6c72";
   return pick(["#484a50", "#4e5056", "#44464c"], noise);
 };
@@ -94,9 +99,9 @@ const sidewalk: Texel = (x, row) => {
   if (row === LIP_ROW) return "#77746e";
   const slab = Math.floor(x / 38);
   if (x % 38 === 0 || row === 8) return "#85827c";
-  if (hash(slab, 3) > 0.8 && Math.abs(x % 38 - 12 - row) < 1) return "#8e8b85";
-  const noise = hash(x, row);
-  return noise > 0.9 ? "#b8b5ae" : pick(["#aaa79f", "#a5a29a"], hash(slab, 7));
+  if (pathNoise(slab, 3) > 0.8 && Math.abs(x % 38 - 12 - row) < 1) return "#8e8b85";
+  const noise = pathNoise(x, row);
+  return noise > 0.9 ? "#b8b5ae" : pick(["#aaa79f", "#a5a29a"], pathNoise(slab, 7));
 };
 
 const pavers: Texel = (x, row) => {
@@ -105,14 +110,14 @@ const pavers: Texel = (x, row) => {
   const course = Math.floor((row - VERGE_ROWS) / 3);
   const shifted = x + (course % 2) * 5;
   if ((row - VERGE_ROWS) % 3 === 2 || shifted % 10 === 0) return "#6b4436";
-  const shade = hash(Math.floor(shifted / 10), course);
+  const shade = pathNoise(Math.floor(shifted / 10), course);
   return pick(["#a8634b", "#98553f", "#b16f55", "#8f4e3a"], shade);
 };
 
 const trail: Texel = (x, row) => {
-  if (row < VERGE_ROWS) return pick(["#3f6b3a", "#35602f", "#4b7a42"], hash(x, row));
+  if (row < VERGE_ROWS) return pick(["#3f6b3a", "#35602f", "#4b7a42"], pathNoise(x, row));
   if (row === LIP_ROW) return "#3f2c1f";
-  const noise = hash(x, row);
+  const noise = pathNoise(x, row);
   if (noise > 0.9) return "#a06a34";
   if (noise < 0.1) return "#4f3827";
   return pick(["#6e4e36", "#664730", "#74533a"], noise);
@@ -124,8 +129,8 @@ const boardwalk: Texel = (x, row) => {
   const plank = Math.floor(x / 14);
   if (x % 14 === 0) return "#3a2a1e";
   if (x % 14 === 2 && (row === 5 || row === 11)) return "#2a1d14";
-  const grain = hash(Math.floor(x / 5), plank * 3 + row);
-  return pick(["#9c7044", "#8d633b", "#a67a4c"], hash(plank, 5) * 0.7 + grain * 0.3);
+  const grain = pathNoise(Math.floor(x / 5), plank * 3 + row);
+  return pick(["#9c7044", "#8d633b", "#a67a4c"], pathNoise(plank, 5) * 0.7 + grain * 0.3);
 };
 
 export const GROUNDS: Ground[] = [
@@ -219,7 +224,7 @@ export function buildPath() {
       ctx.fillRect(x, row + 2, 1, 1);
     }
     const tuft = groundAt(x).tufts;
-    const noise = hash(x, 11);
+    const noise = pathNoise(x, 11);
     if (tuft && noise < 0.2) {
       ctx.fillStyle = tuft;
       const height = noise < 0.06 ? 2 : 1;
@@ -227,4 +232,26 @@ export function buildPath() {
     }
   }
   return canvas;
+}
+
+const SOIL_FLECK = { from: 0.6, to: 0.615, topRow: 19, rows: 14 };
+
+export function soilFlecks(worldWidth: number) {
+  const flecks: { x: number; row: number }[] = [];
+  for (let x = 0; x < worldWidth; x++) {
+    const n = soilNoise(x);
+    if (n > SOIL_FLECK.from && n < SOIL_FLECK.to) flecks.push({ x, row: SOIL_FLECK.topRow + Math.floor(soilNoise(x + 3) * SOIL_FLECK.rows) });
+  }
+  return flecks;
+}
+
+export function paintGround(ctx: CanvasRenderingContext2D, path: HTMLCanvasElement, flecks: ReturnType<typeof soilFlecks>, camX: number, viewW: number, ground: number, viewH: number) {
+  ctx.fillStyle = "#3d2f27";
+  ctx.fillRect(0, ground + PATH_ROWS, viewW, viewH - ground - PATH_ROWS);
+  const left = Math.floor(camX);
+  ctx.drawImage(path, left, 0, viewW + 1, path.height, left - camX, ground - 2, viewW + 1, path.height);
+  ctx.fillStyle = "#2f241e";
+  for (const { x, row } of flecks) {
+    if (x >= left && x <= left + viewW) ctx.fillRect(x - camX, ground + row, 2, 1);
+  }
 }
