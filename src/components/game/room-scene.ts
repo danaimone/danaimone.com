@@ -192,6 +192,7 @@ export function createRoomScene(art: RoomArt, room: RoomLayout, terminal: Termin
   let tap = 0;
   let paintedTick = -1;
   let paintedWidth = 0;
+  let paintedStill: string | null = null;
 
   function drawStripFrame(ctx: Ctx, strip: HTMLImageElement, box: Box, frame: number) {
     ctx.drawImage(strip, frame * box.width, 0, box.width, box.height, box.x, box.y, box.width, box.height);
@@ -231,16 +232,22 @@ export function createRoomScene(art: RoomArt, room: RoomLayout, terminal: Termin
 
   return {
     stoke: fire.stoke,
+    wiped() {
+      paintedStill = null;
+    },
     draw(ctx: Ctx, t: number, animate: boolean, opening: boolean) {
       const tick = Math.floor(t * (opening ? OPENING_ROOM_FPS : ROOM_FPS));
       if (tick === paintedTick && ctx.canvas.width === paintedWidth) return;
       paintedTick = tick;
       paintedWidth = ctx.canvas.width;
+      const screen = terminal.screen();
+      const still = animate ? null : `${screen.keystrokes} ${screen.keystrokes !== keystrokes || t - lastKeyAt < FINGER_TAP_SECONDS}`;
+      if (still !== null && still === paintedStill) return;
+      paintedStill = still;
       ctx.imageSmoothingEnabled = false;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.drawImage(plateAtRoomScale(), 0, 0);
       ctx.setTransform(ROOM_SCALE, 0, 0, ROOM_SCALE, 0, 0);
-      const screen = terminal.screen();
 
       drawFire(ctx, t, animate);
       const flicker = animate ? 0.02 * Math.sin(t * 5) * Math.sin(t * 2.3) : 0;

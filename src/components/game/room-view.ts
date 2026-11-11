@@ -137,6 +137,7 @@ export function createRoomView({ canvas, screens, view, terminal, gameScreen, re
         screen.style.left = `${x0}px`;
         screen.style.top = `${y0}px`;
       }
+      scene.room.wiped();
       scene.screens.wiped();
       clearedAt = t;
     }
@@ -158,6 +159,8 @@ export function createRoomView({ canvas, screens, view, terminal, gameScreen, re
     ctx.beginPath();
     if (quick) {
       for (const box of movingBoxes(room)) ctx.rect(box.x * ROOM_SCALE, box.y * ROOM_SCALE, box.width * ROOM_SCALE, box.height * ROOM_SCALE);
+    } else if (reduced) {
+      ctx.rect(0, 0, canvas.width, canvas.height);
     } else {
       ctx.rect((-left / pixel) * ROOM_SCALE, (-top / pixel) * ROOM_SCALE, (viewW / pixel) * ROOM_SCALE, (viewH / pixel) * ROOM_SCALE);
     }
