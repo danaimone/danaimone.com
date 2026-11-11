@@ -1,9 +1,0 @@
-Use your built-in image generation tool (imagegen skill, built-in mode) to create ONE image at 1:1 aspect ratio, exactly 1024x1024 pixels, then copy the generated PNG into the current working directory as ./sun.png. Do not write code or any other files. Reply with just the saved path.
-
-Use case: stylized-concept
-Asset type: sun sprite for a side-scrolling pixel-art game set in the Pacific Northwest
-Input images: Image 1 is the style reference only: match its art-pixel size, 16-bit polish, and saturation. Do not draw the character.
-Subject: a single warm, glorious game sun, centered, seen from the front: a round golden disc with a bright pale-yellow core, rich golden shading toward the rim, and a ring of short tapered pointed rays around it, alternating long and short, evenly spaced, slightly separated from the disc. Radiant and cheerful, like the sun in a beloved 16-bit adventure game. It fills about 70 percent of the frame.
-Style/medium: polished 16-bit pixel art, hard edges, no anti-aliasing, no blur, no soft glow, limited golden palette of about 8 colors.
-Background: a perfectly flat solid #FF00FF magenta background filling everything outside the sun.
-Avoid: a face, text, clouds, sky, frame borders, any magenta inside the sun.

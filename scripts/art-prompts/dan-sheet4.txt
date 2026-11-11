@@ -1,9 +1,0 @@
-Use your built-in image generation tool (imagegen skill, built-in mode) to edit Image 1 and create ONE image at 3:1 aspect ratio, exactly 2172x724 pixels, then copy the generated PNG into the current working directory as ./dan-sheet4.png. Do not write code or any other files. Reply with just the saved path.
-
-Use case: identity-preserve
-Asset type: character sprite sheet for a side-scrolling pixel-art game
-Input images: Image 1 is the edit target. Image 2 is a photo of the real man, used only for the likeness of his hair and face.
-
-Change only the head in all 6 frames, drawn consistently in side view: his real hair from Image 2: short and neat, dark brown, trimmed close on the sides, a low soft fringe falling slightly forward, with very little height. Not a quiff, not spiky, no volume on top, no curls. His glasses are slim dark frames with clear lenses, with clearly visible dark pupils behind them. His expression is calm and focused, mouth closed, with at most a very faint relaxed smile, no teeth, no grin. Short trimmed dark beard, as in Image 2. Give each eye a bold, simple dark pupil that stays readable at very small size.
-Keep the 6 poses, clothes, row layout, spacing, baseline, scale, and the perfectly flat #FF00FF magenta background unchanged.
-Style: polished 16-bit pixel art, hard edges, no anti-aliasing, no blur, no text.

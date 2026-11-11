@@ -1,9 +1,0 @@
-Use your built-in image generation tool (imagegen skill, built-in mode) to create ONE image, then copy the generated PNG into the current working directory as ./dan-sheet.png. Do not write any code or other files. Reply with just the saved path.
-
-Use case: stylized-concept
-Asset type: character sprite sheet for a side-scrolling pixel-art portfolio game
-Input images: Image 1 (avatar-ref.png) = identity reference only: the character's face, hair, glasses, beard and clothing colors.
-Subject: the same man from Image 1 as a full-body game character seen in strict side view, facing right. Dark-brown messy swept-up hair, black rectangular glasses, full short dark-brown beard, warm light skin, bright amber-orange T-shirt with a coral-red crew collar, open charcoal-grey jacket, dark navy jeans, dark grey sneakers.
-Layout: exactly one horizontal row of 6 frames, evenly spaced, all the same scale and baseline, on a perfectly flat solid #FF00FF magenta background. Frame 1-4: walk cycle (contact, down, passing, up) with natural arm swing. Frame 5: idle standing, relaxed. Frame 6: mid-jump, knees tucked, arms up.
-Style/medium: polished 16-bit era pixel art made by a professional pixel artist. The character is about 44 art pixels tall. Every art pixel is a perfectly square block of one uniform size across the whole image. Hard edges only: no anti-aliasing, no blur, no gradients, no dithering noise. Limited palette of about 16 colors. Selective dark outline in deep warm brown (not pure black). Clear readable silhouette, consistent proportions in every frame (slightly stylized, head about one quarter of total height), simple 2-tone shading with light from the upper left.
-Avoid: text, labels, numbers, frame borders, grid lines, ground, cast shadows, any magenta inside the character, extra characters.

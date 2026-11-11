@@ -1,9 +1,0 @@
-Use your built-in image generation tool (imagegen skill, built-in mode) to create ONE image, then copy the generated PNG into the current working directory as ./tower.png. Do not write code or any other files. Reply with just the saved path.
-
-Use case: stylized-concept
-Asset type: background landmark prop for a side-scrolling pixel-art game, flat 2D side elevation (orthographic, no perspective)
-Subject: a modern tech-company office tower: blue glass curtain wall with a clean mullion grid and a subtle sky reflection band, a slim rooftop penthouse and antenna, glass lobby at street level, plus an attached low three-story glass wing to its right. Daytime, unlit. About 150 art pixels wide in total and 210 art pixels tall.
-
-Input images: Image 1 (dan-sheet.png) is the STYLE AND SCALE REFERENCE ONLY. Match it exactly: the same size of art pixel (the character there is about 80 art pixels tall), the same polished 16-bit era pixel-art look, hard edges, no anti-aliasing, no blur, no gradients, limited palette, selective deep warm-brown outlines, simple 2-tone shading lit from the upper left, the same saturation. Do not draw the character from Image 1.
-Background: a perfectly flat solid #FF00FF magenta background filling everything outside the subject. No ground plane, no cast shadow on the background, no sky.
-Avoid: text, letters, numbers, logos, brand marks, signage with words, people, frame borders, grid lines, any magenta inside the subject.

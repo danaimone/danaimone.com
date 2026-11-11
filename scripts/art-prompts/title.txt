@@ -1,9 +1,0 @@
-Use your built-in image generation tool (imagegen skill, built-in mode) to create ONE image, then copy the generated PNG into the current working directory as ./title.png. Do not write code or any other files. Reply with just the saved path.
-
-Use case: logo-brand
-Asset type: game title logo for the opening screen of a pixel-art portfolio
-Text (verbatim): "DAN AIMONE" on two lines: "DAN" on top, "AIMONE" below, left aligned, exact spelling.
-Style/medium: a polished 16-bit console game title logo. Big chunky custom pixel letters with a warm cream-to-amber vertical band gradient, a crisp dark plum outline, and a deep violet extruded drop shadow to the lower right. Confident and refined, not childish. About 150 art pixels tall in total.
-Background: a perfectly flat solid #FF00FF magenta background. Avoid: any other text, sparkles, stars, characters, borders.
-
-Input images: Image 1 (dan-sheet.png) is a style reference for art-pixel size and palette only.
