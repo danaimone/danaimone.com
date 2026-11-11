@@ -6,6 +6,8 @@ type Project = {
   detail: string;
   stack: string[];
   areas?: [label: string, text: string][];
+  shot?: { src: string; alt: string; width: number; height: number };
+  sessions?: [state: "working" | "waiting" | "past", title: string, where: string][];
 };
 
 export const projects: Project[] = [
@@ -32,6 +34,12 @@ export const projects: Project[] = [
     summary: "One picker for every coding-agent session on every machine I use.",
     detail:
       "I run Claude Code, Codex, opencode, and pi across a laptop, a Mac mini, and a homelab, and kept losing track of them. One key lists every live and past session by state, then jumps to the pane or resumes it beside me.",
+    sessions: [
+      ["working", "Fix the login redirect", "pve · now"],
+      ["waiting", "CAPTCHA solver comparison", "mac · 4m"],
+      ["past", "Write primes.py", "pve · 27m"],
+      ["past", "Morning brief", "mini · 3h"],
+    ],
     stack: ["Go", "Lua", "fzf", "GoReleaser"],
   },
   {
@@ -40,6 +48,7 @@ export const projects: Project[] = [
     summary: "This site: a scroll-driven pixel-art walk on a canvas engine I wrote.",
     detail:
       "A fixed-step simulation drives stacked canvases drawn at art resolution, so the world scrolls in device pixels and stays sharp. The cabin terminal is real, and a frame harness replays the whole walk to catch visual regressions.",
+    shot: { src: "/images/walk-strip.png", alt: "Dan and Mishka walking past the Seattle skyline in the pixel-art walk.", width: 1280, height: 480 },
     stack: ["TypeScript", "Astro", "Svelte", "Canvas", "Bun"],
   },
   {
