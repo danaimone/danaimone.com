@@ -12,6 +12,17 @@
   display: none;
 }
 
+@media (scripting: none) {
+  .walk {
+    height: 100svh;
+  }
+
+  .walk .walk-timeline,
+  .walk .walk-hint {
+    display: none;
+  }
+}
+
 .walk-view {
   position: sticky;
   top: 0;
