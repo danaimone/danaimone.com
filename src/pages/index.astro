@@ -10,6 +10,7 @@ import "../styles/walk.css";
 import "../styles/page.css";
 import instrumentSans from "@fontsource-variable/instrument-sans/files/instrument-sans-latin-wdth-normal.woff2?url";
 import jersey from "@fontsource/jersey-15/files/jersey-15-latin-400-normal.woff2?url";
+import { createHash } from "node:crypto";
 
 const badges: [name: string, label: string, href: string, external: boolean][] = [
   ["email", "Email", `mailto:${EMAIL}`, false],
@@ -31,6 +32,9 @@ const person = {
   address: { "@type": "PostalAddress", addressLocality: "Seattle", addressRegion: "WA" },
   sameAs: elsewhere.map(([, href]) => href),
 };
+
+const collapseOnPhones = `if (matchMedia("(max-width: 44rem)").matches) for (const more of document.querySelectorAll(".project-more")) more.open = false;`;
+Astro.csp?.insertScriptHash(`sha256-${createHash("sha256").update(collapseOnPhones).digest("base64")}`);
 
 const title = "Dan Aimone | Software Engineer";
 const description =
@@ -150,7 +154,7 @@ const description =
           <section class="projects" id="projects" tabindex="-1" aria-labelledby="projects-title">
             <h2 class="sheet-head-label" id="projects-title">Projects</h2>
             <ul class="project-list">
-              {projects.map(({ name, href, privateSource, summary, detail, areas, shot, sessions, stack }) => {
+              {projects.map(({ name, href, privateSource, summary, detail, areas, areasLabel, shot, sessions, stack }) => {
                 const Card = href ? "a" : "div";
                 return (
                   <li class:list={{ "is-wide": areas }}>
@@ -184,14 +188,17 @@ const description =
                       <p class="project-summary">{summary}</p>
                       <p class="project-detail">{detail}</p>
                       {areas && (
-                        <dl class="skills project-areas">
-                          {areas.map(([label, text]) => (
-                            <div>
-                              <dt class="pixel">{label}</dt>
-                              <dd>{text}</dd>
-                            </div>
-                          ))}
-                        </dl>
+                        <details class="project-more" open>
+                          <summary class="pixel">{areasLabel}</summary>
+                          <dl class="skills project-areas">
+                            {areas.map(([label, text]) => (
+                              <div>
+                                <dt class="pixel">{label}</dt>
+                                <dd>{text}</dd>
+                              </div>
+                            ))}
+                          </dl>
+                        </details>
                       )}
                       <ul class="project-stack" aria-label="Built with">
                         {stack.map((item) => <li>{item}</li>)}
@@ -201,6 +208,7 @@ const description =
                 );
               })}
             </ul>
+            <script is:inline set:html={collapseOnPhones} />
           </section>
 
           <section id="about" tabindex="-1" aria-labelledby="about-title">
@@ -270,6 +278,12 @@ const description =
       }
       showTime();
       setInterval(showTime, 30000);
+
+      const narrow = matchMedia("(max-width: 44rem)");
+      narrow.addEventListener("change", () => {
+        if (narrow.matches) return;
+        for (const more of document.querySelectorAll<HTMLDetailsElement>(".project-more")) more.open = true;
+      });
 
       const copy = document.querySelector<HTMLButtonElement>("[data-copy-email]");
       copy?.addEventListener("click", async () => {

@@ -474,6 +474,50 @@ a.project:hover .project-source {
   margin-top: 0.5rem;
 }
 
+.project-more > summary {
+  display: none;
+}
+
+@media (max-width: 44rem) {
+  .project-more > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 2.75rem;
+    margin-top: 0.5rem;
+    padding: 0 0.875rem;
+    background: var(--surface0);
+    box-shadow: inset 2px 2px 0 var(--surface1), inset -2px -2px 0 var(--crust);
+    font-size: var(--pixel-s);
+    line-height: 1;
+    color: var(--mauve);
+    cursor: pointer;
+  }
+
+  .project-more > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .project-more > summary::after {
+    content: "";
+    flex: none;
+    width: 15px;
+    height: 15px;
+    background:
+      linear-gradient(currentColor 0 0) center / 15px 3px no-repeat,
+      linear-gradient(currentColor 0 0) center / 3px 15px no-repeat;
+  }
+
+  .project-more[open] > summary::after {
+    background-size: 15px 3px, 0 0;
+  }
+
+  .project-more > .project-areas {
+    margin-top: 1rem;
+  }
+}
+
 .project-stack {
   display: flex;
   flex-wrap: wrap;

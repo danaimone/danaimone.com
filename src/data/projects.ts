@@ -6,6 +6,7 @@ type Project = {
   detail: string;
   stack: string[];
   areas?: [label: string, text: string][];
+  areasLabel?: string;
   shot?: { src: string; alt: string; width: number; height: number };
   sessions?: { state: "working" | "waiting" | "past"; agent: "claude" | "codex" | "pi"; title: string; age: string; dir: string; host: string }[];
 };
@@ -17,6 +18,7 @@ export const projects: Project[] = [
     summary: "A personal AI agent that runs on my homelab, answers over iMessage, and does real chores.",
     detail:
       "It runs Claude on an open-source agent runtime. My work is everything around that: the bridges into my house and Apple's apps, the memory, the skills, and the guardrails that make it safe to leave running.",
+    areasLabel: "How it works",
     areas: [
       ["Channels", "iMessage first, plus Discord, email, and voice through Home Assistant. I patched the iMessage bridge so its replies render real bold and italic"],
       ["Memory", "Long-term memory that is isolated per person, so someone else texting it never gets my context. I compared backends before choosing one and added a weekly check for leaks between people"],
@@ -73,6 +75,7 @@ export const projects: Project[] = [
     summary: "The server at home that runs my house, my media, my backups, and my agents.",
     detail:
       "I treat it like production: changes are scripted and reversible, every incident gets a written report, and nothing is allowed to fail quietly.",
+    areasLabel: "What it runs",
     areas: [
       ["Platform", "Proxmox on an EPYC server with ZFS, dozens of containers and VMs, and two GPUs shared between transcoding, camera detection, and local models"],
       ["Network", "Segmented VLANs for IoT, guests, and a DMZ, separate public and private reverse proxies behind Cloudflare, and Tailscale and WireGuard for remote access"],
