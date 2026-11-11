@@ -218,19 +218,25 @@ export function buildPath() {
   canvas.width = WORLD_WIDTH;
   canvas.height = PATH_ROWS + 2;
   const ctx = canvas.getContext("2d")!;
+  const pixels = ctx.createImageData(canvas.width, canvas.height);
+  const put = (x: number, y: number, color: string) => {
+    const rgb = parseInt(color.slice(1), 16);
+    const at = (y * canvas.width + x) * 4;
+    pixels.data[at] = rgb >> 16;
+    pixels.data[at + 1] = (rgb >> 8) & 255;
+    pixels.data[at + 2] = rgb & 255;
+    pixels.data[at + 3] = 255;
+  };
   for (let x = 0; x < WORLD_WIDTH; x++) {
-    for (let row = 0; row < PATH_ROWS; row++) {
-      ctx.fillStyle = blendedGround(x, row).texel(x, row);
-      ctx.fillRect(x, row + 2, 1, 1);
-    }
+    for (let row = 0; row < PATH_ROWS; row++) put(x, row + 2, blendedGround(x, row).texel(x, row));
     const tuft = groundAt(x).tufts;
     const noise = pathNoise(x, 11);
     if (tuft && noise < 0.2) {
-      ctx.fillStyle = tuft;
-      const height = noise < 0.06 ? 2 : 1;
-      ctx.fillRect(x, 2 - height, 1, height);
+      put(x, 1, tuft);
+      if (noise < 0.06) put(x, 0, tuft);
     }
   }
+  ctx.putImageData(pixels, 0, 0);
   return canvas;
 }
 
