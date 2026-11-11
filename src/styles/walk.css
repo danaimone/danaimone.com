@@ -415,8 +415,6 @@ kbd {
   }
 }
 
-/* The timeline runs through the soil under the path; it fades as the cabin's door wipe begins. */
-
 .walk-timeline {
   position: absolute;
   left: var(--gutter);

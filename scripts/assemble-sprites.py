@@ -25,7 +25,6 @@ def planted(frame, size):
 
 
 def neck(frame):
-    """Row and centre of the narrowest span between head and shoulders."""
     px = frame.load()
     def span(y):
         return [x for x in range(frame.width) if px[x, y][3]]
@@ -40,8 +39,7 @@ def lock_head(frame, head, head_neck, target):
     frame.alpha_composite(head, (centre - head_neck[1], row - head_neck[0]))
 
 
-def steady(necks):
-    """Correct a misread collar: a neck can't sit above both neighbours or jump sideways."""
+def without_misread_necks(necks):
     count = len(necks)
     def fixed(i):
         before, (row, centre), after = necks[i - 1], necks[i], necks[(i + 1) % count]
@@ -54,7 +52,7 @@ def locked_heads(frames, source):
         source.putpixel(point, color)
     head_neck = neck(source)
     head = source.crop((0, 0, source.width, head_neck[0]))
-    targets = steady([neck(frame) for frame in frames])
+    targets = without_misread_necks([neck(frame) for frame in frames])
     for frame, target in zip(frames, targets):
         lock_head(frame, head, head_neck, target)
     return targets

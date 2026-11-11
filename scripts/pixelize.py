@@ -1,11 +1,6 @@
 #!/usr/bin/env python3
 """Turn a generated "pixel art" image into real pixel art.
 
-Image models draw pixel art as soft, slightly uneven blocks. This keys out the
-flat background, finds the art's block size, samples one colour per block,
-limits the palette, and trims to the content, so the result can be drawn 1:1
-on the walk canvas and scaled by whole numbers.
-
     pixelize.py in.png out.png [--cell N] [--colors 24] [--key ff00ff]
     pixelize.py sheet.png out_dir --frames 6     # slice a one-row sprite sheet
 """
@@ -13,6 +8,8 @@ import argparse
 from pathlib import Path
 
 from PIL import Image
+
+SMALLER_CELL_WINS_WITHIN = 0.01
 
 
 def key_out(im, key, tol, strict=False):
@@ -22,7 +19,6 @@ def key_out(im, key, tol, strict=False):
     for y in range(im.height):
         for x in range(im.width):
             r, g, b, a = px[x, y]
-            # Magenta-ish: strong red and blue, weak green.
             near = abs(r - kr) + abs(g - kg) + abs(b - kb) < tol
             pinkish = not strict and r > 150 and b > 150 and g < 110 and abs(r - b) < 90
             if a < 128 or near or pinkish:
@@ -31,7 +27,6 @@ def key_out(im, key, tol, strict=False):
 
 
 def edges(im, axis):
-    """Positions along one axis where the colour jumps, sampled on many lines."""
     rgb = im.convert("RGB")
     px = rgb.load()
     w, h = rgb.size
@@ -47,12 +42,6 @@ def edges(im, axis):
 
 
 def detect_cell(im, lo=3.0, hi=24.0):
-    """Block size and phase that put the most colour edges on grid lines.
-
-    A real block size s also scores well at 2s, 3s... but not at s/2, so the
-    score is normalised by how many grid lines a size implies; the smallest
-    size that explains most edges wins.
-    """
     xs = edges(im, 0) + edges(im, 1)
     if not xs:
         return lo
@@ -64,12 +53,28 @@ def detect_cell(im, lo=3.0, hi=24.0):
             phase = s * k / 8
             hit = sum(1 for x in xs if abs(((x - phase + s / 2) % s) - s / 2) <= 0.75)
             top = max(top, hit)
-        # Fraction of edges explained, minus the chance rate for this size.
-        score = top / len(xs) - 1.5 / s
-        if best is None or score > best[0] + 0.01:
+        explained = top / len(xs)
+        chance_rate = 1.5 / s
+        score = explained - chance_rate
+        if best is None or score > best[0] + SMALLER_CELL_WINS_WITHIN:
             best = (score, s)
         s += 0.05
     return best[1]
+
+
+def majority_colour_near(im, src, cx, cy):
+    votes = {}
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            p = src[min(im.width - 1, max(0, cx + dx)), min(im.height - 1, max(0, cy + dy))]
+            k = (p[0] // 8, p[1] // 8, p[2] // 8, 255 if p[3] > 127 else 0)
+            votes.setdefault(k, []).append(p)
+    group = max(votes.values(), key=len)
+    r = sum(p[0] for p in group) // len(group)
+    g = sum(p[1] for p in group) // len(group)
+    b = sum(p[2] for p in group) // len(group)
+    a = 255 if group[0][3] > 127 else 0
+    return (r, g, b, a)
 
 
 def sample(im, cell):
@@ -79,21 +84,7 @@ def sample(im, cell):
     dst = out.load()
     for y in range(rows):
         for x in range(cols):
-            # Majority of a small 3x3 neighbourhood around the block centre,
-            # which ignores the soft edges between blocks.
-            cx, cy = int((x + 0.5) * cell), int((y + 0.5) * cell)
-            votes = {}
-            for dy in (-1, 0, 1):
-                for dx in (-1, 0, 1):
-                    p = src[min(im.width - 1, max(0, cx + dx)), min(im.height - 1, max(0, cy + dy))]
-                    k = (p[0] // 8, p[1] // 8, p[2] // 8, 255 if p[3] > 127 else 0)
-                    votes.setdefault(k, []).append(p)
-            group = max(votes.values(), key=len)
-            r = sum(p[0] for p in group) // len(group)
-            g = sum(p[1] for p in group) // len(group)
-            b = sum(p[2] for p in group) // len(group)
-            a = 255 if group[0][3] > 127 else 0
-            dst[x, y] = (r, g, b, a)
+            dst[x, y] = majority_colour_near(im, src, int((x + 0.5) * cell), int((y + 0.5) * cell))
     return out
 
 
@@ -106,7 +97,6 @@ def quantize(im, colors):
 
 
 def clean_specks(im):
-    """Drop isolated opaque pixels left over from the background edge."""
     px = im.load()
     w, h = im.size
     for y in range(h):
@@ -124,33 +114,26 @@ def clean_specks(im):
 
 
 def defringe(im):
-    """Remove background-tinted pixels the key missed.
-
-    Magenta that bled into edge pixels survives keying as muddy purple-pink.
-    On the silhouette edge it becomes transparent; inside, it takes the most
-    common neighbouring colour. Blue-leaning purples (lupines) are kept.
-    """
     px = im.load()
     w, h = im.size
-    tinted = lambda r, g, b: r > 60 and b > 55 and g < 0.62 * min(r, b) and abs(r - b) < 45
+    key_tinted = lambda r, g, b: r > 60 and b > 55 and g < 0.62 * min(r, b) and abs(r - b) < 45
     for _ in range(2):
         for y in range(h):
             for x in range(w):
                 r, g, b, a = px[x, y]
-                if not a or not tinted(r, g, b):
+                if not a or not key_tinted(r, g, b):
                     continue
                 around = [px[x + dx, y + dy] for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)) if 0 <= x + dx < w and 0 <= y + dy < h]
                 if any(n[3] == 0 for n in around) or len(around) < 4:
                     px[x, y] = (0, 0, 0, 0)
                     continue
-                good = [n for n in around if not tinted(*n[:3])]
+                good = [n for n in around if not key_tinted(*n[:3])]
                 if good:
                     px[x, y] = max(good, key=good.count)
     return im
 
 
 def frames(im, count):
-    """Split a one-row sheet at the empty columns between figures."""
     w, h = im.size
     alpha = im.getchannel("A").load()
     filled = [any(alpha[x, y] for y in range(h)) for x in range(w)]
@@ -161,7 +144,6 @@ def frames(im, count):
         elif not f and start is not None:
             spans.append((start, x))
             start = None
-    # Merge slivers (detached hands, hair tufts) into their nearest neighbour.
     while len(spans) > count:
         gaps = [spans[i + 1][0] - spans[i][1] for i in range(len(spans) - 1)]
         i = gaps.index(min(gaps))
@@ -176,7 +158,6 @@ def frames(im, count):
     out = []
     for f in boxes:
         canvas = Image.new("RGBA", (fw, fh))
-        # Centre horizontally, sit every frame on the same baseline.
         canvas.paste(f, ((fw - f.width) // 2, fh - f.height))
         out.append(canvas)
     return out

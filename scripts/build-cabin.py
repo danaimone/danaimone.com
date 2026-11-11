@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 """Build the cabin's plate and animation layers from one painted scene per layout.
 
-Each layout is one painting on the art grid, used as painted: nothing is pasted onto it. The monitors are painted as
-flat key colours and become the screen masks. Every animation layer is cut from the plate or drawn to fit it; the fire burns in the page, from the hearth measured here.
-
     build-cabin.py paintings_dir public/game src/components/game/room-layouts.json
 """
 import json
@@ -91,8 +88,7 @@ def mask_image(points, box):
 
 
 def flame_floor(fire):
-    """The lowest row a flame may reach in each column: just over the logs' top edge, or the grate beside them. The
-    edge is measured off the painting, because the fire-lit brick behind the logs is as bright as the logs are."""
+    # logRim is measured by hand, not detected: the fire-lit brick behind the logs is as bright as the logs.
     x0, _, x1, _ = fire["opening"]
     rim = fire["logRim"]
     floor = {}
@@ -107,7 +103,6 @@ def flame_floor(fire):
 
 
 def hearth(fire):
-    """What the page needs to burn its own fire: the flame floor of each column and where along the logs the heat is fed."""
     x0, y0, x1, y1 = fire["opening"]
     floor = flame_floor(fire)
     rim = fire["logRim"]
@@ -119,10 +114,6 @@ def hearth(fire):
 
 
 def walnut_keyboard(indexed, spec):
-    """Dan's keyboard has a walnut case and wrist rest. The painter drew a black case with a grey strip in front,
-    so the strip is redrawn as a walnut slab (a gap below the keys, a lit top, two rows of wood and the shadow it
-    casts on the desk) and the end of the case that faces us is recoloured to match. It is drawn in the plate's
-    own colours, after they are chosen, so the rest of the painting keeps every pixel."""
     colours = indexed.getpalette()
     swatches = [tuple(colours[i:i + 3]) for i in range(0, len(colours), 3)]
 
@@ -143,8 +134,6 @@ def walnut_keyboard(indexed, spec):
 
 
 def typing_strip(art, spec):
-    """One painted frame per tap: a finger or two of one hand raised off the keys or pressed in, with the hand itself
-    still. Each is a patch holding only the finger pixels that differ from the plate, so nothing else can move."""
     x0, y0, x1, y1 = spec["hands"]
     width, height = x1 - x0, y1 - y0
     frames = spec["taps"]["frames"]
@@ -159,7 +148,6 @@ def typing_strip(art, spec):
 
 
 def sleeping_strip(plate, spec):
-    """Swell the fur over Mishka's ribs on a breathing curve; head and tail never move."""
     x0, y0, x1, y1 = spec["dog"]
     px = plate.load()
     fur = largest_region({
@@ -195,8 +183,6 @@ def night_around(px, x, y):
 
 
 def speck(bright, x, y):
-    """A star is a bright speck alone in the sky. The mountain's snow and the moon are bright too, but they are big,
-    and a loose fleck of snow sits close beside them."""
     seen, queue = {(x, y)}, deque([(x, y)])
     while queue and len(seen) <= STAR_PIXELS:
         cx, cy = queue.popleft()
@@ -222,9 +208,9 @@ def sparkles(plate, spec):
     sky_end = int(y0 + (y1 - y0) * 0.45)
     bright = lambda x, y: min(px[x, y][:2]) > light and px[x, y][2] > light - 25
     lit = [(x, y) for y in range(y0 + 3, y1 - 3) for x in range(x0 + 3, x1 - 3) if bright(x, y)]
-    bodies = [point for point in lit if not speck(bright, *point)]
-    clear = lambda x, y: all(max(abs(x - bx), abs(y - by)) > STAR_CLEARANCE for bx, by in bodies)
-    stars = [(x, y) for x, y in lit if y < sky_end and night_around(px, x, y) and speck(bright, x, y) and clear(x, y)]
+    big_bright_bodies = [point for point in lit if not speck(bright, *point)]
+    clear_of_snow_and_moon = lambda x, y: all(max(abs(x - bx), abs(y - by)) > STAR_CLEARANCE for bx, by in big_bright_bodies)
+    stars = [(x, y) for x, y in lit if y < sky_end and night_around(px, x, y) and speck(bright, x, y) and clear_of_snow_and_moon(x, y)]
     cx0, cy0, cx1, cy1 = spec["city"]
     city = [
         (x, y)
@@ -241,7 +227,6 @@ def is_water(color):
 
 
 def lake_spans(plate, box):
-    """The open water between the tree lines: the lake is the one connected body inside its box."""
     x0, y0, x1, y1 = box
     px = plate.load()
     water = largest_region({(x, y) for y in range(y0, y1) for x in range(x0, x1) if is_water(px[x, y])})

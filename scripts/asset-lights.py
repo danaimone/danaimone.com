@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """Build the night-light layer for a landmark sprite.
 
-Finds the window glass in a pixelized building (by colour rule), splits it into
-panes (connected regions), and lights a share of them. The output is a sprite
-of the same size holding only the lit pixels, which the walk draws over the
-time-of-day tint so windows glow at dusk and night.
+The output is a sprite of the same size holding only the lit pixels, which the
+walk draws over the time-of-day tint.
 
     asset-lights.py building.png lights.png --rule blue --share 0.55 --color ffd98a
 """
@@ -15,20 +13,21 @@ import random
 from PIL import Image
 
 RULES = {
-    # Dark, blue-leaning glass against warm concrete or wood.
     "blue": lambda r, g, b: b > r + 18 and b >= g - 4 and (r + g + b) / 3 < 125,
-    # Very dark glass in a neutral or blue-grey wall.
     "dark": lambda r, g, b: (r + g + b) / 3 < 62 and b >= r,
-    # Bright curtain-wall glass.
     "glass": lambda r, g, b: b > r + 45 and b > 120,
-    # Teal-tinted glass in a charcoal building.
     "teal": lambda r, g, b: b > r + 14 and g > r + 6 and (r + g + b) / 3 < 120,
-    # Panes the artist already painted warm.
     "warm": lambda r, g, b: r > 190 and g > 140 and b < 130 and r - b > 90,
 }
+RULE_HELP = (
+    "blue: dark, blue-leaning glass against warm concrete or wood; "
+    "dark: very dark glass in a neutral or blue-grey wall; "
+    "glass: bright curtain-wall glass; "
+    "teal: teal-tinted glass in a charcoal building; "
+    "warm: panes the artist already painted warm"
+)
 
-# Warm lamps the artist already painted (wall sconces, porch lights).
-LAMP = lambda r, g, b: r > 215 and g > 175 and b < 140
+PAINTED_LAMP = lambda r, g, b: r > 215 and g > 175 and b < 140
 
 
 def components(mask, w, h):
@@ -52,7 +51,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("src")
     ap.add_argument("dst")
-    ap.add_argument("--rule", choices=RULES, required=True)
+    ap.add_argument("--rule", choices=RULES, required=True, help=RULE_HELP)
     ap.add_argument("--share", type=float, default=0.5, help="fraction of panes lit")
     ap.add_argument("--color", default="ffd98a")
     ap.add_argument("--min", type=int, default=3, help="smallest pane, in pixels")
@@ -72,7 +71,7 @@ def main():
     x0, y0, x1, y1 = (float(v) for v in (args.region or "0,0,1,1").split(","))
     inside = lambda x, y: x0 * w <= x <= x1 * w and y0 * h <= y <= y1 * h
     mask = {(x, y) for y in range(h) for x in range(w) if px[x, y][3] and inside(x, y) and rule(*px[x, y][:3])}
-    lamps = set() if args.no_lamps else {(x, y) for y in range(h) for x in range(w) if px[x, y][3] and LAMP(*px[x, y][:3])}
+    lamps = set() if args.no_lamps else {(x, y) for y in range(h) for x in range(w) if px[x, y][3] and PAINTED_LAMP(*px[x, y][:3])}
 
     rnd = random.Random(args.seed)
     base = tuple(int(args.color[i : i + 2], 16) for i in (0, 2, 4))
@@ -80,23 +79,21 @@ def main():
     o = out.load()
     lit = panes = 0
     if args.mullions:
-        # Columns and rows that are mostly not glass are mullions; panes are
-        # the glass between them.
-        def splits(n, along):
-            cuts = []
+        def pane_index_between_mullions(n, along):
+            is_mullion = []
             for i in range(n):
                 line = [(i, j) if along == "x" else (j, i) for j in range(h if along == "x" else w)]
                 opaque = [p for p in line if px[p][3]]
                 glass = sum(1 for p in opaque if p in mask)
-                cuts.append(bool(opaque) and glass < 0.3 * len(opaque))
+                is_mullion.append(bool(opaque) and glass < 0.3 * len(opaque))
             ids, k, prev = [], 0, True
-            for c in cuts:
+            for c in is_mullion:
                 if not c and prev:
                     k += 1
                 ids.append(None if c else k)
                 prev = c
             return ids
-        col, row = splits(w, "x"), splits(h, "y")
+        col, row = pane_index_between_mullions(w, "x"), pane_index_between_mullions(h, "y")
         cells = {}
         for x, y in mask:
             if col[x] is not None and row[y] is not None:
@@ -113,10 +110,10 @@ def main():
     for comp in groups:
         if not args.min <= len(comp) <= args.max:
             continue
-        # Outlines and seams are long and thin; panes have some body.
         cw = max(x for x, _ in comp) - min(x for x, _ in comp) + 1
         ch = max(y for _, y in comp) - min(y for _, y in comp) + 1
-        if cw < 3 or ch < 2 or len(comp) < 0.45 * cw * ch:
+        outline_or_seam = cw < 3 or ch < 2 or len(comp) < 0.45 * cw * ch
+        if outline_or_seam:
             continue
         panes += 1
         if rnd.random() > args.share:
@@ -126,10 +123,9 @@ def main():
         bottom = max(y for _, y in comp)
         warmth = 0.85 + rnd.random() * 0.15
         for x, y in comp:
-            # A little falloff toward the bottom of each pane reads as a lamp.
-            t = (y - top) / max(1, bottom - top)
-            k = warmth * (1 - 0.18 * t)
-            o[x, y] = tuple(min(255, int(c * k + 30 * (1 - t))) for c in base) + (255,)
+            down_pane = (y - top) / max(1, bottom - top)
+            k = warmth * (1 - 0.18 * down_pane)
+            o[x, y] = tuple(min(255, int(c * k + 30 * (1 - down_pane))) for c in base) + (255,)
     for x, y in lamps:
         o[x, y] = (255, 226, 150, 255)
     out.save(args.dst)
