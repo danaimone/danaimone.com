@@ -1,4 +1,5 @@
-import { DAN_SHEET, MISHKA_SHEET, type Art } from "./assets";
+import type { Art } from "./assets";
+import { DAN_SHEET, MISHKA_SHEET } from "./sheets";
 import type { Particles } from "./particles";
 import { cutHole, fitCanvas, type Frame, type Viewport, type WalkSurface } from "./surface";
 import { clamp } from "./track";

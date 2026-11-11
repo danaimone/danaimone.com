@@ -1,5 +1,6 @@
 import { DITHER_PERIOD, drawSun, mix, paintSky, rng, sunHalo } from "./art";
-import { CLOUD_KINDS, type Art } from "./assets";
+import type { Art } from "./assets";
+import { CLOUD_KINDS } from "./sheets";
 import { cutHole, fitCanvas, type Frame, type Sky, type Viewport, type WalkSurface } from "./surface";
 import { clamp } from "./track";
 

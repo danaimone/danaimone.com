@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { PROP_SHEET } from "./assets";
+import { PROP_SHEET } from "./sheets";
 import { BLEND_WIDTH, GROUNDS, hasCentreDash, placeProps, plantStands, groundAt, groundIndexAt } from "./path";
 
 const seeded = (start: number) => {

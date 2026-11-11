@@ -1,4 +1,4 @@
-import { PROP_SHEET } from "./assets";
+import { PROP_SHEET } from "./sheets";
 import { WORLD_WIDTH } from "./world";
 
 export const PATH_ROWS = 15;

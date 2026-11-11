@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { experience } from "../../data/resume";
-import { CLOUD_KINDS, DAN_SHEET, MISHKA_SHEET, PROP_SHEET, TREE_SHEET } from "./assets";
+import { CLOUD_KINDS, DAN_SHEET, MISHKA_SHEET, PROP_SHEET, TREE_SHEET } from "./sheets";
 import layouts from "./room-layouts.json";
 import { fractionOf, worldAt } from "./track";
 import { BEACON, CHIMNEY, DOOR, GEMS, LANDMARKS, PROMOTION_X, STOPS, TIMELINE, onLandmark, spriteTop } from "./world";

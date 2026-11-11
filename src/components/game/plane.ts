@@ -1,5 +1,6 @@
 import { drawGem, paintGround, rng, soilFlecks } from "./art";
-import { PROP_SHEET, type Art } from "./assets";
+import type { Art } from "./assets";
+import { PROP_SHEET } from "./sheets";
 import { buildPath, placeProps } from "./path";
 import { cutHole, fitCanvas, tintOver, type Frame, type Viewport, type WalkSurface } from "./surface";
 import { clamp } from "./track";

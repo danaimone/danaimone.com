@@ -1,5 +1,6 @@
 import { rng, tileThroughTurn } from "./art";
-import { PROP_SHEET, TREE_SHEET, type Art } from "./assets";
+import type { Art } from "./assets";
+import { PROP_SHEET, TREE_SHEET } from "./sheets";
 import { plantStands, plantUnderstory, groundAt } from "./path";
 import { cutHole, tintOver, type Frame, type Viewport, type WalkSurface } from "./surface";
 import { LANDMARKS, WORLD_WIDTH } from "./world";
