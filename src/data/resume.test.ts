@@ -1,8 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { resume, tailored } from "./resume";
 
-// The list lives in the untracked resume/private.mjs, so a fresh clone skips this check.
-const banned: string[] | undefined = await import("../../resume/private.mjs").then((details) => details.banned, () => undefined);
+const bannedInUntrackedPrivateFile: string[] | undefined = await import("../../resume/private.mjs").then((details) => details.banned, () => undefined);
 
 describe("tailored résumés", () => {
   test("a job the version does not mention keeps its main bullets", () => {
@@ -22,8 +21,9 @@ describe("public résumé data", () => {
     for (const job of resume.jobs) expect(job.years).toMatch(/^\d{4}( – (\d{4}|Present))?$/);
   });
 
-  test.skipIf(!banned)("names nothing on the private list", () => {
+  const freshCloneWithoutPrivateFile = !bannedInUntrackedPrivateFile;
+  test.skipIf(freshCloneWithoutPrivateFile)("names nothing on the private list in the untracked resume/private.mjs", () => {
     const text = JSON.stringify(resume);
-    for (const name of banned ?? []) expect(text).not.toMatch(new RegExp(`\\b${name}\\b`));
+    for (const name of bannedInUntrackedPrivateFile ?? []) expect(text).not.toMatch(new RegExp(`\\b${name}\\b`));
   });
 });

@@ -9,9 +9,7 @@ const MAX_INPUT = 40;
 const MAX_SCROLLBACK = 60;
 const MAX_RECALLED = 20;
 const HISTORY_SHOWN = 4;
-// A person does not type on a metronome: the gap before each demo key cycles
-// through these, in ticks.
-const DEMO_KEY_TICKS = [6, 9, 5, 7, 12, 6, 8, 5, 10];
+const UNEVEN_DEMO_KEY_GAP_TICKS = [6, 9, 5, 7, 12, 6, 8, 5, 10];
 const TICKS_AFTER_DEMO_COMMAND = 150;
 const DEMO_RESUMES_AFTER_TICKS = 900;
 const DEMO_COMMANDS = ["whoami", "neofetch", "mishka", "top"];
@@ -77,7 +75,6 @@ export type Line =
 
 const chunks = (text: string) => text.match(new RegExp(`.{1,${TERMINAL_COLUMNS}}`, "g")) ?? [""];
 
-// Breaks at spaces where it can, and inside a word only when the word alone is too long.
 function wrapWords(text: string) {
   const rows: string[] = [];
   for (const word of text.split(" ").flatMap(chunks)) {
@@ -97,15 +94,12 @@ function find(command: string): Command | undefined {
 
 const isKnown = (command: string) => command === "clear" || find(command) !== undefined;
 
-// The first row of a command leaves room for the prompt's arrow.
 function commandRows(input: string, known: boolean): Line[] {
   const first = input.slice(0, TERMINAL_COLUMNS - PROMPT.length);
   const rest = input.slice(first.length);
   return [first, ...(rest ? chunks(rest) : [])].map((text, row) => ({ kind: "command", text, known, first: row === 0 }));
 }
 
-// A toy of Dan's own shell: a status line above each prompt, the arrow red after
-// a command that failed, and the command itself green once it is one that exists.
 export function createTerminal(onAction: (action: TerminalAction) => void = () => {}, now: () => Date = () => new Date()) {
   let scrollback: Line[] = [{ kind: "output", text: "Type help.", hint: true }];
   let prompt: Line = { kind: "prompt", clock: clockAt(now()), failed: false };
@@ -150,7 +144,7 @@ export function createTerminal(onAction: (action: TerminalAction) => void = () =
     if (demoLetter < command.length) {
       input += command[demoLetter];
       demoLetter += 1;
-      demoWait = DEMO_KEY_TICKS[keystrokes % DEMO_KEY_TICKS.length];
+      demoWait = UNEVEN_DEMO_KEY_GAP_TICKS[keystrokes % UNEVEN_DEMO_KEY_GAP_TICKS.length];
       return;
     }
     run(false);
