@@ -17,7 +17,7 @@ const DEMO_RESUMES_AFTER_TICKS = 900;
 const DEMO_COMMANDS = ["whoami", "neofetch", "mishka", "top"];
 
 export const RESPONSES: Record<string, string[]> = {
-  help: ["whoami ls hire top", "resume projects pwd", "stoke mishka git log", "The rest is hidden."],
+  help: ["whoami ls mail top", "resume projects pwd", "stoke mishka git log", "The rest is hidden."],
   whoami: ["Dan Aimone", "Software Engineer", "Seattle, WA"],
   pwd: ["~/cabin", "Under Rainier."],
   ls: ["resume.pdf projects/", "rainier/ mishka/", "guitars/"],
@@ -29,8 +29,7 @@ export const RESPONSES: Record<string, string[]> = {
   projects: ["Heading down."],
   "cd projects": ["Heading down."],
   "open resume.pdf": ["Opening the PDF."],
-  hire: [EMAIL],
-  "sudo hire dan": ["Granted.", EMAIL],
+  mail: [EMAIL],
   neofetch: ["os: log cabin", "wm: firewood", "shell: warm", "dog: Samoyed"],
   top: ["mishka  100% nap", "fire     12% cpu", "dan      coffee"],
   uptime: ["up since 2017", "load: 1 Samoyed"],
@@ -47,7 +46,7 @@ export const RESPONSES: Record<string, string[]> = {
   "cd ..": ["You just got here."],
   "git blame": ["It was Mishka."],
   "git log": [...STOPS].reverse().map((stop) => `* ${stop.firstYear} ${stop.label}`),
-  "man dan": ["DAN(1)", "Builds agentic AI", "products end to end.", "See also: hire"],
+  "man dan": ["DAN(1)", "Builds agentic AI", "products end to end.", "See also: mail"],
   stoke: ["The fire jumps."],
   "git status": ["nothing to commit,", "dog tree clean"],
   "git push": ["Everything", "up-to-date"],
