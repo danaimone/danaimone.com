@@ -263,6 +263,7 @@ const description =
     </footer>
 
     <script>
+      import { copyEmail } from "../scripts/copy-email";
       import { followSectionLinks } from "../scripts/pixel-wipe";
 
       followSectionLinks();
@@ -288,16 +289,7 @@ const description =
       });
 
       const copy = document.querySelector<HTMLButtonElement>("[data-copy-email]");
-      copy?.addEventListener("click", async () => {
-        const label = copy.querySelector("span")!;
-        try {
-          await navigator.clipboard.writeText(copy.dataset.copyEmail!);
-          label.textContent = "Copied";
-          setTimeout(() => (label.textContent = "Copy email"), 2400);
-        } catch {
-          location.href = `mailto:${copy.dataset.copyEmail}`;
-        }
-      });
+      copy?.addEventListener("click", () => copyEmail(copy.dataset.copyEmail!, copy.querySelector("span")!));
     </script>
   </body>
 </html>

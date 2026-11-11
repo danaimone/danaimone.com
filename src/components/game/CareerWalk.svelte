@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { EMAIL, elsewhere, experience, type StopId } from "../../data/resume";
+  import { copyEmail } from "../../scripts/copy-email";
   import { goTo } from "../../scripts/pixel-wipe";
   import { gameUrl } from "./art-url";
   import { PARALLAX_LAYERS, startWalk } from "./engine";
@@ -10,7 +11,6 @@
   type Toast = { id: number; text: string; x: number; tone: "gem" | "level" };
 
   const TOAST_MS = 1600;
-  const COPIED_MS = 2400;
 
   let stage: HTMLElement;
   let view: HTMLElement;
@@ -21,6 +21,7 @@
   let room: HTMLCanvasElement;
   let mainScreen: HTMLCanvasElement;
   let sideScreen: HTMLCanvasElement;
+  let copyLabel: HTMLElement;
   let walk: ReturnType<typeof startWalk> | undefined;
 
   let zone = $state<Zone>("intro");
@@ -29,7 +30,6 @@
   let collected = $state<string[]>([]);
   let toasts = $state<Toast[]>([]);
   let progress = $state(0);
-  let copied = $state(false);
   let nextToast = 0;
 
   const stop = $derived(experience.find((s) => s.id === zone));
@@ -67,16 +67,6 @@
     );
     return () => walk?.stop();
   });
-
-  async function copyEmail() {
-    try {
-      await navigator.clipboard.writeText(EMAIL);
-      copied = true;
-      setTimeout(() => (copied = false), COPIED_MS);
-    } catch {
-      window.location.href = `mailto:${EMAIL}`;
-    }
-  }
 </script>
 
 <section class="walk" class:is-unavailable={unavailable} bind:this={stage} aria-label="Career walk">
@@ -145,8 +135,8 @@
       <header><h2>Contact</h2></header>
       <a class="walk-email" href={`mailto:${EMAIL}`} tabindex={zone === "contact" ? 0 : -1}>{EMAIL}</a>
       <div class="walk-contact-row">
-        <button type="button" class="copy copy-email" onclick={copyEmail} tabindex={zone === "contact" ? 0 : -1}>
-          <span aria-live="polite">{copied ? "Copied" : "Copy email"}</span>
+        <button type="button" class="copy copy-email" onclick={() => copyEmail(EMAIL, copyLabel)} tabindex={zone === "contact" ? 0 : -1}>
+          <span bind:this={copyLabel} aria-live="polite">Copy email</span>
         </button>
         <button type="button" class="copy" onclick={() => walk?.teleport(BACK_TO_START)} tabindex={zone === "contact" ? 0 : -1}>
           Walk again
