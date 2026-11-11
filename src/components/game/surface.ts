@@ -1,5 +1,6 @@
-import { GROUND_DEPTH, SOIL_DEPTH, type skyAt } from "./art";
+import { GROUND_DEPTH, SOIL_DEPTH } from "./art";
 import type { createSimulation } from "./simulation";
+import type { skyAt } from "./sky";
 
 const MIN_TIMELINE_PX = 60;
 

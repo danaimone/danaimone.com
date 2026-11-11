@@ -1,5 +1,4 @@
 import { createActors } from "./actors";
-import { skyAt } from "./art";
 import { loadArt, type Art } from "./assets";
 import { createDoomLauncher } from "./doom-launcher";
 import { driveWithFinger } from "./finger";
@@ -11,7 +10,7 @@ import { createPlane } from "./plane";
 import type { ScreenCanvases } from "./room-screens";
 import { createRoomView } from "./room-view";
 import { CONTACT_FINALE, cameraAt, createSimulation, createStepClock, type Zone } from "./simulation";
-import { createSky } from "./sky";
+import { createSky, skyAt } from "./sky";
 import { createSteadyClock } from "./steady-clock";
 import { measureViewport, sizeKey, type WalkSurface } from "./surface";
 import { createTerminal } from "./terminal";
