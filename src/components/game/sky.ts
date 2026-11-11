@@ -6,13 +6,24 @@ import { clamp } from "./track";
 
 const REVEAL = { from: 3380, to: 3930, summitAt: 0.56, baseBelowGround: 6, buriedTop: 70, drift: 34 };
 const REVEAL_FADE = 0.4;
+const ALPENGLOW = { pace: 1.15, alpha: 0.75 };
+const MOONLIT = { from: 0.55, over: 0.45, alpha: 0.6 };
+const SKY_REPAINT_STEPS = 300;
+const HORIZON_ABOVE_GROUND = 10;
+const SUN_ARC = { from: 0.02, over: 0.76, left: 0.12, across: 0.8, aboveGround: 14, rise: 0.72 };
 const SUN_ARC_OVERRUN = 0.14;
+const SUN_EVENING = { from: 0.6, over: 0.4 };
+const MOON = { risesFrom: 0.9, risesOver: 0.1, x: 0.18, lowY: 0.42, climb: 0.22 };
 const MOON_DISC = { x: 12, y: 20, radius: 20.5 };
+const STARS = { areaPerStar: 700, skyShare: 0.62, minBrightness: 0.4, brightnessSpread: 0.6 };
+const TWINKLE = { base: 0.6, depth: 0.4, rate: 1.7 };
+const CLOUDS = { parallax: 0.08, drift: 2, appearFrom: 0.06, appearOver: 0.06 };
+const CLOUD_SPAWN = { gap: 150, gapSpread: 170, top: 0.04, topSpread: 0.34, speed: 0.6, speedSpread: 0.8 };
 const CLOUD_MARGIN = 200;
 
 type Ctx = CanvasRenderingContext2D;
 
-type Star = { x: number; y: number; b: number; s: number };
+type Star = { x: number; y: number; brightness: number; phase: number };
 type Cloud = { x: number; y: number; kind: number; facing: "left" | "right"; speed: number };
 
 // Accepts "#rrggbb" or the "rgb(r,g,b)" strings mix() returns.
@@ -173,10 +184,10 @@ export function createSky({ canvas, stage, art, reduced }: { canvas: HTMLCanvasE
   tintedClouds.height = art.clouds.height * 2;
   const tintedCloudsCtx = tintedClouds.getContext("2d")!;
   const banded = document.createElement("canvas");
-  let bandedCtx = banded.getContext("2d")!;
+  const bandedCtx = banded.getContext("2d")!;
   const tile = document.createElement("canvas");
   tile.width = DITHER_PERIOD;
-  let tileCtx = tile.getContext("2d")!;
+  const tileCtx = tile.getContext("2d")!;
   let tilePixels: ImageData | null = null;
   let paintedStep = "";
   let viewport: Viewport;
@@ -201,17 +212,17 @@ export function createSky({ canvas, stage, art, reduced }: { canvas: HTMLCanvasE
 
   function cloudLeft(cloud: Cloud, camera: number, drift: number) {
     const span = viewport.width + CLOUD_MARGIN * 2;
-    let cx = (cloud.x - camera * 0.08 + drift * cloud.speed) % span;
+    let cx = (cloud.x - camera * CLOUDS.parallax + drift * cloud.speed) % span;
     if (cx < 0) cx += span;
     return Math.round(cx - CLOUD_MARGIN);
   }
 
   // The banded sky is repainted only when the time of day crosses a step.
   function paintBands(tod: number, sky: Sky) {
-    const step = `${Math.round(tod * 300)}`;
+    const step = `${Math.round(tod * SKY_REPAINT_STEPS)}`;
     if (step === paintedStep || !tilePixels) return;
     const { width, height, ground } = viewport;
-    paintSky(tilePixels, sky, ground - 10);
+    paintSky(tilePixels, sky, ground - HORIZON_ABOVE_GROUND);
     tileCtx.putImageData(tilePixels, 0, 0);
     bandedCtx.fillStyle = bandedCtx.createPattern(tile, "repeat")!;
     bandedCtx.fillRect(0, 0, width, height);
@@ -229,9 +240,9 @@ export function createSky({ canvas, stage, art, reduced }: { canvas: HTMLCanvasE
     const mountainY = Math.round(buried + (restTop - buried) * eased);
     ctx.globalAlpha = clamp(reveal / REVEAL_FADE, 0, 1);
     ctx.drawImage(rainier, mountainX, mountainY);
-    ctx.globalAlpha = clamp((reveal - REVEAL_FADE) / REVEAL_FADE, 0, 1) * Math.sin(Math.PI * Math.min(reveal * 1.15, 1)) * 0.75;
+    ctx.globalAlpha = clamp((reveal - REVEAL_FADE) / REVEAL_FADE, 0, 1) * Math.sin(Math.PI * Math.min(reveal * ALPENGLOW.pace, 1)) * ALPENGLOW.alpha;
     ctx.drawImage(alpenglow, mountainX, mountainY);
-    ctx.globalAlpha = clamp((reveal - 0.55) / 0.45, 0, 1) * 0.6;
+    ctx.globalAlpha = clamp((reveal - MOONLIT.from) / MOONLIT.over, 0, 1) * MOONLIT.alpha;
     ctx.drawImage(moonlit, mountainX, mountainY);
     ctx.globalAlpha = 1;
   }
@@ -244,27 +255,25 @@ export function createSky({ canvas, stage, art, reduced }: { canvas: HTMLCanvasE
       fitCanvas(canvas, width, height, scale);
       banded.width = width;
       banded.height = height;
-      bandedCtx = banded.getContext("2d")!;
       tile.height = height;
-      tileCtx = tile.getContext("2d")!;
       tilePixels = tileCtx.createImageData(DITHER_PERIOD, height);
       paintedStep = "";
       const r = rng(3);
       clouds = [];
-      for (let cx = 0; cx < width + CLOUD_MARGIN * 2; cx += 150 + r() * 170) {
+      for (let cx = 0; cx < width + CLOUD_MARGIN * 2; cx += CLOUD_SPAWN.gap + r() * CLOUD_SPAWN.gapSpread) {
         clouds.push({
           x: cx,
-          y: Math.round(ground * (0.04 + r() * 0.34)),
+          y: Math.round(ground * (CLOUD_SPAWN.top + r() * CLOUD_SPAWN.topSpread)),
           kind: Math.floor(r() * CLOUD_KINDS),
           facing: r() < 0.5 ? "right" : "left",
-          speed: 0.6 + r() * 0.8,
+          speed: CLOUD_SPAWN.speed + r() * CLOUD_SPAWN.speedSpread,
         });
       }
-      stars = Array.from({ length: Math.round((width * ground) / 700) }, () => ({
+      stars = Array.from({ length: Math.round((width * ground) / STARS.areaPerStar) }, () => ({
         x: Math.floor(r() * width),
-        y: Math.floor(r() * ground * 0.62),
-        b: 0.4 + r() * 0.6,
-        s: r() * 6,
+        y: Math.floor(r() * ground * STARS.skyShare),
+        brightness: STARS.minBrightness + r() * STARS.brightnessSpread,
+        phase: r() * 6,
       }));
     },
     paint({ t, camera, tod, sky, walk }: Frame) {
@@ -272,15 +281,15 @@ export function createSky({ canvas, stage, art, reduced }: { canvas: HTMLCanvasE
       paintBands(tod, sky);
       ctx.drawImage(banded, 0, 0, width, ground, 0, 0, width, ground);
 
-      const moonRise = clamp((tod - 0.9) / 0.1, 0, 1);
-      const moonLeft = Math.round(width * 0.18) - art.moon.width / 2;
-      const moonTop = Math.round(ground * (0.42 - moonRise * 0.22)) - art.moon.height / 2;
+      const moonRise = clamp((tod - MOON.risesFrom) / MOON.risesOver, 0, 1);
+      const moonLeft = Math.round(width * MOON.x) - art.moon.width / 2;
+      const moonTop = Math.round(ground * (MOON.lowY - moonRise * MOON.climb)) - art.moon.height / 2;
       if (sky.stars > 0.02) {
         ctx.fillStyle = "#fff7e6";
         for (const s of stars) {
-          const tw = reduced ? 1 : 0.6 + 0.4 * Math.sin(t * 1.7 + s.s);
+          const tw = reduced ? 1 : TWINKLE.base + TWINKLE.depth * Math.sin(t * TWINKLE.rate + s.phase);
           const behindMoon = moonRise > 0 && Math.hypot(s.x - moonLeft - MOON_DISC.x, s.y - moonTop - MOON_DISC.y) < MOON_DISC.radius;
-          ctx.globalAlpha = clamp(sky.stars * s.b * tw * (behindMoon ? 1 - moonRise : 1), 0, 1);
+          ctx.globalAlpha = clamp(sky.stars * s.brightness * tw * (behindMoon ? 1 - moonRise : 1), 0, 1);
           ctx.fillRect(s.x, s.y, 1, 1);
         }
         ctx.globalAlpha = 1;
@@ -293,17 +302,17 @@ export function createSky({ canvas, stage, art, reduced }: { canvas: HTMLCanvasE
       }
 
       // The sun's arc runs on past the horizon, so the world hides it at both ends.
-      const sunT = (tod - 0.02) / 0.76;
+      const sunT = (tod - SUN_ARC.from) / SUN_ARC.over;
       if (sunT > -SUN_ARC_OVERRUN && sunT < 1 + SUN_ARC_OVERRUN) {
-        const sx = Math.round(width * (0.12 + sunT * 0.8));
-        const sy = Math.round(ground - 14 - Math.sin(sunT * Math.PI) * (ground * 0.72));
-        drawSun(ctx, sunArt, sx, sy, clamp((sunT - 0.6) / 0.4, 0, 1));
+        const sx = Math.round(width * (SUN_ARC.left + sunT * SUN_ARC.across));
+        const sy = Math.round(ground - SUN_ARC.aboveGround - Math.sin(sunT * Math.PI) * (ground * SUN_ARC.rise));
+        drawSun(ctx, sunArt, sx, sy, clamp((sunT - SUN_EVENING.from) / SUN_EVENING.over, 0, 1));
       }
 
-      const cloudAlpha = clamp((tod - 0.06) / 0.06, 0, 1) * (1 - clamp(reveal / REVEAL_FADE, 0, 1));
+      const cloudAlpha = clamp((tod - CLOUDS.appearFrom) / CLOUDS.appearOver, 0, 1) * (1 - clamp(reveal / REVEAL_FADE, 0, 1));
       ctx.globalAlpha = cloudAlpha;
       if (cloudAlpha > 0) {
-        const drift = reduced ? 0 : t * 2;
+        const drift = reduced ? 0 : t * CLOUDS.drift;
         const { height } = art.clouds;
         for (const c of clouds) {
           const column = c.facing === "right" ? c.kind : CLOUD_KINDS - 1 - c.kind;
